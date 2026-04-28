@@ -327,6 +327,8 @@ function generateMarkdownReport(
 쿼리 파라미터:
 - `asset_ids` (콤마 구분, 필수)
 
+`asset_ids`가 비었거나 Snapshot에 속하지 않는 asset id를 포함하면 422를 반환한다.
+
 응답:
 ```json
 {

@@ -525,13 +525,17 @@ Discovery로 발견된 endpoint.
 
 ## 7.6 트랜잭션 경계
 
+API mutation이 비동기 Job enqueue를 동반하면 Worker/Redis preflight를 먼저 수행한다. preflight 또는 enqueue 예약 단계에서 실패하면 503을 반환하고 domain row와 `AsyncJob`은 남기지 않는다. DB 변경, `AsyncJob` 생성, enqueue 예약은 1개 DB 트랜잭션으로 묶고 실제 Redis publish는 `transaction.on_commit`에서 실행한다. commit 이후 publish 실패는 해당 `AsyncJob`을 `FAILED`로 마감하고 운영 알림 대상이며, API 503 계약 테스트는 commit 전 실패 경로를 검증한다.
+
 | 작업 | 트랜잭션 |
 |---|---|
-| Scan Job 생성 + Redis enqueue | DB 트랜잭션 commit 후 enqueue (post-transaction signal) |
+| Scan Job 생성 + AsyncJob + enqueue 예약 | Worker/Redis preflight 후 1개 트랜잭션. preflight/enqueue 예약 실패 시 503, `ScanJob`/`AsyncJob` 생성 없음 |
+| Discovery 생성 + AsyncJob + enqueue 예약 | Worker/Redis preflight 후 1개 트랜잭션. 실패 시 `Discovery`/`AsyncJob` 생성 없음 |
 | Snapshot 생성 + Asset bulk insert + Edge bulk insert + 파일 저장 | 1개 트랜잭션. 파일 저장은 트랜잭션 commit 후. 트랜잭션 실패 시 임시 파일 삭제 |
 | RiskScore 계산 | 자산 단위 별개 트랜잭션. 일부 실패해도 다른 자산은 평가 완료 |
-| Target 컨텍스트 수정 후 RiskScore 재계산 | Target 업데이트 트랜잭션 commit 후 비동기 재계산 Job 큐잉 |
-| Asset 컨텍스트 override 수정 후 RiskScore 재계산 | AssetContextOverride 업데이트 트랜잭션 commit 후 비동기 재계산 Job 큐잉 |
+| Target 컨텍스트 수정 + recompute AsyncJob + enqueue 예약 | 1개 트랜잭션. 실패 시 Target 변경과 `AsyncJob` 모두 rollback |
+| Asset 컨텍스트 override 수정 + recompute AsyncJob + enqueue 예약 | 1개 트랜잭션. 실패 시 `AssetContextOverride` 변경과 `AsyncJob` 모두 rollback |
+| Risk recompute Job 생성 + enqueue 예약 | Worker/Redis preflight 후 1개 트랜잭션. 실패 시 `AsyncJob` 생성 없음 |
 
 ## 7.7 마이그레이션 전략
 

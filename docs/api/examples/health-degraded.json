@@ -1,0 +1,8 @@
+{
+  "status": "degraded",
+  "api": "ok",
+  "database": "ok",
+  "redis": "down",
+  "worker": "ok",
+  "checked_at": "2026-04-29T00:00:00Z"
+}

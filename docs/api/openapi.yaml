@@ -30,6 +30,8 @@ tags:
     description: PQC migration recommendations.
   - name: Agents
     description: Agent registration, listing, and heartbeat.
+  - name: Health
+    description: Backend dependency health for UI status indicators.
   - name: Dashboard
     description: Aggregated dashboard metrics.
   - name: Meta
@@ -315,6 +317,8 @@ paths:
                 $ref: '#/components/schemas/DiscoveryPromoteResult'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         default:
           $ref: '#/components/responses/Error'
 
@@ -725,7 +729,7 @@ paths:
       - $ref: '#/components/parameters/Id'
     post:
       tags: [Assets]
-      summary: Generate or retrieve qualitative assessment
+      summary: Generate or refresh qualitative assessment
       operationId: createQualitativeAssessment
       responses:
         '200':
@@ -789,6 +793,8 @@ paths:
               examples:
                 default:
                   externalValue: ./examples/risk-list.json
+        '400':
+          $ref: '#/components/responses/Error'
         '404':
           $ref: '#/components/responses/NotFound'
         default:
@@ -1014,6 +1020,8 @@ paths:
                   externalValue: ./examples/migration-impact.json
         '400':
           $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
         '404':
           $ref: '#/components/responses/NotFound'
         default:
@@ -1171,6 +1179,33 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Get API and dependency health
+      operationId: getHealth
+      responses:
+        '200':
+          description: API and dependency health status
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              examples:
+                default:
+                  externalValue: ./examples/health-ok.json
+                degraded:
+                  externalValue: ./examples/health-degraded.json
+        '400':
+          $ref: '#/components/responses/Error'
         default:
           $ref: '#/components/responses/Error'
 
@@ -1490,7 +1525,7 @@ components:
 
     ErrorResponse:
       type: object
-      required: [error, message]
+      required: [error, message, details]
       properties:
         error:
           type: string
@@ -1499,6 +1534,7 @@ components:
           type: string
         details:
           type: object
+          description: Machine-readable error details. Empty object when there are no details.
           additionalProperties: true
 
     TargetContext:
@@ -2548,7 +2584,6 @@ components:
         updated_at:
           type: string
           format: date-time
-          nullable: true
       additionalProperties: false
 
     RiskRecomputeRequest:
@@ -2782,6 +2817,28 @@ components:
       required: [received_at]
       properties:
         received_at:
+          type: string
+          format: date-time
+
+    HealthComponentStatus:
+      type: string
+      enum: [ok, degraded, down]
+
+    HealthStatus:
+      type: object
+      required: [status, api, database, redis, worker, checked_at]
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthComponentStatus'
+        api:
+          $ref: '#/components/schemas/HealthComponentStatus'
+        database:
+          $ref: '#/components/schemas/HealthComponentStatus'
+        redis:
+          $ref: '#/components/schemas/HealthComponentStatus'
+        worker:
+          $ref: '#/components/schemas/HealthComponentStatus'
+        checked_at:
           type: string
           format: date-time
 

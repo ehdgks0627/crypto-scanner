@@ -306,7 +306,7 @@ def analyze(self, asset, context, related_assets):
 ### 6.6.3 호출 시점
 
 - 사용자가 Asset Detail 페이지에서 "정성 분석 요청" 버튼 클릭 시 (지연 호출)
-- 결과는 DB에 캐시 (자산 변경 없으면 재호출 안 함)
+- 결과는 Asset당 1개 DB 레코드로 저장한다. 재요청 시 기존 레코드를 갱신해 반환한다.
 
 ## 6.7 위험도 데이터 영속화
 

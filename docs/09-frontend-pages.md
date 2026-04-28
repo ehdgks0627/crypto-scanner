@@ -79,7 +79,7 @@ Header 우측에 항상 표시. 5초 주기로 `/api/jobs?status=RUNNING&limit=1
 
 ### 9.3.2 시스템 상태 인디케이터
 
-Header에 작은 점 아이콘 (녹/황/적). 1분 주기로 `/api/dashboard/summary`의 `agents_status` + Worker liveness 확인 (별도 `/api/health` 엔드포인트가 필요하면 8장에 추가 — 본 문서에서는 dashboard summary로 갈음).
+Header에 작은 점 아이콘 (녹/황/적). 1분 주기로 `GET /api/health`를 호출해 API/DB/Redis/Worker 상태를 확인한다. `status=ok`는 녹색, `degraded`는 황색, `down` 또는 fetch 실패는 적색으로 표시한다.
 
 ## 9.4 페이지별 상세
 
@@ -655,7 +655,7 @@ Header에 작은 점 아이콘 (녹/황/적). 1분 주기로 `/api/dashboard/sum
 
 **레이아웃**: 테이블 (Hostname, URL, Capabilities, Last Seen, Status, 액션).
 
-상태 배지: Active (녹) / Stale (황) / Inactive (회).
+상태 배지: Active (녹) / Stale (황) / Inactive (회). `active=false`와 stale 조건이 동시에 참이면 Inactive를 우선 표시한다 (`Inactive > Stale > Active`).
 
 각 행 액션: 비활성화 (DELETE).
 
@@ -728,6 +728,7 @@ Header에 작은 점 아이콘 (녹/황/적). 1분 주기로 `/api/dashboard/sum
 | `['job', id]` | 5초 | status가 PENDING/RUNNING인 동안만 |
 | `['discovery', id]` | 5초 | status가 PENDING/RUNNING인 동안만 |
 | 활성 Job 카운터 | 5초 | 항상 (Header 표시) |
+| `['health']` | 1분 | 항상 (Header 표시) |
 | `['agents']` | 1분 | Agents 페이지 활성 시 |
 | 그 외 | 폴링 없음 | 사용자 액션으로 invalidate |
 
