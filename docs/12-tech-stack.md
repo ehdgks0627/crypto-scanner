@@ -20,7 +20,7 @@
 | 데이터 검증 | pydantic | 2.7+ | django-ninja에 내장 |
 | 환경변수 | django-environ | 0.11+ | `.env` 파일 로딩 |
 | 로깅 | structlog | 24.1+ | 구조화 로깅 |
-| 테스트 | pytest, pytest-django | latest | |
+| 테스트 | pytest, pytest-django | 8.2+ / 4.8+ | |
 
 ### 12.2.2 스캐너 / 암호 라이브러리
 
@@ -30,7 +30,7 @@
 | TLS handshake | tlslite-ng | 0.8+ | TLS 1.0~1.3 ClientHello 직접 작성 |
 | OpenSSL 바인딩 | pyOpenSSL | 24+ | SSL 컨텍스트 보조 |
 | PQC 협상 | (외부 의존) | OQS Provider 기반 OpenSSL 3.x | subprocess로 호출 |
-| PQC Python | oqs-python | latest | (옵션) ML-KEM/ML-DSA 직접 사용 |
+| PQC Python | oqs-python | optional, lockfile 고정 | (옵션) ML-KEM/ML-DSA 직접 사용 |
 | 패킷 작성/파싱 | scapy | 2.5+ | IKE_SA_INIT |
 | OpenPGP | pgpy | 0.6+ | PGP keyring 파싱 |
 | PKCS#12 | cryptography | 42+ | (내장) |
@@ -61,21 +61,21 @@
 | 라우팅 | react-router-dom | 6.23+ | |
 | 서버 상태 | @tanstack/react-query | 5.32+ | |
 | 클라이언트 상태 | zustand | 4.5+ | (가벼운 전역 상태) |
-| HTTP 클라이언트 | axios 또는 ky | latest | |
+| HTTP 클라이언트 | ky | 1.x, lockfile 고정 | fetch wrapper 기반 |
 | 폼 | react-hook-form | 7.51+ | |
 | 검증 | zod | 3.23+ | |
 | UI 컴포넌트 | shadcn/ui | (Radix 1.0+) | Tailwind 기반 |
 | 스타일 | tailwindcss | 3.4+ | |
 | 차트 | recharts | 2.12+ | |
 | 그래프 | @xyflow/react (React Flow) | 12+ | 자산 의존성 그래프 |
-| 아이콘 | lucide-react | latest | |
+| 아이콘 | lucide-react | lockfile 고정 | |
 | 토스트 | sonner | 1.4+ | (shadcn 통합) |
 | 날짜 | date-fns | 3.6+ | |
 | 테이블 | @tanstack/react-table | 8.16+ | (shadcn DataTable 기반) |
 | 코드 표시 | react-syntax-highlighter | 15+ | CBOM JSON 미리보기 |
 | 마크다운 | marked | 12+ | Migration 보고서 다운로드 시 |
 
-### 12.3.1 OpenAPI → 타입 생성 (옵션)
+### 12.3.1 OpenAPI → 타입 생성
 
 | 패키지 | 용도 |
 |---|---|
@@ -83,10 +83,11 @@
 
 계약 설계 단계에서는 정적 원본인 `docs/api/openapi.yaml`을 사용한다.
 백엔드 구현 후에는 Django Ninja가 노출하는 `/api/openapi.json`과 정적 원본의 차이를 검증한다.
+타입 생성은 v1 계약 gate에 포함한다.
 
 빌드 시점 또는 dev script로 호출:
 ```bash
-npx openapi-typescript ../../docs/api/openapi.yaml -o src/api/types.ts
+npx openapi-typescript ../../docs/api/openapi.yaml -o src/api/generated/types.ts
 ```
 
 ## 12.4 인프라 / 운영
@@ -107,12 +108,18 @@ npx openapi-typescript ../../docs/api/openapi.yaml -o src/api/types.ts
 
 ## 12.5 저장소 디렉터리 구조
 
-루트 저장소는 다음 4개의 워크스페이스를 포함하는 monorepo 구조다.
+루트 저장소는 문서/계약, 시스템 앱, 테스트베드, 보조 도구를 포함하는 monorepo 구조로 구성한다. 아래 트리는 구현 scaffold 대상 구조이며, 실제 구현 코드는 `system/` 아래에 두고 API 설계와 테스트 의도는 `docs/`, `test-contracts/`에 분리해 보관한다.
 
 ```
-pqc-ras/
+crypto-scanner/
 ├── README.md
 ├── docs/                      # 본 명세 문서들 (00~13.md)
+│   └── api/
+│       ├── openapi.yaml        # API 계약 source of truth
+│       └── examples/           # OpenAPI externalValue 예시 JSON
+├── test-contracts/             # 구현 전 TDD/acceptance 계약
+│   └── api/
+│       └── scenarios.md        # 자연어 API acceptance scenarios
 ├── system/                    # 시스템 스택 (백엔드 + 프론트 + DB + Redis)
 │   ├── docker-compose.yml
 │   ├── .env.example
@@ -126,14 +133,17 @@ pqc-ras/
 │   │   │   ├── celery.py
 │   │   │   └── wsgi.py
 │   │   ├── apps/
-│   │   │   ├── core/          # 공통 모델/유틸
+│   │   │   ├── core/          # 공통 error/request id/pagination/csv parser
 │   │   │   ├── targets/
 │   │   │   ├── discoveries/
-│   │   │   ├── jobs/          # ScanJob, Recompute Job
-│   │   │   ├── snapshots/     # CbomSnapshot, Asset, Edge
+│   │   │   ├── jobs/          # AsyncJob 공통 lifecycle, ScanJob 생성/조회
+│   │   │   ├── snapshots/     # CbomSnapshot, Edge, export/diff
+│   │   │   ├── assets/        # Asset inventory/detail/context/qualitative
 │   │   │   ├── risk/          # RiskScore, weights
 │   │   │   ├── migration/     # Migration Plan
 │   │   │   ├── agents/
+│   │   │   ├── health/        # /api/health
+│   │   │   ├── dashboard/     # /api/dashboard/summary
 │   │   │   └── meta/          # /api/meta/*
 │   │   ├── scanners/          # Network Scanner 구현
 │   │   │   ├── base.py
@@ -153,11 +163,11 @@ pqc-ras/
 │   │   │   ├── base.py
 │   │   │   ├── mock.py
 │   │   │   └── (provider 구현은 v2)
-│   │   ├── tasks/             # Celery 태스크
-│   │   │   ├── scan_job.py
-│   │   │   ├── discovery.py
-│   │   │   └── recompute.py
 │   │   ├── tests/
+│   │   │   ├── scanners/
+│   │   │   ├── cbom/
+│   │   │   ├── risk_engine/
+│   │   │   └── llm/
 │   │   └── fixtures/
 │   │       └── initial_targets.json
 │   └── frontend/
@@ -166,7 +176,15 @@ pqc-ras/
 │       ├── vite.config.ts
 │       ├── tsconfig.json
 │       ├── tailwind.config.ts
-│       └── src/                # 9.10 구조
+│       └── src/
+│           ├── app/            # router, providers, layout shell
+│           ├── api/            # fetch wrapper + generated OpenAPI types
+│           ├── components/     # 공통 UI + layout
+│           ├── features/       # dashboard/targets/assets/... feature modules
+│           ├── pages/          # route entry components
+│           ├── lib/            # format, utils, constants
+│           ├── stores/         # Zustand store
+│           └── styles/
 ├── testbed/                   # 테스트베드 (별도 docker-compose)
 │   ├── docker-compose.yml
 │   ├── .env.example
@@ -192,6 +210,87 @@ pqc-ras/
     ├── reset_db.sh
     └── generate_test_data.sh
 ```
+
+### 12.5.1 Backend app 내부 표준 구조
+
+각 Django app은 API/router, schema, 조회 로직, mutation 로직을 분리한다. 모델이 없는 app(`health`, `dashboard`, 일부 `meta`)도 가능한 한 같은 레이아웃을 유지한다.
+
+```
+apps/<domain>/
+├── apps.py
+├── models.py          # 도메인 모델. 모델이 없으면 생략 가능
+├── schemas.py         # Django Ninja request/response schema
+├── api.py             # Ninja Router와 endpoint binding
+├── selectors.py       # read/query 전용 로직
+├── services.py        # write/use-case/transaction 로직
+├── tasks.py           # Celery task. 비동기 작업이 없는 app은 생략 가능
+├── errors.py          # 도메인별 예외가 필요할 때만
+└── tests/
+    ├── test_api_<scenario>.py
+    └── factories.py
+```
+
+구현 규칙:
+
+- `api.py`는 request parsing, schema binding, status code mapping에 집중한다.
+- DB 변경과 transaction boundary는 `services.py`에 둔다.
+- 목록/상세 조회와 prefetch/select 관련 최적화는 `selectors.py`에 둔다.
+- 테스트 이름은 가능한 경우 `test_<scenario_id>_<short_name>` 형식으로 `test-contracts/api/scenarios.md`의 시나리오 ID와 연결한다. Python 함수명에서는 scenario id의 hyphen을 underscore로 바꾼다. 예: `API-JOB-009` -> `test_api_job_009_running_recompute_not_cancellable`.
+- OpenAPI `operationId`와 Django Ninja router 함수명은 의미가 어긋나지 않게 유지한다.
+
+### 12.5.2 Backend 공통 모듈 책임
+
+```
+apps/core/
+├── errors.py          # ErrorResponse 변환, exception handler
+├── pagination.py      # Page envelope 공통 처리
+├── request_id.py      # X-Request-Id 생성/반향
+├── query_params.py    # CSV query parser, repeated query 거절
+├── responses.py       # 공통 response helpers
+└── testing.py         # API test 공통 assertion/helper
+```
+
+`apps/core`는 도메인 모델을 소유하지 않는다. 다른 app이 공통 기능을 import할 수는 있지만, core가 특정 도메인 app을 import하지 않도록 순환 의존을 피한다.
+
+`apps/dashboard`는 read-only aggregate app이다. 별도 모델을 소유하지 않고 `snapshots`, `risk`, `jobs`, `agents` selector를 조합해 `/api/dashboard/summary`를 제공한다. Dashboard 전용 write service는 두지 않는다.
+
+### 12.5.3 Celery task 배치와 책임
+
+Celery task는 Django app 내부 `tasks.py`에 둔다. `pqc_ras/celery.py`는 `app.autodiscover_tasks()`를 사용해 app-local task를 등록한다.
+
+| Task 종류 | 위치 | 책임 |
+|---|---|---|
+| Scan 실행 | `apps/jobs/tasks.py` | `AsyncJob`/`ScanJob` 상태 전이를 조율하고 scanner service 호출 |
+| Discovery 실행 | `apps/discoveries/tasks.py` | CIDR discovery 실행, endpoint 저장 service 호출 |
+| Risk recompute | `apps/risk/tasks.py` | RiskScore 재계산 service 호출 |
+
+Recompute는 별도 도메인 모델을 만들지 않고 `AsyncJob(kind=recompute)`로 표현한다. `/api/jobs`는 공통 async lifecycle 조회/취소와 scan job 생성만 소유하고, recompute 요청 생성과 실행은 `apps/risk`가 소유한다.
+
+Celery task는 thin orchestrator로 제한한다. DB write, transaction boundary, 상태 전이, rollback 대상 변경은 각 app의 `services.py`에 둔다. API mutation에서 enqueue를 동반하는 변경은 7.6 트랜잭션 경계 규칙을 따른다.
+
+`scanners/`, `cbom/`, `risk_engine/`, `llm/`은 Django app이 아닌 pure module로 유지한다. 이 모듈은 가능하면 DB에 직접 접근하지 않고 입력 객체/DTO를 받아 결과를 반환한다. 해당 모듈의 unit test는 `system/backend/tests/<module>/`에 둔다.
+
+### 12.5.4 Frontend feature 내부 표준 구조
+
+프론트엔드는 route와 feature를 분리한다. `pages/`는 라우팅 진입점이고, 실제 UI/쿼리/폼 로직은 `features/`에 둔다.
+
+```
+src/features/<feature>/
+├── api.ts             # feature query/mutation wrapper
+├── queries.ts         # TanStack Query keys/options
+├── components/
+├── hooks/
+├── schemas.ts         # Zod form schema
+└── types.ts           # feature-local view model type
+```
+
+프론트 구현 규칙:
+
+- `src/api/generated/`는 `docs/api/openapi.yaml`에서 생성한 타입 전용 위치로 사용한다. v1에서는 `openapi-typescript`로 `src/api/generated/types.ts`를 생성하고, API 호출 wrapper는 수기로 작성한다.
+- 사람이 직접 작성하는 fetch wrapper는 `src/api/client.ts`에 둔다.
+- 화면 전용 조합 로직은 `features/*`에 두고, `pages/*`에는 route parameter 연결과 page-level composition만 남긴다.
+- feature 간 공유 UI는 `components/common` 또는 `components/layout`으로 승격하되, 한 화면에서만 쓰는 컴포넌트는 feature 내부에 둔다.
+- `components/charts`와 `components/graph`는 여러 feature에서 재사용되는 primitive만 둔다. 특정 화면 전용 차트/그래프 조합은 해당 `features/<feature>/components/`에 둔다.
 
 ## 12.6 환경변수
 
@@ -355,6 +454,8 @@ services:
       AGENT_CAPABILITIES: ssh_userkey,ssh_config,cert_store
     ports: ["2222:22", "9102:9100"]
     networks: [pqc-testbed-net]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   mqtt:
     build: ./services/mqtt
@@ -385,6 +486,8 @@ services:
       AGENT_CAPABILITIES: cert_store,keystore,app_cert_files,app_config
     ports: ["54320:5432", "9103:9100"]
     networks: [pqc-testbed-net]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   pqc-testbed-net:
@@ -405,7 +508,7 @@ networks:
 ```bash
 # 저장소 클론
 git clone <repo>
-cd pqc-ras
+cd crypto-scanner
 
 # 시스템 스택 .env 작성
 cp system/.env.example system/.env
@@ -457,16 +560,18 @@ curl -X POST http://localhost:8000/api/jobs \
 ### 12.9.1 백엔드 로컬 개발
 
 ```bash
-cd system/backend
+cd system
+
+# 로컬 PostgreSQL/Redis는 docker-compose로 띄우고 백엔드만 로컬 실행 가능
+# system/docker-compose.yml에서 backend, worker, frontend는 주석 처리하거나 scale 0으로 둔다.
+docker compose up -d db redis
+
+cd backend
 
 # 가상환경 + 의존성
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-
-# 로컬 PostgreSQL/Redis는 docker-compose로 띄우고 백엔드만 로컬 실행 가능
-# system/docker-compose.yml에서 backend, worker, frontend는 주석 처리
-docker compose up -d db redis
 
 # 마이그레이션 + 실행
 python manage.py migrate
@@ -568,7 +673,7 @@ Prometheus 메트릭 endpoint (`/metrics`). 주요 지표:
 | 브랜치 | `main` (보호), `feature/*`, `fix/*` |
 | 커밋 메시지 | Conventional Commits 권장 (`feat:`, `fix:`, `docs:`) |
 | PR 리뷰 | 캡스톤 5인 팀 내 리뷰 1인 이상 |
-| CI | GitHub Actions: lint + 단위 테스트 (옵션) |
+| CI | GitHub Actions 필수: OpenAPI lint, example JSON/schema 검증, 타입 생성, 백엔드/프론트 lint + 테스트 |
 | 태그 | `v0.1.0`부터 시작, 캡스톤 종료 시 `v1.0.0` |
 
 ## 12.15 트러블슈팅 가이드 (자주 겪는 이슈)

@@ -24,3 +24,7 @@ npx @redocly/cli lint docs/api/openapi.yaml
 npx openapi-typescript docs/api/openapi.yaml -o /tmp/pqc-api-types.d.ts
 for f in docs/api/examples/*.json; do python -m json.tool "$f" >/dev/null; done
 ```
+
+CI must also validate OpenAPI examples against their referenced schemas, not
+only JSON syntax. The exact validator can be chosen during CI scaffolding, but
+schema-level example validation is part of the contract gate.

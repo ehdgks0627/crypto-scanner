@@ -5,10 +5,11 @@
 본 문서는 Backend API를 TDD로 구현하기 위한 자연어 기반 테스트 계약이다. `docs/api/openapi.yaml`이 필드와 엔드포인트의 기계 판독 기준이라면, 본 문서는 상태 전이, 오류 처리, worker/agent 흐름, 프론트엔드가 의존하는 동작을 시나리오로 고정한다.
 
 구현 단계에서는 각 시나리오 ID를 Django API test 이름에 대응시킨다.
+Python test 함수명에서는 scenario id의 hyphen을 underscore로 바꾼다.
 
 예:
-- `API-COM-001` -> `test_request_id_is_returned_on_success`
-- `API-JOB-004` -> `test_running_recompute_job_cannot_be_cancelled`
+- `API-COM-001` -> `test_api_com_001_request_id_is_returned_on_success`
+- `API-JOB-009` -> `test_api_job_009_running_recompute_job_cannot_be_cancelled`
 
 ## 2 공통 테스트 원칙
 
@@ -503,7 +504,7 @@
 
 기대:
 - 응답 상태는 200이다.
-- 각 item은 `id`, `scan_job_id`, `serial_number`, `asset_count`, `created_at`, `summary`를 포함한다.
+- 각 item은 `id`, `scan_job_id`, `serial_number`, `asset_count`, `created_at`, `summary`, `validation_errors`를 포함한다.
 
 ### API-SNP-002: Snapshot 상세를 조회한다
 
@@ -1002,4 +1003,4 @@
 7. Asset context override 테스트: `API-AST-*`
 8. Dashboard/health/meta smoke 테스트: `API-DSH-*`, `API-HEALTH-*`, `API-META-*`
 
-각 Django test는 OpenAPI schema 자체를 다시 검증하기보다, 본 시나리오의 상태 전이와 응답 의미를 검증한다. 필드 수준 schema 검증은 `docs/api/openapi.yaml`과 generated client/contract test가 담당한다.
+각 Django test는 OpenAPI schema 자체를 다시 검증하기보다, 본 시나리오의 상태 전이와 응답 의미를 검증한다. 필드 수준 schema 검증은 `docs/api/openapi.yaml`, generated types, contract test가 담당한다.

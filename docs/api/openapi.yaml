@@ -1726,7 +1726,7 @@ components:
 
     TargetPatchResult:
       type: object
-      required: [target]
+      required: [target, recompute_job_id]
       properties:
         target:
           $ref: '#/components/schemas/Target'
@@ -2096,6 +2096,8 @@ components:
         - serial_number
         - asset_count
         - created_at
+        - summary
+        - validation_errors
       properties:
         id:
           type: integer

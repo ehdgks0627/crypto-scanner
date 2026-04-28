@@ -691,8 +691,8 @@ Header에 작은 점 아이콘 (녹/황/적). 1분 주기로 `GET /api/health`�
 | Layout | AppHeader, AppSidebar, AppShell | 자작 (shadcn 기반) |
 | Form | TargetForm, ContextEditor, WeightSlider | 자작 (RHF + Zod) |
 | Table | DataTable, AssetTable, JobTable, TargetTable | shadcn DataTable 확장 |
-| Chart | TierDonut, AssetTypeDonut, AlgorithmFamilyBar, TrendLineChart, RiskHistogram | Recharts |
-| Graph | DependencyGraph | React Flow |
+| Chart | ChartContainer, DonutChartFrame, BarChartFrame, LineChartFrame | Recharts primitive wrapper. TierDonut 등 화면별 조합은 feature 내부 |
+| Graph | GraphCanvas, GraphNodeShell, GraphToolbar | React Flow primitive wrapper. DependencyGraph 조합은 feature 내부 |
 | Card | KpiCard, RiskScoreCard, QuantumThreatCard, QualitativeCard | 자작 (shadcn Card) |
 | Dialog | TargetCreateDialog, ContextOverrideDialog, PromoteDialog | shadcn Dialog |
 | Misc | RiskTierBadge, AlgorithmBadge, StatusPill, JobProgressBar | 자작 |
@@ -785,41 +785,32 @@ frontend/
 ├── src/
 │   ├── main.tsx
 │   ├── App.tsx
-│   ├── routes/
-│   │   ├── dashboard.tsx
-│   │   ├── targets/
-│   │   │   ├── index.tsx
-│   │   │   └── [id].tsx
-│   │   ├── discoveries/
-│   │   ├── scans/
-│   │   ├── snapshots/
-│   │   │   ├── [id]/
-│   │   │   │   ├── index.tsx          # Asset Inventory
-│   │   │   │   ├── diff.tsx
-│   │   │   │   ├── risk.tsx
-│   │   │   │   ├── migration.tsx
-│   │   │   │   └── assets/[aid].tsx
-│   │   ├── cbom.tsx
-│   │   ├── agents.tsx
-│   │   └── settings.tsx
+│   ├── app/
+│   │   ├── router.tsx
+│   │   ├── providers.tsx
+│   │   └── layout.tsx
 │   ├── components/
 │   │   ├── ui/                        # shadcn 생성물
 │   │   ├── layout/
-│   │   ├── targets/
-│   │   ├── assets/
 │   │   ├── charts/
 │   │   ├── graph/
 │   │   └── common/
 │   ├── api/
-│   │   ├── client.ts                  # axios 또는 fetch wrapper
-│   │   ├── targets.ts
-│   │   ├── jobs.ts
-│   │   ├── snapshots.ts
-│   │   ├── assets.ts
-│   │   ├── risk.ts
-│   │   ├── agents.ts
-│   │   └── types.ts                   # OpenAPI 생성 또는 수기
-│   ├── hooks/
+│   │   ├── client.ts                  # fetch wrapper
+│   │   └── generated/                 # OpenAPI 생성 타입
+│   ├── features/
+│   │   ├── dashboard/
+│   │   ├── targets/
+│   │   ├── discoveries/
+│   │   ├── jobs/
+│   │   ├── snapshots/
+│   │   ├── assets/
+│   │   ├── risk/
+│   │   ├── migration/
+│   │   ├── agents/
+│   │   ├── cbom/
+│   │   └── settings/
+│   ├── pages/                         # route entry components
 │   ├── lib/
 │   │   ├── utils.ts
 │   │   └── format.ts                  # 점수, 시간 포맷터
