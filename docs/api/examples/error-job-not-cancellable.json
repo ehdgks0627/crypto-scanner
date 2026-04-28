@@ -1,0 +1,9 @@
+{
+  "error": "job_not_cancellable",
+  "message": "Job cannot be cancelled in its current state.",
+  "details": {
+    "job_id": 791,
+    "kind": "recompute",
+    "status": "RUNNING"
+  }
+}

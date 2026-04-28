@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "id": 9001,
+      "snapshot_id": 56,
+      "bom_ref": "cert-leaf-web-rsa2048-ab12cd34",
+      "asset_class": "crypto",
+      "asset_type": "certificate",
+      "name": "web.testbed.local (leaf)",
+      "target_id": 1,
+      "target_label": "web.testbed.local:443",
+      "summary": {
+        "algorithm": "RSA-2048",
+        "key_size_bits": 2048,
+        "quantum_vulnerable": true,
+        "expires_at": "2026-01-01T00:00:00Z"
+      },
+      "risk": {
+        "score": 84,
+        "tier": "CRITICAL"
+      }
+    }
+  ],
+  "total": 142,
+  "offset": 0,
+  "limit": 20
+}

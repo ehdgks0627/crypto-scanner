@@ -1,0 +1,4 @@
+{
+  "target_ids": [1, 2, 3],
+  "scanners": ["network", "agent.cert_store", "agent.ssh_config"]
+}

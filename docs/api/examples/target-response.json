@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "host": "web.testbed.local",
+      "ip": null,
+      "port": 443,
+      "protocol_hint": "TLS",
+      "sni": null,
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {
+        "sensitivity": "high",
+        "lifespan_years": 10,
+        "criticality": "high",
+        "exposure": "internal_network",
+        "service_role": "web-frontend"
+      },
+      "created_at": "2026-04-25T09:00:00Z",
+      "updated_at": "2026-04-25T09:00:00Z"
+    }
+  ],
+  "total": 1,
+  "offset": 0,
+  "limit": 20
+}

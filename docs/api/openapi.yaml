@@ -1,0 +1,2915 @@
+openapi: 3.0.3
+info:
+  title: Context-Aware PQC Risk Assessment API
+  version: 0.1.0
+  license:
+    name: Internal Capstone Project
+    url: https://github.com/ehdgks0627/crypto-scanner
+  description: |
+    API contract for the PQC Risk Assessment System.
+
+    `docs/api/openapi.yaml` is the design source of truth. The Django Ninja
+    implementation must expose an equivalent `/api/openapi.json`.
+servers:
+  - url: /api
+security: []
+tags:
+  - name: Targets
+    description: Scan target registration and management.
+  - name: Discovery
+    description: CIDR discovery and endpoint promotion.
+  - name: Jobs
+    description: Asynchronous job lifecycle, polling, and logs.
+  - name: Snapshots
+    description: CBOM snapshot metadata, export, and diff.
+  - name: Assets
+    description: Snapshot asset inventory and asset detail views.
+  - name: Risk
+    description: Risk score retrieval, weights, and recomputation.
+  - name: Migration
+    description: PQC migration recommendations.
+  - name: Agents
+    description: Agent registration, listing, and heartbeat.
+  - name: Dashboard
+    description: Aggregated dashboard metrics.
+  - name: Meta
+    description: Static enums and reference tables.
+
+paths:
+  /targets:
+    get:
+      tags: [Targets]
+      summary: List scan targets
+      operationId: listTargets
+      parameters:
+        - $ref: '#/components/parameters/HostFilter'
+        - $ref: '#/components/parameters/ProtocolHintFilter'
+        - $ref: '#/components/parameters/AgentEnabledFilter'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Target list
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetPage'
+              examples:
+                default:
+                  externalValue: ./examples/target-response.json
+        '400':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Targets]
+      summary: Create a scan target
+      operationId: createTarget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetCreate'
+            examples:
+              default:
+                externalValue: ./examples/target-create.json
+      responses:
+        '201':
+          description: Created target
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Target'
+        '400':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /targets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Targets]
+      summary: Get target details
+      operationId: getTarget
+      responses:
+        '200':
+          description: Target details
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Target'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+    patch:
+      tags: [Targets]
+      summary: Update target fields
+      operationId: patchTarget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetPatch'
+      responses:
+        '200':
+          description: Updated target and optional recompute job id
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetPatchResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Targets]
+      summary: Delete target
+      operationId: deleteTarget
+      responses:
+        '204':
+          description: Deleted
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /discoveries:
+    get:
+      tags: [Discovery]
+      summary: List discovery jobs
+      operationId: listDiscoveries
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/JobStatus'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Discovery list
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoveryPage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Discovery]
+      summary: Start CIDR discovery
+      operationId: createDiscovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoveryCreate'
+            examples:
+              default:
+                externalValue: ./examples/discovery-create.json
+      responses:
+        '202':
+          description: Discovery job accepted
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobEnvelope'
+              examples:
+                accepted:
+                  externalValue: ./examples/discovery-job-accepted.json
+        '400':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /discoveries/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Discovery]
+      summary: Get discovery status
+      operationId: getDiscovery
+      responses:
+        '200':
+          description: Discovery status
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discovery'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /discoveries/{id}/endpoints:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Discovery]
+      summary: List endpoints found by discovery
+      operationId: listDiscoveredEndpoints
+      parameters:
+        - name: promoted
+          in: query
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Discovered endpoints
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoveredEndpointPage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /discoveries/{id}/promote:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Discovery]
+      summary: Promote discovered endpoints to targets
+      operationId: promoteDiscoveredEndpoints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoveryPromoteRequest'
+      responses:
+        '201':
+          description: Promotion result
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoveryPromoteResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: List asynchronous jobs
+      description: Lists API-visible asynchronous jobs. `POST /jobs` creates scan jobs; discovery and recompute jobs are created by their domain endpoints.
+      operationId: listJobs
+      parameters:
+        - name: kind
+          in: query
+          schema:
+            $ref: '#/components/schemas/JobKind'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/JobStatus'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Scan job list
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobEnvelopePage'
+        '400':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Jobs]
+      summary: Start a scan job
+      operationId: createScanJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanJobCreate'
+            examples:
+              default:
+                externalValue: ./examples/job-create.json
+      responses:
+        '202':
+          description: Scan job accepted
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobEnvelope'
+              examples:
+                accepted:
+                  externalValue: ./examples/scan-job-accepted.json
+        '400':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /jobs/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Jobs]
+      summary: Get asynchronous job status
+      operationId: getJob
+      responses:
+        '200':
+          description: Scan job status
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobEnvelope'
+              examples:
+                running:
+                  externalValue: ./examples/job-running.json
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /jobs/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Jobs]
+      summary: Request cancellation for an async job
+      operationId: cancelJob
+      description: |
+        Cancels pending/running scan and discovery jobs. Recompute jobs are cancellable only while PENDING.
+        RUNNING scan/discovery jobs set cancel_requested_at and transition to CANCELLED when the worker observes the request.
+      responses:
+        '202':
+          description: Cancellation request accepted
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/JobNotCancellable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /jobs/{id}/logs:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Jobs]
+      summary: List scan run logs
+      operationId: listJobLogs
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Scan run logs
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanRunLogPage'
+              examples:
+                default:
+                  externalValue: ./examples/job-logs.json
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots:
+    get:
+      tags: [Snapshots]
+      summary: List CBOM snapshots
+      operationId: listSnapshots
+      parameters:
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Snapshot list
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CbomSnapshotPage'
+              examples:
+                default:
+                  externalValue: ./examples/snapshot-list.json
+        '400':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Snapshots]
+      summary: Get snapshot metadata
+      operationId: getSnapshot
+      responses:
+        '200':
+          description: Snapshot metadata
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CbomSnapshot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{id}/export:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Snapshots]
+      summary: Export snapshot as CycloneDX CBOM JSON
+      operationId: exportSnapshot
+      parameters:
+        - name: pretty
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: CycloneDX CBOM JSON
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Content-Disposition:
+              $ref: '#/components/headers/ContentDisposition'
+          content:
+            application/vnd.cyclonedx+json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{id}/diff:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Snapshots]
+      summary: Diff two snapshots
+      operationId: diffSnapshots
+      parameters:
+        - name: other
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Snapshot diff
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CbomDiff'
+              examples:
+                default:
+                  externalValue: ./examples/snapshot-diff.json
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{sid}/assets:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotId'
+    get:
+      tags: [Assets]
+      summary: List assets in a snapshot
+      operationId: listAssets
+      parameters:
+        - name: asset_class
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/AssetClass'
+        - name: asset_type
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/AssetType'
+        - name: target_id
+          in: query
+          schema:
+            type: integer
+        - name: min_score
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+        - name: max_score
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+        - name: tier
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/RiskTier'
+        - name: quantum_vulnerable
+          in: query
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Asset inventory
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetListPage'
+              examples:
+                default:
+                  externalValue: ./examples/asset-list.json
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /assets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Assets]
+      summary: Get asset details
+      operationId: getAsset
+      responses:
+        '200':
+          description: Asset details
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetDetail'
+              examples:
+                default:
+                  externalValue: ./examples/asset-detail.json
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /assets/{id}/context:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags: [Assets]
+      summary: Override asset context and enqueue risk recompute
+      operationId: patchAssetContext
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetContextPatch'
+            examples:
+              default:
+                externalValue: ./examples/asset-context-patch.json
+      responses:
+        '200':
+          description: Applied overrides
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetContextPatchResult'
+              examples:
+                default:
+                  externalValue: ./examples/asset-context-patch-result.json
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /assets/{id}/qualitative:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Assets]
+      summary: Generate or retrieve qualitative assessment
+      operationId: createQualitativeAssessment
+      responses:
+        '200':
+          description: Qualitative assessment
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QualitativeAssessment'
+              examples:
+                default:
+                  externalValue: ./examples/qualitative-response.json
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{sid}/risks:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotId'
+    get:
+      tags: [Risk]
+      summary: List risk scores for a snapshot
+      operationId: listRisks
+      parameters:
+        - name: tier
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/RiskTier'
+        - name: min_score
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+        - name: max_score
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Risk score list
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskScorePage'
+              examples:
+                default:
+                  externalValue: ./examples/risk-list.json
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{sid}/risks/top:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotId'
+    get:
+      tags: [Risk]
+      summary: List top-N risk scores
+      operationId: listTopRisks
+      parameters:
+        - name: n
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Top risks
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskScorePage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{sid}/recompute:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotId'
+    post:
+      tags: [Risk]
+      summary: Recompute risk scores for a snapshot
+      operationId: recomputeRisks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskRecomputeRequest'
+      responses:
+        '202':
+          description: Recompute job accepted
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobEnvelope'
+              examples:
+                accepted:
+                  externalValue: ./examples/recompute-job-accepted.json
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /risk/weights:
+    get:
+      tags: [Risk]
+      summary: Get default risk weights
+      operationId: getRiskWeights
+      responses:
+        '200':
+          description: Current default weights
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskWeightsState'
+              examples:
+                default:
+                  externalValue: ./examples/risk-weights.json
+        '400':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [Risk]
+      summary: Update default risk weights
+      operationId: putRiskWeights
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskWeightsInput'
+            examples:
+              default:
+                externalValue: ./examples/risk-weights-update.json
+      responses:
+        '200':
+          description: Updated default weights
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskWeightsState'
+              examples:
+                default:
+                  externalValue: ./examples/risk-weights.json
+        '400':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{sid}/migration-plan:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotId'
+    get:
+      tags: [Migration]
+      summary: Get migration plan items for a snapshot
+      operationId: getMigrationPlan
+      parameters:
+        - name: min_score
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+        - name: tier
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/RiskTier'
+        - name: asset_type
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/AssetType'
+        - name: target_id
+          in: query
+          schema:
+            type: integer
+        - name: asset_ids
+          in: query
+          description: Comma-separated asset ids to include.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: integer
+            minItems: 1
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Migration plan
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationPlanPage'
+              examples:
+                default:
+                  externalValue: ./examples/migration-plan.json
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{sid}/migration-plan/impact:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotId'
+    get:
+      tags: [Migration]
+      summary: Get migration impact analysis for selected assets
+      operationId: getMigrationImpact
+      parameters:
+        - name: asset_ids
+          in: query
+          required: true
+          description: Comma-separated asset ids.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: integer
+            minItems: 1
+      responses:
+        '200':
+          description: Migration impact analysis
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationImpact'
+              examples:
+                default:
+                  externalValue: ./examples/migration-impact.json
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /agents/register:
+    post:
+      tags: [Agents]
+      summary: Register an agent
+      operationId: registerAgent
+      security:
+        - BootstrapToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegister'
+            examples:
+              default:
+                externalValue: ./examples/agent-register.json
+      responses:
+        '201':
+          description: Agent registered for a new hostname. Returns a raw token once.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRegisterResult'
+              examples:
+                created:
+                  externalValue: ./examples/agent-register-result-created.json
+        '200':
+          description: Existing hostname re-registered. Agent metadata is updated and token is rotated.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRegisterResult'
+              examples:
+                token_rotated:
+                  externalValue: ./examples/agent-register-result-rotated.json
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /agents:
+    get:
+      tags: [Agents]
+      summary: List agents
+      operationId: listAgents
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Agent list
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPage'
+              examples:
+                default:
+                  externalValue: ./examples/agents-list.json
+        '400':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /agents/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    get:
+      tags: [Agents]
+      summary: Get agent details
+      operationId: getAgent
+      responses:
+        '200':
+          description: Agent details
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Agents]
+      summary: Deactivate an agent
+      operationId: deleteAgent
+      responses:
+        '204':
+          description: Deactivated
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /agents/{id}/heartbeat:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    post:
+      tags: [Agents]
+      summary: Record agent heartbeat
+      operationId: heartbeatAgent
+      security:
+        - AgentBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentHeartbeat'
+            examples:
+              default:
+                externalValue: ./examples/agent-heartbeat.json
+      responses:
+        '200':
+          description: Heartbeat accepted
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentHeartbeatResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard summary
+      operationId: getDashboardSummary
+      parameters:
+        - name: snapshot_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dashboard summary
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+              examples:
+                default:
+                  externalValue: ./examples/dashboard-summary.json
+                empty:
+                  externalValue: ./examples/dashboard-empty.json
+        '400':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /meta/protocols:
+    get:
+      tags: [Meta]
+      summary: List supported protocol hints
+      operationId: getMetaProtocols
+      responses:
+        '200':
+          description: Supported protocols
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Cache-Control:
+              $ref: '#/components/headers/StaticCache'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtocolMeta'
+              examples:
+                default:
+                  externalValue: ./examples/meta-protocols.json
+        '400':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /meta/scanners:
+    get:
+      tags: [Meta]
+      summary: List supported scanners
+      operationId: getMetaScanners
+      responses:
+        '200':
+          description: Supported scanners
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Cache-Control:
+              $ref: '#/components/headers/StaticCache'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScannerMeta'
+              examples:
+                default:
+                  externalValue: ./examples/meta-scanners.json
+        '400':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /meta/algorithm-risk-table:
+    get:
+      tags: [Meta]
+      summary: Get algorithm risk table
+      operationId: getAlgorithmRiskTable
+      responses:
+        '200':
+          description: Algorithm risk table
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Cache-Control:
+              $ref: '#/components/headers/StaticCache'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlgorithmRiskTable'
+              examples:
+                default:
+                  externalValue: ./examples/algorithm-risk-table.json
+        '400':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+
+components:
+  securitySchemes:
+    BootstrapToken:
+      type: apiKey
+      in: header
+      name: X-Bootstrap-Token
+    AgentBearer:
+      type: http
+      scheme: bearer
+
+  headers:
+    XRequestId:
+      description: Request trace id. If the client sends `X-Request-Id`, the server echoes it.
+      schema:
+        type: string
+        format: uuid
+    NoStore:
+      description: Polling responses are not cacheable.
+      schema:
+        type: string
+      example: no-store
+    StaticCache:
+      description: Static metadata can be cached briefly.
+      schema:
+        type: string
+      example: max-age=600
+    ContentDisposition:
+      description: Download filename for exported files.
+      schema:
+        type: string
+      example: attachment; filename="cbom-56.json"
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    Uuid:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SnapshotId:
+      name: sid
+      in: path
+      required: true
+      schema:
+        type: integer
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 20
+    Sort:
+      name: sort
+      in: query
+      description: Field name, prefixed with `-` for descending order.
+      schema:
+        type: string
+    HostFilter:
+      name: host
+      in: query
+      schema:
+        type: string
+    ProtocolHintFilter:
+      name: protocol_hint
+      in: query
+      schema:
+        $ref: '#/components/schemas/ProtocolHint'
+    AgentEnabledFilter:
+      name: agent_enabled
+      in: query
+      schema:
+        type: boolean
+
+  responses:
+    Error:
+      description: Error response
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation:
+              externalValue: ./examples/error-validation.json
+    NotFound:
+      description: Resource not found
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflict
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    JobNotCancellable:
+      description: Job cannot be cancelled in its current state or by kind policy.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            job_not_cancellable:
+              externalValue: ./examples/error-job-not-cancellable.json
+    InvalidToken:
+      description: Invalid or missing token
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unprocessable:
+      description: Request is semantically invalid
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceUnavailable:
+      description: Required backend dependency is unavailable.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ProtocolHint:
+      type: string
+      enum: [TLS, SSH, IKE, SMTP, IMAP, POP3, UNKNOWN]
+    DetectedProtocol:
+      type: string
+      enum: [HTTPS, TLS, SSH, IKE, SMTP, SMTPS, IMAP, IMAPS, POP3, POP3S, MQTT, PostgreSQL, UNKNOWN]
+    Transport:
+      type: string
+      enum: [TCP, UDP]
+    Sensitivity:
+      type: string
+      enum: [low, medium, high, critical]
+    Criticality:
+      type: string
+      enum: [low, medium, high, critical]
+    Exposure:
+      type: string
+      enum: [public_internet, dmz, internal_network, air_gapped]
+    JobStatus:
+      type: string
+      enum: [PENDING, RUNNING, COMPLETED, FAILED, CANCELLED]
+    JobKind:
+      type: string
+      enum: [scan_job, discovery, recompute]
+    RunStatus:
+      type: string
+      enum: [SUCCESS, PARTIAL, TIMEOUT, UNREACHABLE, ERROR, SKIPPED]
+    RiskTier:
+      type: string
+      enum: [CRITICAL, HIGH, MEDIUM, LOW]
+    AssetClass:
+      type: string
+      enum: [crypto, host, service, data]
+    AssetType:
+      type: string
+      enum: [algorithm, certificate, key, protocol, keystore, device, service, data]
+    ScannerId:
+      type: string
+      enum:
+        - network
+        - agent.cert_store
+        - agent.pkg_keyring
+        - agent.ssh_userkey
+        - agent.ssh_config
+        - agent.keystore
+        - agent.app_cert_files
+        - agent.app_config
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          example: validation_error
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    TargetContext:
+      type: object
+      properties:
+        sensitivity:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Sensitivity'
+          nullable: true
+        lifespan_years:
+          type: integer
+          minimum: 0
+          nullable: true
+        criticality:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Criticality'
+          nullable: true
+        exposure:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Exposure'
+          nullable: true
+        service_role:
+          type: string
+          nullable: true
+
+    ContextSource:
+      type: string
+      enum: [asset_override, target, heuristic]
+
+    AssetContextValues:
+      type: object
+      required: [sensitivity, lifespan_years, criticality, exposure, service_role]
+      properties:
+        sensitivity:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Sensitivity'
+          nullable: true
+        lifespan_years:
+          type: integer
+          minimum: 0
+          nullable: true
+        criticality:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Criticality'
+          nullable: true
+        exposure:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Exposure'
+          nullable: true
+        service_role:
+          type: string
+          nullable: true
+
+    AssetContextSources:
+      type: object
+      required: [sensitivity, lifespan_years, criticality, exposure, service_role]
+      properties:
+        sensitivity:
+          $ref: '#/components/schemas/ContextSource'
+        lifespan_years:
+          $ref: '#/components/schemas/ContextSource'
+        criticality:
+          $ref: '#/components/schemas/ContextSource'
+        exposure:
+          $ref: '#/components/schemas/ContextSource'
+        service_role:
+          $ref: '#/components/schemas/ContextSource'
+
+    Target:
+      type: object
+      required:
+        - id
+        - host
+        - port
+        - protocol_hint
+        - transport
+        - agent_enabled
+        - context
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+        host:
+          type: string
+          maxLength: 253
+        ip:
+          type: string
+          format: ip
+          nullable: true
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        protocol_hint:
+          $ref: '#/components/schemas/ProtocolHint'
+        sni:
+          type: string
+          maxLength: 253
+          nullable: true
+        transport:
+          $ref: '#/components/schemas/Transport'
+        agent_enabled:
+          type: boolean
+        agent_url:
+          type: string
+          format: uri
+          nullable: true
+        context:
+          $ref: '#/components/schemas/TargetContext'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TargetCreate:
+      type: object
+      required: [host, port, protocol_hint]
+      properties:
+        host:
+          type: string
+          maxLength: 253
+        ip:
+          type: string
+          format: ip
+          nullable: true
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        protocol_hint:
+          $ref: '#/components/schemas/ProtocolHint'
+        sni:
+          type: string
+          maxLength: 253
+          nullable: true
+        transport:
+          allOf:
+            - $ref: '#/components/schemas/Transport'
+          description: Defaults to TCP when omitted.
+        agent_enabled:
+          type: boolean
+          description: Defaults to false when omitted.
+        agent_url:
+          type: string
+          format: uri
+          nullable: true
+        context:
+          $ref: '#/components/schemas/TargetContext'
+
+    TargetPatch:
+      type: object
+      properties:
+        host:
+          type: string
+          maxLength: 253
+        ip:
+          type: string
+          format: ip
+          nullable: true
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        protocol_hint:
+          $ref: '#/components/schemas/ProtocolHint'
+        sni:
+          type: string
+          maxLength: 253
+          nullable: true
+        transport:
+          $ref: '#/components/schemas/Transport'
+        agent_enabled:
+          type: boolean
+        agent_url:
+          type: string
+          format: uri
+          nullable: true
+        context:
+          $ref: '#/components/schemas/TargetContext'
+
+    TargetPatchResult:
+      type: object
+      required: [target]
+      properties:
+        target:
+          $ref: '#/components/schemas/Target'
+        recompute_job_id:
+          type: integer
+          description: API-visible AsyncJob id to poll through GET /api/jobs/{id}.
+          nullable: true
+
+    TargetPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Target'
+
+    PageBase:
+      type: object
+      required: [total, offset, limit]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+
+    DiscoveryCreate:
+      type: object
+      required: [cidr]
+      properties:
+        cidr:
+          type: string
+          example: 172.20.0.0/24
+        ports:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 65535
+        include_default_ports:
+          type: boolean
+          description: Defaults to true when omitted.
+
+    Discovery:
+      type: object
+      required: [id, cidr, port_list, status, created_at, started_at]
+      properties:
+        id:
+          type: integer
+        cidr:
+          type: string
+        port_list:
+          type: array
+          items:
+            type: integer
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        progress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/JobProgress'
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          description: Discovery request creation time.
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Worker execution start time. Null while status is PENDING.
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
+
+    DiscoveryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Discovery'
+
+    DiscoveredEndpoint:
+      type: object
+      required:
+        - id
+        - ip
+        - port
+        - banner_metadata
+        - promoted
+      properties:
+        id:
+          type: integer
+        ip:
+          type: string
+          format: ip
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        detected_protocol:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/DetectedProtocol'
+          nullable: true
+        banner_metadata:
+          type: object
+          additionalProperties: true
+        promoted:
+          type: boolean
+        target_id:
+          type: integer
+          nullable: true
+        suggested_protocol_hint:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/ProtocolHint'
+          nullable: true
+        suggested_host:
+          type: string
+          nullable: true
+
+    DiscoveredEndpointPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredEndpoint'
+
+    DiscoveryPromotion:
+      type: object
+      required: [endpoint_id, host, protocol_hint]
+      properties:
+        endpoint_id:
+          type: integer
+        host:
+          type: string
+        protocol_hint:
+          $ref: '#/components/schemas/ProtocolHint'
+        context:
+          $ref: '#/components/schemas/TargetContext'
+        agent_enabled:
+          type: boolean
+          description: Defaults to false when omitted.
+
+    DiscoveryPromoteRequest:
+      type: object
+      required: [promotions]
+      properties:
+        promotions:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/DiscoveryPromotion'
+
+    DiscoveryPromoteResult:
+      type: object
+      required: [promoted, skipped]
+      properties:
+        promoted:
+          type: array
+          items:
+            type: object
+            required: [endpoint_id, target_id]
+            properties:
+              endpoint_id:
+                type: integer
+              target_id:
+                type: integer
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [endpoint_id, reason]
+            properties:
+              endpoint_id:
+                type: integer
+              reason:
+                type: string
+
+    JobProgress:
+      type: object
+      properties:
+        completed:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+        current_target:
+          type: string
+          nullable: true
+        current_scanner:
+          type: string
+          nullable: true
+      additionalProperties: true
+
+    JobResource:
+      type: object
+      description: Resource created by the job. For recompute, the AsyncJob itself is the resource and id equals JobEnvelope.id.
+      required: [kind, id]
+      properties:
+        kind:
+          $ref: '#/components/schemas/JobKind'
+        id:
+          type: integer
+          description: Resource id for the job kind. For recompute this equals the API-visible job id.
+
+    JobResult:
+      type: object
+      description: Completed-job result only. PENDING and RUNNING jobs must return null for JobEnvelope.result.
+      properties:
+        snapshot_id:
+          type: integer
+          nullable: true
+        discovery_id:
+          type: integer
+          nullable: true
+        updated_scores_count:
+          type: integer
+          description: Number of RiskScore rows updated by a completed recompute job.
+          nullable: true
+      additionalProperties: false
+
+    JobEnvelope:
+      type: object
+      required: [id, kind, resource, status, progress, started_at, cancel_requested_at, finished_at, result, error]
+      properties:
+        id:
+          type: integer
+          description: API-visible asynchronous job id, unique across all job kinds.
+        kind:
+          $ref: '#/components/schemas/JobKind'
+        resource:
+          $ref: '#/components/schemas/JobResource'
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        progress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/JobProgress'
+          nullable: true
+          description: Always present. Null while PENDING or when no progress can be reported.
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancel_requested_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set when cancellation has been requested but a running worker has not finished cleanup yet.
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        result:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/JobResult'
+          nullable: true
+          example:
+            snapshot_id: 56
+        error:
+          type: string
+          nullable: true
+
+    JobEnvelopePage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/JobEnvelope'
+
+    ScanJobCreate:
+      type: object
+      required: [target_ids, scanners]
+      properties:
+        target_ids:
+          type: array
+          minItems: 1
+          items:
+            type: integer
+        scanners:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ScannerId'
+
+    ScanRunLog:
+      type: object
+      required:
+        - id
+        - scan_job_id
+        - target_id
+        - target_label
+        - scanner_kind
+        - status
+        - findings_count
+      properties:
+        id:
+          type: integer
+        scan_job_id:
+          type: integer
+        target_id:
+          type: integer
+        target_label:
+          type: string
+        scanner_kind:
+          $ref: '#/components/schemas/ScannerId'
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        findings_count:
+          type: integer
+          minimum: 0
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
+
+    ScanRunLogPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ScanRunLog'
+
+    CbomSnapshot:
+      type: object
+      required:
+        - id
+        - scan_job_id
+        - serial_number
+        - asset_count
+        - created_at
+      properties:
+        id:
+          type: integer
+        scan_job_id:
+          type: integer
+        serial_number:
+          type: string
+          example: urn:uuid:9f8e7d6c-0000-4000-8000-000000000056
+        asset_count:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+        summary:
+          $ref: '#/components/schemas/SnapshotSummary'
+        validation_errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          default: []
+
+    SnapshotSummary:
+      type: object
+      properties:
+        by_tier:
+          type: object
+          additionalProperties:
+            type: integer
+        by_type:
+          type: object
+          additionalProperties:
+            type: integer
+
+    CbomSnapshotPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CbomSnapshot'
+
+    CbomDiff:
+      type: object
+      required: [snapshot_a, snapshot_b, added, removed, modified, unchanged_count]
+      properties:
+        snapshot_a:
+          type: integer
+        snapshot_b:
+          type: integer
+        added:
+          type: array
+          items:
+            $ref: '#/components/schemas/CbomDiffAsset'
+        removed:
+          type: array
+          items:
+            $ref: '#/components/schemas/CbomDiffAsset'
+        modified:
+          type: array
+          items:
+            $ref: '#/components/schemas/CbomDiffModifiedAsset'
+        unchanged_count:
+          type: integer
+
+    CbomDiffAsset:
+      type: object
+      required: [bom_ref, type, name]
+      properties:
+        bom_ref:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+
+    CbomDiffModifiedAsset:
+      allOf:
+        - $ref: '#/components/schemas/CbomDiffAsset'
+        - type: object
+          required: [field_changes]
+          properties:
+            field_changes:
+              type: object
+              additionalProperties:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: {}
+
+    AssetRiskSummary:
+      type: object
+      required: [score, tier]
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        tier:
+          $ref: '#/components/schemas/RiskTier'
+
+    AssetListItem:
+      type: object
+      required:
+        - id
+        - snapshot_id
+        - bom_ref
+        - asset_class
+        - asset_type
+        - name
+        - summary
+        - risk
+      properties:
+        id:
+          type: integer
+        snapshot_id:
+          type: integer
+        bom_ref:
+          type: string
+        asset_class:
+          $ref: '#/components/schemas/AssetClass'
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        name:
+          type: string
+        target_id:
+          type: integer
+          nullable: true
+        target_label:
+          type: string
+          nullable: true
+        summary:
+          type: object
+          additionalProperties: true
+        risk:
+          $ref: '#/components/schemas/AssetRiskSummary'
+
+    AssetListPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AssetListItem'
+
+    AssetTarget:
+      type: object
+      required: [id, host, port]
+      properties:
+        id:
+          type: integer
+        host:
+          type: string
+        port:
+          type: integer
+
+    RiskDetail:
+      allOf:
+        - $ref: '#/components/schemas/AssetRiskSummary'
+        - type: object
+          required: [factor_a, factor_d, factor_e, factor_l, factor_c, weights]
+          properties:
+            factor_a:
+              type: number
+              format: float
+            factor_d:
+              type: number
+              format: float
+            factor_e:
+              type: number
+              format: float
+            factor_l:
+              type: number
+              format: float
+            factor_c:
+              type: number
+              format: float
+            weights:
+              $ref: '#/components/schemas/RiskWeightsInput'
+
+    QualitativeAssessment:
+      type: object
+      required:
+        - provider
+        - summary
+        - threat_scenarios
+        - migration_recommendation
+        - confidence
+        - generated_at
+      properties:
+        provider:
+          type: string
+        summary:
+          type: string
+        threat_scenarios:
+          type: array
+          items:
+            type: string
+        migration_recommendation:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        generated_at:
+          type: string
+          format: date-time
+
+    AssetDependency:
+      type: object
+      required: [id, bom_ref, name, semantic]
+      properties:
+        id:
+          type: integer
+        bom_ref:
+          type: string
+        name:
+          type: string
+        semantic:
+          type: string
+
+    AssetDependencies:
+      type: object
+      required: [dependsOn, dependedBy]
+      properties:
+        dependsOn:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetDependency'
+        dependedBy:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetDependency'
+
+    AssetHistoryItem:
+      type: object
+      required: [snapshot_id, score, tier, snapshot_created_at]
+      properties:
+        snapshot_id:
+          type: integer
+        score:
+          type: integer
+        tier:
+          $ref: '#/components/schemas/RiskTier'
+        snapshot_created_at:
+          type: string
+          format: date-time
+
+    AssetDetail:
+      type: object
+      required:
+        - id
+        - snapshot_id
+        - bom_ref
+        - asset_class
+        - asset_type
+        - name
+        - crypto_properties
+        - properties
+        - natural_key
+        - discovered_at
+        - effective_context
+        - context_override
+        - context_sources
+        - dependencies
+        - history
+      properties:
+        id:
+          type: integer
+        snapshot_id:
+          type: integer
+        bom_ref:
+          type: string
+        asset_class:
+          $ref: '#/components/schemas/AssetClass'
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        name:
+          type: string
+        crypto_properties:
+          type: object
+          additionalProperties: true
+        properties:
+          type: object
+          additionalProperties: true
+        natural_key:
+          type: string
+        discovered_at:
+          type: string
+          format: date-time
+        target:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AssetTarget'
+          nullable: true
+        effective_context:
+          $ref: '#/components/schemas/AssetContextValues'
+        context_override:
+          $ref: '#/components/schemas/AssetContextValues'
+        context_sources:
+          $ref: '#/components/schemas/AssetContextSources'
+        risk:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/RiskDetail'
+          nullable: true
+        qualitative:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/QualitativeAssessment'
+          nullable: true
+        dependencies:
+          $ref: '#/components/schemas/AssetDependencies'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetHistoryItem'
+
+    AssetContextPatch:
+      type: object
+      description: Omitted fields are unchanged. Explicit null clears an override and falls back to inherited target context.
+      properties:
+        sensitivity:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Sensitivity'
+          nullable: true
+        lifespan_years:
+          type: integer
+          minimum: 0
+          nullable: true
+        criticality:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Criticality'
+          nullable: true
+        exposure:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Exposure'
+          nullable: true
+        service_role:
+          type: string
+          nullable: true
+
+    AssetContextPatchResult:
+      type: object
+      required:
+        - asset_id
+        - applied_overrides
+        - effective_context
+        - context_override
+        - context_sources
+        - recompute_job_id
+      properties:
+        asset_id:
+          type: integer
+        applied_overrides:
+          $ref: '#/components/schemas/AssetContextPatch'
+        effective_context:
+          $ref: '#/components/schemas/AssetContextValues'
+        context_override:
+          $ref: '#/components/schemas/AssetContextValues'
+        context_sources:
+          $ref: '#/components/schemas/AssetContextSources'
+        recompute_job_id:
+          type: integer
+
+    RiskFactors:
+      type: object
+      required: [a, d, e, l, c]
+      properties:
+        a:
+          type: number
+          format: float
+        d:
+          type: number
+          format: float
+        e:
+          type: number
+          format: float
+        l:
+          type: number
+          format: float
+        c:
+          type: number
+          format: float
+
+    RiskScore:
+      type: object
+      required:
+        - asset_id
+        - asset_name
+        - asset_type
+        - score
+        - tier
+        - factors
+        - computed_at
+      properties:
+        asset_id:
+          type: integer
+        asset_name:
+          type: string
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        tier:
+          $ref: '#/components/schemas/RiskTier'
+        factors:
+          $ref: '#/components/schemas/RiskFactors'
+        computed_at:
+          type: string
+          format: date-time
+
+    RiskScorePage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/RiskScore'
+
+    RiskWeightsInput:
+      type: object
+      required: [wA, wD, wE, wL, wC]
+      properties:
+        wA:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+        wD:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+        wE:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+        wL:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+        wC:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+      additionalProperties: false
+
+    RiskWeightsState:
+      type: object
+      required: [wA, wD, wE, wL, wC, updated_at]
+      properties:
+        wA:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+        wD:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+        wE:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+        wL:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+        wC:
+          type: number
+          minimum: 0.5
+          maximum: 2.0
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: false
+
+    RiskRecomputeRequest:
+      type: object
+      required: [weights]
+      properties:
+        weights:
+          $ref: '#/components/schemas/RiskWeightsInput'
+        persist_weights_as_default:
+          type: boolean
+          description: Defaults to false when omitted.
+
+    MigrationCurrentState:
+      type: object
+      properties:
+        algorithm:
+          type: string
+        key_size_bits:
+          type: integer
+          nullable: true
+        quantum_vulnerable:
+          type: boolean
+
+    MigrationRecommendation:
+      type: object
+      required: [strategy, target_algorithm, rationale, confidence]
+      properties:
+        strategy:
+          type: string
+          enum: [replace, hybrid, no_change]
+        target_algorithm:
+          type: string
+        rationale:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    MigrationAlternative:
+      type: object
+      required: [strategy, target_algorithm, trade_off]
+      properties:
+        strategy:
+          type: string
+        target_algorithm:
+          type: string
+        trade_off:
+          type: string
+
+    MigrationPlanItem:
+      type: object
+      required:
+        - asset_id
+        - asset_name
+        - asset_type
+        - current
+        - recommendation
+        - alternatives
+        - risk_score
+        - tier
+      properties:
+        asset_id:
+          type: integer
+        asset_name:
+          type: string
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        current:
+          $ref: '#/components/schemas/MigrationCurrentState'
+        recommendation:
+          $ref: '#/components/schemas/MigrationRecommendation'
+        alternatives:
+          type: array
+          items:
+            $ref: '#/components/schemas/MigrationAlternative'
+        risk_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        tier:
+          $ref: '#/components/schemas/RiskTier'
+
+    MigrationPlanPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MigrationPlanItem'
+
+    MigrationImpact:
+      type: object
+      required:
+        - selected_count
+        - hosts
+        - services
+        - cert_reissues
+        - config_changes
+        - key_regens
+        - estimated_downtime_min
+      properties:
+        selected_count:
+          type: integer
+          minimum: 0
+        hosts:
+          type: array
+          items:
+            type: string
+        services:
+          type: array
+          items:
+            type: string
+        cert_reissues:
+          type: integer
+          minimum: 0
+        config_changes:
+          type: integer
+          minimum: 0
+        key_regens:
+          type: integer
+          minimum: 0
+        estimated_downtime_min:
+          type: integer
+          minimum: 0
+
+    AgentRegister:
+      type: object
+      required: [hostname, agent_url, capabilities]
+      description: Uses X-Bootstrap-Token. New hostnames create an agent; existing hostnames update metadata and rotate the agent token.
+      properties:
+        hostname:
+          type: string
+          maxLength: 253
+        agent_url:
+          type: string
+          format: uri
+        capabilities:
+          type: array
+          items:
+            type: string
+        os_distribution:
+          type: string
+          nullable: true
+
+    AgentRegisterResult:
+      type: object
+      required: [id, agent_token, registration_action, token_rotated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_token:
+          type: string
+          description: Raw token returned once at registration time.
+        registration_action:
+          type: string
+          enum: [created, token_rotated]
+        token_rotated_at:
+          type: string
+          format: date-time
+
+    Agent:
+      type: object
+      required:
+        - id
+        - hostname
+        - agent_url
+        - capabilities
+        - registered_at
+        - token_rotated_at
+        - last_seen
+        - active
+        - is_stale
+      properties:
+        id:
+          type: string
+          format: uuid
+        hostname:
+          type: string
+        agent_url:
+          type: string
+          format: uri
+        capabilities:
+          type: array
+          items:
+            type: string
+        os_distribution:
+          type: string
+          nullable: true
+        registered_at:
+          type: string
+          format: date-time
+        token_rotated_at:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+        is_stale:
+          type: boolean
+
+    AgentPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Agent'
+
+    AgentHeartbeat:
+      type: object
+      properties:
+        uptime_sec:
+          type: integer
+          minimum: 0
+        version:
+          type: string
+      additionalProperties: true
+
+    AgentHeartbeatResult:
+      type: object
+      required: [received_at]
+      properties:
+        received_at:
+          type: string
+          format: date-time
+
+    DashboardSnapshot:
+      type: object
+      required: [id, created_at, asset_count]
+      properties:
+        id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        asset_count:
+          type: integer
+
+    DashboardSummary:
+      type: object
+      required:
+        - snapshot
+        - by_tier
+        - by_asset_type
+        - by_algorithm_family
+        - quantum_vulnerable_ratio
+        - recent_jobs
+        - agents_status
+        - trend
+      properties:
+        snapshot:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/DashboardSnapshot'
+          nullable: true
+        by_tier:
+          type: object
+          additionalProperties:
+            type: integer
+        by_asset_type:
+          type: object
+          additionalProperties:
+            type: integer
+        by_algorithm_family:
+          type: object
+          additionalProperties:
+            type: integer
+        quantum_vulnerable_ratio:
+          type: object
+          required: [vulnerable, safe, unknown]
+          properties:
+            vulnerable:
+              type: integer
+            safe:
+              type: integer
+            unknown:
+              type: integer
+        recent_jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobEnvelope'
+        agents_status:
+          type: object
+          required: [total, active, stale]
+          properties:
+            total:
+              type: integer
+            active:
+              type: integer
+            stale:
+              type: integer
+        trend:
+          type: array
+          items:
+            type: object
+            required: [snapshot_id, created_at, critical_count, total_count]
+            properties:
+              snapshot_id:
+                type: integer
+              created_at:
+                type: string
+                format: date-time
+              critical_count:
+                type: integer
+              total_count:
+                type: integer
+
+    ProtocolMeta:
+      type: object
+      required: [protocols]
+      properties:
+        protocols:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProtocolHint'
+
+    ScannerMeta:
+      type: object
+      required: [scanners]
+      properties:
+        scanners:
+          type: array
+          items:
+            type: object
+            required: [id, label, requires_agent]
+            properties:
+              id:
+                $ref: '#/components/schemas/ScannerId'
+              label:
+                type: string
+              requires_agent:
+                type: boolean
+
+    AlgorithmRiskTable:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [algorithm, factor_a, quantum_vulnerable]
+            properties:
+              algorithm:
+                type: string
+              factor_a:
+                type: number
+                minimum: 0
+                maximum: 1
+              quantum_vulnerable:
+                type: boolean
+              notes:
+                type: string
+                nullable: true

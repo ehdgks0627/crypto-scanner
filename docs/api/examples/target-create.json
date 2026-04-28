@@ -1,0 +1,17 @@
+{
+  "host": "web.testbed.local",
+  "ip": null,
+  "port": 443,
+  "protocol_hint": "TLS",
+  "sni": null,
+  "transport": "TCP",
+  "agent_enabled": true,
+  "agent_url": null,
+  "context": {
+    "sensitivity": "high",
+    "lifespan_years": 10,
+    "criticality": "high",
+    "exposure": "internal_network",
+    "service_role": "web-frontend"
+  }
+}

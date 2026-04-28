@@ -1,0 +1,29 @@
+{
+  "asset_id": 9001,
+  "applied_overrides": {
+    "sensitivity": "critical",
+    "criticality": "critical"
+  },
+  "effective_context": {
+    "sensitivity": "critical",
+    "lifespan_years": 10,
+    "criticality": "critical",
+    "exposure": "internal_network",
+    "service_role": "web-frontend"
+  },
+  "context_override": {
+    "sensitivity": "critical",
+    "lifespan_years": null,
+    "criticality": "critical",
+    "exposure": null,
+    "service_role": null
+  },
+  "context_sources": {
+    "sensitivity": "asset_override",
+    "lifespan_years": "target",
+    "criticality": "asset_override",
+    "exposure": "target",
+    "service_role": "heuristic"
+  },
+  "recompute_job_id": 791
+}

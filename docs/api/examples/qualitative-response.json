@@ -1,0 +1,8 @@
+{
+  "provider": "mock",
+  "summary": "RSA-2048 certificate protects a high-criticality service.",
+  "threat_scenarios": ["Harvest-now-decrypt-later exposure for long-lived data."],
+  "migration_recommendation": "Use a hybrid certificate profile during the transition period.",
+  "confidence": 0.5,
+  "generated_at": "2026-04-25T10:06:00Z"
+}

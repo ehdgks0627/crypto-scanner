@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": 1001,
+      "scan_job_id": 123,
+      "target_id": 1,
+      "target_label": "web.testbed.local:443",
+      "scanner_kind": "network",
+      "status": "SUCCESS",
+      "findings_count": 14,
+      "started_at": "2026-04-25T10:00:10Z",
+      "finished_at": "2026-04-25T10:00:30Z",
+      "error": null
+    }
+  ],
+  "total": 18,
+  "offset": 0,
+  "limit": 20
+}

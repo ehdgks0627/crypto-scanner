@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "algorithm": "RSA-2048",
+      "factor_a": 0.95,
+      "quantum_vulnerable": true,
+      "notes": "Quantum-vulnerable public-key algorithm."
+    },
+    {
+      "algorithm": "ML-KEM-768",
+      "factor_a": 0.0,
+      "quantum_vulnerable": false,
+      "notes": "PQC KEM."
+    }
+  ]
+}

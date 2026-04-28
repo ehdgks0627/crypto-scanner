@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "asset_id": 9001,
+      "asset_name": "web.testbed.local (leaf)",
+      "asset_type": "certificate",
+      "score": 84,
+      "tier": "CRITICAL",
+      "factors": {
+        "a": 0.95,
+        "d": 0.8,
+        "e": 0.4,
+        "l": 0.85,
+        "c": 0.75
+      },
+      "computed_at": "2026-04-25T10:05:30Z"
+    }
+  ],
+  "total": 142,
+  "offset": 0,
+  "limit": 20
+}

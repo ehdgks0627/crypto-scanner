@@ -1,0 +1,9 @@
+{
+  "selected_count": 23,
+  "hosts": ["web.testbed.local", "mail.testbed.local", "db.testbed.local"],
+  "services": ["svc-web-https", "svc-mail-imaps", "svc-db-postgres"],
+  "cert_reissues": 12,
+  "config_changes": 4,
+  "key_regens": 8,
+  "estimated_downtime_min": 30
+}

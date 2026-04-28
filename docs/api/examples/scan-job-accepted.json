@@ -1,0 +1,15 @@
+{
+  "id": 123,
+  "kind": "scan_job",
+  "resource": {
+    "kind": "scan_job",
+    "id": 123
+  },
+  "status": "PENDING",
+  "progress": null,
+  "started_at": null,
+  "cancel_requested_at": null,
+  "finished_at": null,
+  "result": null,
+  "error": null
+}

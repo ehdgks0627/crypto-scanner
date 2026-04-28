@@ -1,0 +1,15 @@
+{
+  "id": 91,
+  "kind": "discovery",
+  "resource": {
+    "kind": "discovery",
+    "id": 4
+  },
+  "status": "PENDING",
+  "progress": null,
+  "started_at": null,
+  "cancel_requested_at": null,
+  "finished_at": null,
+  "result": null,
+  "error": null
+}

@@ -1,0 +1,23 @@
+{
+  "snapshot_a": 55,
+  "snapshot_b": 56,
+  "added": [
+    {
+      "bom_ref": "alg-mldsa-65",
+      "type": "crypto-asset",
+      "name": "ML-DSA-65"
+    }
+  ],
+  "removed": [],
+  "modified": [
+    {
+      "bom_ref": "proto-tls13-web",
+      "type": "crypto-asset",
+      "name": "TLS 1.3 @ web.testbed.local:443",
+      "field_changes": {
+        "properties.internal:alpn": ["http/1.1", "h2"]
+      }
+    }
+  ],
+  "unchanged_count": 138
+}

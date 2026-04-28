@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "asset_id": 9001,
+      "asset_name": "web.testbed.local (leaf)",
+      "asset_type": "certificate",
+      "current": {
+        "algorithm": "RSA-2048",
+        "key_size_bits": 2048,
+        "quantum_vulnerable": true
+      },
+      "recommendation": {
+        "strategy": "hybrid",
+        "target_algorithm": "RSA-2048 + ML-DSA-65 (hybrid certificate)",
+        "rationale": "Long-lived data and high criticality justify a hybrid transition profile.",
+        "confidence": 0.7
+      },
+      "alternatives": [
+        {
+          "strategy": "replace",
+          "target_algorithm": "ML-DSA-65",
+          "trade_off": "Existing RSA-only clients may be incompatible."
+        }
+      ],
+      "risk_score": 84,
+      "tier": "CRITICAL"
+    }
+  ],
+  "total": 23,
+  "offset": 0,
+  "limit": 20
+}

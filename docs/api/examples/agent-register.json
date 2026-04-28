@@ -1,0 +1,6 @@
+{
+  "hostname": "web.testbed.local",
+  "agent_url": "http://web.testbed.local:9100",
+  "capabilities": ["cert_store", "ssh_config", "app_cert_files", "app_config"],
+  "os_distribution": "alpine:3.20"
+}

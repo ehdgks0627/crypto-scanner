@@ -1,0 +1,15 @@
+{
+  "id": 791,
+  "kind": "recompute",
+  "resource": {
+    "kind": "recompute",
+    "id": 791
+  },
+  "status": "PENDING",
+  "progress": null,
+  "started_at": null,
+  "cancel_requested_at": null,
+  "finished_at": null,
+  "result": null,
+  "error": null
+}

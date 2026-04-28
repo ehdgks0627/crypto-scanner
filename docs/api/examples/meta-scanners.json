@@ -1,0 +1,14 @@
+{
+  "scanners": [
+    {
+      "id": "network",
+      "label": "Network Scanner",
+      "requires_agent": false
+    },
+    {
+      "id": "agent.cert_store",
+      "label": "System CA Store",
+      "requires_agent": true
+    }
+  ]
+}

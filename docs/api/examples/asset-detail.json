@@ -1,0 +1,110 @@
+{
+  "id": 9001,
+  "snapshot_id": 56,
+  "bom_ref": "cert-leaf-web-rsa2048-ab12cd34",
+  "asset_class": "crypto",
+  "asset_type": "certificate",
+  "name": "web.testbed.local (leaf)",
+  "crypto_properties": {
+    "assetType": "certificate",
+    "certificateProperties": {
+      "subjectName": "CN=web.testbed.local,O=Test",
+      "issuerName": "CN=Internal Intermediate CA",
+      "notValidBefore": "2025-01-01T00:00:00Z",
+      "notValidAfter": "2026-01-01T00:00:00Z",
+      "signatureAlgorithmRef": "alg-rsa-pkcs1-sha256",
+      "subjectPublicKeyRef": "key-rsa-2048-web-leaf",
+      "certificateFormat": "X.509",
+      "certificateExtension": "pem"
+    }
+  },
+  "properties": {
+    "internal:fingerprint_sha256": "ab12cd34",
+    "internal:chain_position": "leaf",
+    "internal:source_scanner": "network"
+  },
+  "natural_key": "x509:ab12cd34",
+  "discovered_at": "2026-04-25T10:04:30Z",
+  "target": {
+    "id": 1,
+    "host": "web.testbed.local",
+    "port": 443
+  },
+  "effective_context": {
+    "sensitivity": "critical",
+    "lifespan_years": 10,
+    "criticality": "critical",
+    "exposure": "internal_network",
+    "service_role": "web-frontend"
+  },
+  "context_override": {
+    "sensitivity": "critical",
+    "lifespan_years": null,
+    "criticality": "critical",
+    "exposure": null,
+    "service_role": null
+  },
+  "context_sources": {
+    "sensitivity": "asset_override",
+    "lifespan_years": "target",
+    "criticality": "asset_override",
+    "exposure": "target",
+    "service_role": "heuristic"
+  },
+  "risk": {
+    "score": 84,
+    "tier": "CRITICAL",
+    "factor_a": 0.95,
+    "factor_d": 0.8,
+    "factor_e": 0.4,
+    "factor_l": 0.85,
+    "factor_c": 0.75,
+    "weights": {
+      "wA": 1.0,
+      "wD": 1.0,
+      "wE": 1.0,
+      "wL": 1.0,
+      "wC": 1.0
+    }
+  },
+  "qualitative": {
+    "provider": "mock",
+    "summary": "RSA-2048 certificate protects a high-criticality web service.",
+    "threat_scenarios": ["Harvest-now-decrypt-later exposure for long-lived data."],
+    "migration_recommendation": "Use a hybrid certificate profile during the transition period.",
+    "confidence": 0.5,
+    "generated_at": "2026-04-25T10:06:00Z"
+  },
+  "dependencies": {
+    "dependsOn": [
+      {
+        "id": 9002,
+        "bom_ref": "key-rsa-2048-web-leaf",
+        "name": "RSA-2048 public key",
+        "semantic": "embeds_key"
+      }
+    ],
+    "dependedBy": [
+      {
+        "id": 9100,
+        "bom_ref": "proto-tls13-web",
+        "name": "TLS 1.3 @ web.testbed.local:443",
+        "semantic": "uses_cert"
+      }
+    ]
+  },
+  "history": [
+    {
+      "snapshot_id": 55,
+      "score": 80,
+      "tier": "CRITICAL",
+      "snapshot_created_at": "2026-04-24T10:05:00Z"
+    },
+    {
+      "snapshot_id": 56,
+      "score": 84,
+      "tier": "CRITICAL",
+      "snapshot_created_at": "2026-04-25T10:05:00Z"
+    }
+  ]
+}

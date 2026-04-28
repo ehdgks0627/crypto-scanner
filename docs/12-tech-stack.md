@@ -79,11 +79,14 @@
 
 | 패키지 | 용도 |
 |---|---|
-| openapi-typescript | Backend의 `/api/openapi.json`에서 TS 타입 자동 생성 |
+| openapi-typescript | `docs/api/openapi.yaml` 또는 Backend의 `/api/openapi.json`에서 TS 타입 자동 생성 |
+
+계약 설계 단계에서는 정적 원본인 `docs/api/openapi.yaml`을 사용한다.
+백엔드 구현 후에는 Django Ninja가 노출하는 `/api/openapi.json`과 정적 원본의 차이를 검증한다.
 
 빌드 시점 또는 dev script로 호출:
 ```bash
-npx openapi-typescript http://localhost:8000/api/openapi.json -o src/api/types.ts
+npx openapi-typescript ../../docs/api/openapi.yaml -o src/api/types.ts
 ```
 
 ## 12.4 인프라 / 운영

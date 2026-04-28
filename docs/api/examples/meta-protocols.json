@@ -1,0 +1,3 @@
+{
+  "protocols": ["TLS", "SSH", "IKE", "SMTP", "IMAP", "POP3", "UNKNOWN"]
+}

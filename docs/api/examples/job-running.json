@@ -1,0 +1,20 @@
+{
+  "id": 123,
+  "kind": "scan_job",
+  "resource": {
+    "kind": "scan_job",
+    "id": 123
+  },
+  "status": "RUNNING",
+  "progress": {
+    "completed": 4,
+    "total": 9,
+    "current_target": "web.testbed.local:443",
+    "current_scanner": "network"
+  },
+  "started_at": "2026-04-25T10:00:00Z",
+  "cancel_requested_at": null,
+  "finished_at": null,
+  "result": null,
+  "error": null
+}

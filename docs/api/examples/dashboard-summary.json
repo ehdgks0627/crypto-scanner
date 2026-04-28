@@ -1,0 +1,89 @@
+{
+  "snapshot": {
+    "id": 56,
+    "created_at": "2026-04-25T10:05:00Z",
+    "asset_count": 142
+  },
+  "by_tier": {
+    "CRITICAL": 8,
+    "HIGH": 15,
+    "MEDIUM": 30,
+    "LOW": 89
+  },
+  "by_asset_type": {
+    "algorithm": 50,
+    "certificate": 20,
+    "key": 30,
+    "protocol": 15,
+    "keystore": 2,
+    "device": 7,
+    "service": 14,
+    "data": 4
+  },
+  "by_algorithm_family": {
+    "RSA": 35,
+    "ECDSA": 12,
+    "ECDH": 18,
+    "DH": 5,
+    "Ed25519": 4,
+    "AES": 30,
+    "SHA": 15,
+    "ML-KEM": 1,
+    "ML-DSA": 1
+  },
+  "quantum_vulnerable_ratio": {
+    "vulnerable": 75,
+    "safe": 50,
+    "unknown": 17
+  },
+  "recent_jobs": [
+    {
+      "id": 123,
+      "kind": "scan_job",
+      "resource": {
+        "kind": "scan_job",
+        "id": 123
+      },
+      "status": "COMPLETED",
+      "progress": null,
+      "started_at": "2026-04-25T10:00:00Z",
+      "cancel_requested_at": null,
+      "finished_at": "2026-04-25T10:05:00Z",
+      "result": {
+        "snapshot_id": 56
+      },
+      "error": null
+    }
+  ],
+  "agents_status": {
+    "total": 3,
+    "active": 3,
+    "stale": 0
+  },
+  "trend": [
+    {
+      "snapshot_id": 53,
+      "created_at": "2026-04-22T10:05:00Z",
+      "critical_count": 5,
+      "total_count": 130
+    },
+    {
+      "snapshot_id": 54,
+      "created_at": "2026-04-23T10:05:00Z",
+      "critical_count": 6,
+      "total_count": 135
+    },
+    {
+      "snapshot_id": 55,
+      "created_at": "2026-04-24T10:05:00Z",
+      "critical_count": 7,
+      "total_count": 138
+    },
+    {
+      "snapshot_id": 56,
+      "created_at": "2026-04-25T10:05:00Z",
+      "critical_count": 8,
+      "total_count": 142
+    }
+  ]
+}

@@ -8,6 +8,8 @@
 
 ```mermaid
 erDiagram
+    AsyncJob ||--o| ScanJob : tracks
+    AsyncJob ||--o| Discovery : tracks
     Target ||--o{ Asset : discovers
     Target ||--o{ ScanJob : "scanned in"
     ScanJob ||--|| CbomSnapshot : produces
@@ -16,6 +18,7 @@ erDiagram
     CbomSnapshot ||--o{ AssetEdge : contains
     Asset ||--o{ AssetEdge : "from"
     Asset ||--o{ AssetEdge : "to"
+    Asset ||--o| AssetContextOverride : has
     Asset ||--o{ RiskScore : "evaluated in"
     Asset ||--o| QualitativeAssessment : has
     Agent ||--o{ AgentHeartbeat : reports
@@ -43,6 +46,7 @@ erDiagram
 
     ScanJob {
         int id PK
+        int async_job_id FK
         string status
         json scanner_selection
         json target_ids
@@ -59,6 +63,7 @@ erDiagram
         json capabilities
         string os_distribution
         datetime registered_at
+        datetime token_rotated_at
         datetime last_seen
         bool active
     }
@@ -95,6 +100,17 @@ erDiagram
         string semantic
     }
 
+    AssetContextOverride {
+        int id PK
+        int asset_id FK
+        string sensitivity nullable
+        int lifespan_years nullable
+        string criticality nullable
+        string exposure nullable
+        string service_role nullable
+        datetime updated_at
+    }
+
     RiskScore {
         int id PK
         int asset_id FK
@@ -124,10 +140,12 @@ erDiagram
 
     Discovery {
         int id PK
+        int async_job_id FK
         string cidr
         json port_list
         string status
-        datetime started_at
+        datetime created_at
+        datetime started_at nullable
         datetime finished_at nullable
     }
 
@@ -147,6 +165,23 @@ erDiagram
         uuid agent_id FK
         datetime received_at
         json status_payload
+    }
+
+    AsyncJob {
+        int id PK
+        string kind
+        int resource_id nullable
+        string status
+        json request_payload
+        json progress nullable
+        json result nullable
+        string celery_task_id nullable
+        datetime queued_at
+        datetime started_at nullable
+        datetime cancel_requested_at nullable
+        datetime finished_at nullable
+        string error nullable
+        string created_by
     }
 
     ScanRunLog {
@@ -195,13 +230,54 @@ erDiagram
 - `effective_sni()`: `sni or host`
 - `effective_context()`: 컨텍스트 인자 5종 반환. null인 항목은 휴리스틱 추정으로 채움
 
-### 7.3.2 ScanJob
+### 7.3.2 AsyncJob
+
+API-visible 비동기 작업의 공통 상태. `/api/jobs/{id}`는 이 모델을 기준으로 조회한다.
+
+| 필드 | 타입 | 제약 | 설명 |
+|---|---|---|---|
+| `id` | BigAutoField | PK | API-visible Job ID. `scan_job`/`discovery`/`recompute` 전체에서 고유 |
+| `kind` | CharField(20) | not null | `scan_job`/`discovery`/`recompute` |
+| `resource_id` | BigIntegerField | null 가능 | `scan_job`이면 `ScanJob.id`, `discovery`면 `Discovery.id`. `recompute`는 별도 도메인 테이블 없이 이 `AsyncJob.id`를 사용 |
+| `status` | CharField(20) | not null | `PENDING`/`RUNNING`/`COMPLETED`/`FAILED`/`CANCELLED` |
+| `request_payload` | JSONField | not null, default `{}` | 생성 요청 스냅샷. Recompute의 weights, persist 옵션 등 |
+| `progress` | JSONField | null 가능, default null | 폴링 진행률. `PENDING`이면 null, `RUNNING`이면 `completed`, `total`, `current_target`, `current_scanner` 등 |
+| `result` | JSONField | null 가능 | 완료 후 산출물. 예: `{"snapshot_id": 56}` 또는 `{"snapshot_id": 56, "updated_scores_count": 142}` |
+| `celery_task_id` | CharField(255) | null 가능 | Celery/RQ 같은 worker task id |
+| `queued_at` | DateTimeField | auto_now_add | |
+| `started_at` | DateTimeField | null 가능 | |
+| `cancel_requested_at` | DateTimeField | null 가능 | 사용자 취소 요청 시각. Worker가 확인한 뒤 `CANCELLED`로 전이 |
+| `finished_at` | DateTimeField | null 가능 | |
+| `error` | TextField | null 가능 | 실패 메시지 |
+| `created_by` | CharField(50) | default `"user"` | 싱글 유저이므로 고정값 |
+
+**관계 규칙**:
+- `scan_job`: `ScanJob.async_job`과 1:1, `resource_id = ScanJob.id`
+- `discovery`: `Discovery.async_job`과 1:1, `resource_id = Discovery.id`
+- `recompute`: 가중치 재계산은 별도 도메인 테이블을 만들지 않고 `AsyncJob.request_payload`에 요청값을 저장하며, `resource_id = AsyncJob.id`
+
+**상태 전이**:
+```
+PENDING → RUNNING → COMPLETED
+                  ↘ FAILED
+PENDING → CANCELLED (사용자 취소)
+RUNNING → CANCELLED (사용자 취소)
+```
+
+**취소 정책**:
+- `scan_job`: `PENDING`, `RUNNING` 취소 가능. `RUNNING`이면 `cancel_requested_at`을 저장하고 Worker가 확인한 뒤 `CANCELLED`로 마감한다. 취소된 scan은 Snapshot을 만들지 않는다.
+- `discovery`: `PENDING`, `RUNNING` 취소 가능. 이미 저장된 `DiscoveredEndpoint`는 보존하지만 Discovery 상태가 `CANCELLED`이므로 partial 결과로 취급한다.
+- `recompute`: `PENDING`만 취소 가능. `RUNNING` 이후에는 기존 `RiskScore`를 부분 갱신할 수 있으므로 취소 요청은 `409 job_not_cancellable`로 거절한다.
+- `COMPLETED`/`FAILED`/`CANCELLED` 작업에 대한 취소 요청은 `409`를 반환한다.
+
+### 7.3.3 ScanJob
 
 1회의 스캔 작업.
 
 | 필드 | 타입 | 제약 | 설명 |
 |---|---|---|---|
 | `id` | BigAutoField | PK | |
+| `async_job` | OneToOneField(AsyncJob) | not null, on_delete=CASCADE | API-visible Job 상태 |
 | `status` | CharField(20) | not null | `PENDING`/`RUNNING`/`COMPLETED`/`FAILED`/`CANCELLED` |
 | `scanner_selection` | JSONField | not null | 사용자가 선택한 스캐너 종류. `["network", "agent.cert_store", "agent.ssh_config"]` 등 |
 | `target_ids` | JSONField | not null | `[1, 2, 3]` 형태. 스냅샷 시점의 대상 Target ID 배열 |
@@ -221,7 +297,9 @@ PENDING → CANCELLED (사용자 취소)
 RUNNING → CANCELLED (사용자 취소)
 ```
 
-### 7.3.3 ScanRunLog
+`status`, `started_at`, `finished_at`, `error`는 `AsyncJob`과 같은 값을 유지한다. 구현은 `AsyncJob`을 API 폴링의 기준으로 삼고, `ScanJob`의 동일 필드는 스캔 도메인 조회 최적화를 위한 denormalized 필드로 취급한다.
+
+### 7.3.4 ScanRunLog
 
 ScanJob 내 Target × Scanner 단위 실행 로그.
 
@@ -239,7 +317,7 @@ ScanJob 내 Target × Scanner 단위 실행 로그.
 
 **인덱스**: `(scan_job, target)`, `(scan_job, status)`.
 
-### 7.3.4 Agent
+### 7.3.5 Agent
 
 테스트베드 호스트에 배포된 Agent (4.5).
 
@@ -252,12 +330,15 @@ ScanJob 내 Target × Scanner 단위 실행 로그.
 | `capabilities` | JSONField | not null | `["cert_store", "ssh_config", ...]` |
 | `os_distribution` | CharField(100) | null 가능 | `alpine:3.20` 등 |
 | `registered_at` | DateTimeField | auto_now_add | |
+| `token_rotated_at` | DateTimeField | not null | Agent token 최초 발급 또는 재발급 시각 |
 | `last_seen` | DateTimeField | not null | heartbeat마다 갱신 |
 | `active` | BooleanField | default true | 명시적 비활성화 시 false |
 
 **stale 판정**: `last_seen < now() - 5min`이면 Worker는 Agent를 호출하지 않음 (4.8.1).
 
-### 7.3.5 AgentHeartbeat
+**재등록 정책**: `POST /api/agents/register`는 bootstrap token이 유효하면 `hostname` 기준 upsert로 동작한다. 기존 hostname이면 `agent_url`, `capabilities`, `os_distribution`, `active=true`를 갱신하고 새 Agent token을 발급해 `agent_token_hash`와 `token_rotated_at`을 교체한다. Raw token은 등록 응답에서만 1회 노출하고 DB에는 저장하지 않는다.
+
+### 7.3.6 AgentHeartbeat
 
 Agent의 주기 상태 보고 (옵션, 운영 가시성).
 
@@ -270,7 +351,7 @@ Agent의 주기 상태 보고 (옵션, 운영 가시성).
 
 **보존 정책**: 최근 100건만 유지 (Agent당). 초과분은 trigger 또는 cron으로 정리.
 
-### 7.3.6 CbomSnapshot
+### 7.3.7 CbomSnapshot
 
 1 Scan Job = 1 Snapshot.
 
@@ -284,7 +365,7 @@ Agent의 주기 상태 보고 (옵션, 운영 가시성).
 | `validation_errors` | JSONField | default `[]` | 5.10 검증 실패 항목 |
 | `created_at` | DateTimeField | auto_now_add | |
 
-### 7.3.7 Asset
+### 7.3.8 Asset
 
 스냅샷의 단일 자산. CBOM의 component 1개에 1:1 매핑.
 
@@ -310,7 +391,29 @@ Agent의 주기 상태 보고 (옵션, 운영 가시성).
 
 **제약**: `(snapshot, bom_ref)` unique.
 
-### 7.3.8 AssetEdge
+### 7.3.9 AssetContextOverride
+
+자산 단위 운영 컨텍스트 override. Target에서 상속된 값과 다르게 평가해야 할 때 생성된다.
+
+| 필드 | 타입 | 제약 | 설명 |
+|---|---|---|---|
+| `id` | BigAutoField | PK | |
+| `asset` | OneToOneField(Asset) | not null, on_delete=CASCADE | override 대상 자산 |
+| `sensitivity` | CharField(10) | null 가능 | `low/medium/high/critical`; null이면 Target/휴리스틱 상속 |
+| `lifespan_years` | IntegerField | null 가능 | null이면 Target/휴리스틱 상속 |
+| `criticality` | CharField(10) | null 가능 | `low/medium/high/critical`; null이면 Target/휴리스틱 상속 |
+| `exposure` | CharField(20) | null 가능 | `public_internet`/`dmz`/`internal_network`/`air_gapped`; null이면 Target/휴리스틱 상속 |
+| `service_role` | CharField(50) | null 가능 | null이면 Target/휴리스틱 상속 |
+| `created_at` | DateTimeField | auto_now_add | |
+| `updated_at` | DateTimeField | auto_now | |
+
+**PATCH 의미**:
+- 필드 생략: 기존 override 값 유지
+- 필드 값 지정: 해당 override 저장
+- 필드 값 `null`: 해당 override 제거 후 상속값 사용
+- 모든 override 필드가 null이 되면 레코드는 삭제 가능
+
+### 7.3.10 AssetEdge
 
 자산 간 의존 관계 (5.6).
 
@@ -324,7 +427,7 @@ Agent의 주기 상태 보고 (옵션, 운영 가시성).
 
 **제약**: `(snapshot, from_asset, to_asset, semantic)` unique.
 
-### 7.3.9 RiskScore
+### 7.3.11 RiskScore
 
 자산별 위험도 평가 결과.
 
@@ -348,7 +451,7 @@ Agent의 주기 상태 보고 (옵션, 운영 가시성).
 
 **제약**: `(asset, snapshot)` unique.
 
-### 7.3.10 QualitativeAssessment
+### 7.3.12 QualitativeAssessment
 
 자산별 LLM 정성 분석 (6.6).
 
@@ -365,21 +468,25 @@ Agent의 주기 상태 보고 (옵션, 운영 가시성).
 
 > 자산 단위로 1개만. 재요청 시 같은 레코드 갱신.
 
-### 7.3.11 Discovery
+### 7.3.13 Discovery
 
 CIDR 디스커버리 작업 (16, 2c).
 
 | 필드 | 타입 | 제약 | 설명 |
 |---|---|---|---|
 | `id` | BigAutoField | PK | |
+| `async_job` | OneToOneField(AsyncJob) | not null, on_delete=CASCADE | API-visible Job 상태 |
 | `cidr` | CharField(50) | not null | 입력 CIDR |
 | `port_list` | JSONField | not null | 사전 정의 포트 + 사용자 추가 |
 | `status` | CharField(20) | not null | `PENDING`/`RUNNING`/`COMPLETED`/`FAILED`/`CANCELLED` |
-| `started_at` | DateTimeField | auto_now_add | |
+| `created_at` | DateTimeField | auto_now_add | Discovery 요청 생성 시각 |
+| `started_at` | DateTimeField | null 가능 | Worker가 실제 Discovery 실행을 시작한 시각. `PENDING`이면 null |
 | `finished_at` | DateTimeField | null 가능 | |
 | `error` | TextField | null 가능 | |
 
-### 7.3.12 DiscoveredEndpoint
+`status`, `started_at`, `finished_at`, `error`는 `AsyncJob`과 같은 값을 유지한다. `created_at`은 Discovery 도메인 레코드 생성 시각이며 `AsyncJob.queued_at`과 같은 의미다. 구현은 `AsyncJob`을 API 폴링의 기준으로 삼고, `Discovery`의 동일 필드는 Discovery 화면 조회 최적화를 위한 denormalized 필드로 취급한다.
+
+### 7.3.14 DiscoveredEndpoint
 
 Discovery로 발견된 endpoint.
 
@@ -424,6 +531,7 @@ Discovery로 발견된 endpoint.
 | Snapshot 생성 + Asset bulk insert + Edge bulk insert + 파일 저장 | 1개 트랜잭션. 파일 저장은 트랜잭션 commit 후. 트랜잭션 실패 시 임시 파일 삭제 |
 | RiskScore 계산 | 자산 단위 별개 트랜잭션. 일부 실패해도 다른 자산은 평가 완료 |
 | Target 컨텍스트 수정 후 RiskScore 재계산 | Target 업데이트 트랜잭션 commit 후 비동기 재계산 Job 큐잉 |
+| Asset 컨텍스트 override 수정 후 RiskScore 재계산 | AssetContextOverride 업데이트 트랜잭션 commit 후 비동기 재계산 Job 큐잉 |
 
 ## 7.7 마이그레이션 전략
 

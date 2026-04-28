@@ -1,0 +1,8 @@
+{
+  "error": "validation_error",
+  "message": "Request validation failed.",
+  "details": {
+    "field": "target_ids",
+    "reason": "This field must contain at least one target id."
+  }
+}

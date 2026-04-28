@@ -2,7 +2,16 @@
 
 ## 8.1 개요
 
-본 문서는 Frontend ↔ Backend 사이의 REST API 계약을 정의한다. 본 시스템은 Django + Django Ninja 조합을 사용하며, OpenAPI 스키마는 `/api/openapi.json`으로 자동 노출된다.
+본 문서는 Frontend ↔ Backend 사이의 REST API 계약을 정의한다. API 계약의 기준 원본은 `docs/api/openapi.yaml`이며, 본 문서는 의도·시맨틱·상태 전이·운영 규칙을 설명한다. 백엔드 구현은 Django + Django Ninja 조합을 사용하며, 구현 후 `/api/openapi.json`은 `docs/api/openapi.yaml`과 동등해야 한다.
+
+### 8.1.0 산출물 구성
+
+| 산출물 | 역할 |
+|---|---|
+| `docs/08-api-contract.md` | 사람이 읽는 계약 문서. API 의미, 상태 전이, 예외 규칙 설명 |
+| `docs/api/openapi.yaml` | 기계가 읽는 설계 기준 원본. 프론트 타입 생성과 백엔드 계약 검증 기준 |
+| `docs/api/examples/*.json` | 프론트 mock, 문서 예시, 계약 테스트용 대표 payload |
+| Django Ninja `/api/openapi.json` | 구현 결과물. CI에서 `docs/api/openapi.yaml`과 차이 검증 |
 
 ### 8.1.1 기본 규칙
 
@@ -17,9 +26,20 @@
 | 필터 | 쿼리 파라미터로 (`?asset_type=algorithm&min_score=60`) |
 | 인증 | 없음 (D-04, 단 Agent 통신은 Bearer 토큰) |
 | 에러 형식 | `{"error": "<code>", "message": "<human readable>", "details": {...}}` |
-| 비동기 작업 | Job ID 반환, 클라이언트가 폴링 (`GET /jobs/{id}`, D-02) |
+| 비동기 작업 | Job Envelope 반환, 클라이언트가 `GET /jobs/{id}` 또는 도메인 상세 API로 폴링 (D-02) |
 
-### 8.1.2 표준 에러 코드
+### 8.1.2 Query Array 규칙
+
+다중 선택 필터는 CSV query string으로 표현한다. OpenAPI에서는 `style: form`, `explode: false` 배열로 정의한다.
+
+예:
+- `tier=CRITICAL,HIGH`
+- `asset_type=certificate,protocol`
+- `asset_ids=9001,9002`
+
+Django Ninja 구현은 공통 CSV 파서 유틸을 사용해 `list[str]`/`list[int]`로 변환한다. 동일 파라미터 반복(`tier=CRITICAL&tier=HIGH`)은 v1 계약 범위에 포함하지 않는다.
+
+### 8.1.3 표준 에러 코드
 
 | HTTP | error code | 의미 |
 |---|---|---|
@@ -27,9 +47,12 @@
 | 401 | `invalid_token` | (Agent API 한정) 토큰 누락/오류 |
 | 404 | `not_found` | 자원 미존재 |
 | 409 | `conflict` | 중복 등록, 상태 전이 불가 등 |
+| 409 | `job_not_cancellable` | Job이 현재 상태 또는 kind 정책상 취소 불가 |
 | 422 | `unprocessable` | 의미상 처리 불가 (예: 빈 target_ids로 Job 생성) |
 | 500 | `internal` | 서버 내부 오류 |
 | 503 | `service_unavailable` | Worker/Redis 미가동 등 |
+
+Django Ninja/Pydantic 기본 validation 응답은 그대로 노출하지 않는다. 백엔드는 커스텀 exception handler로 모든 API 오류를 위 ErrorResponse envelope로 변환한다.
 
 ## 8.2 엔드포인트 일람
 
@@ -40,11 +63,12 @@
 | | GET | `/api/targets/{id}` | Target 상세 |
 | | PATCH | `/api/targets/{id}` | Target 부분 수정 |
 | | DELETE | `/api/targets/{id}` | Target 삭제 |
-| Discovery | POST | `/api/discoveries` | CIDR 디스커버리 시작 |
+| Discovery | GET | `/api/discoveries` | Discovery 작업 목록 |
+| | POST | `/api/discoveries` | CIDR 디스커버리 시작 |
 | | GET | `/api/discoveries/{id}` | 디스커버리 상태 |
 | | GET | `/api/discoveries/{id}/endpoints` | 발견된 endpoint 목록 |
 | | POST | `/api/discoveries/{id}/promote` | 선택된 endpoint를 Target으로 승격 |
-| Scan Jobs | POST | `/api/jobs` | Scan Job 시작 |
+| Jobs | POST | `/api/jobs` | Scan Job 시작 |
 | | GET | `/api/jobs` | Job 목록 |
 | | GET | `/api/jobs/{id}` | Job 상세 (폴링용) |
 | | POST | `/api/jobs/{id}/cancel` | Job 취소 |
@@ -63,6 +87,7 @@
 | | GET | `/api/risk/weights` | 현재 가중치 조회 |
 | | PUT | `/api/risk/weights` | 가중치 갱신 |
 | Migration | GET | `/api/snapshots/{sid}/migration-plan` | 자산별 권장 전환 전략 |
+| | GET | `/api/snapshots/{sid}/migration-plan/impact` | 선택 자산 전환 영향 분석 |
 | Agents | POST | `/api/agents/register` | Agent 자기 등록 |
 | | GET | `/api/agents` | Agent 목록 |
 | | GET | `/api/agents/{id}` | Agent 상세 |
@@ -92,6 +117,10 @@
 {
   "id": 123,
   "kind": "scan_job",
+  "resource": {
+    "kind": "scan_job",
+    "id": 123
+  },
   "status": "RUNNING",
   "progress": {
     "completed": 4,
@@ -100,6 +129,7 @@
     "current_scanner": "network"
   },
   "started_at": "2026-04-25T10:00:00Z",
+  "cancel_requested_at": null,
   "finished_at": null,
   "result": null,
   "error": null
@@ -108,13 +138,29 @@
 
 `status` enum: `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`.
 
-`COMPLETED`인 경우 `result`에 후속 자원 ID:
+`kind` enum: `scan_job`, `discovery`, `recompute`. `JobEnvelope.id`는 API-visible Job ID이며 작업 종류 전체에서 고유해야 한다. `resource`는 해당 Job이 만든 리소스 ID다. 예를 들어 Discovery 생성 응답에서 프론트엔드는 `job.id`로 폴링하고, `job.resource.id`로 `/discoveries/{id}` 화면에 진입한다. Recompute는 별도 도메인 테이블 없이 `AsyncJob(kind=recompute)` 자체가 작업 리소스이므로 `resource.id == job.id`다. Django 구현은 `AsyncJob` 모델을 두고 `ScanJob`/`Discovery` 도메인 레코드와 1:1로 연결한다. `/api/jobs`는 비동기 작업 목록이며, `POST /api/jobs`는 Scan Job만 생성한다. Discovery와 Recompute는 각각 `/api/discoveries`, `/api/snapshots/{sid}/recompute`에서 생성되지만 동일한 Job Envelope 형식으로 상태를 표현한다.
+
+`result`는 완료 산출물만 담는다. `PENDING`/`RUNNING`에서는 항상 `null`이며, 프론트엔드는 폴링에는 `JobEnvelope.id`, 생성 직후 화면 이동에는 `resource`만 사용한다.
+
+`progress` 키는 항상 존재하며 값은 `JobProgress | null`이다. `PENDING`이면 `null`, `RUNNING`이면 가능한 경우 진행률 객체, 완료/실패/취소 상태에서는 마지막 진행률 또는 `null`을 반환한다. `cancel_requested_at`은 취소 요청이 접수됐지만 Worker 정리가 끝나지 않은 동안에만 채워진다.
+
+`COMPLETED`인 경우 `result`에 완료 산출물:
 ```json
 {
+  "id": 123,
+  "kind": "scan_job",
   "status": "COMPLETED",
-  "result": {"snapshot_id": 56}
+  "resource": {"kind": "scan_job", "id": 123},
+  "progress": null,
+  "started_at": "2026-04-25T10:00:00Z",
+  "cancel_requested_at": null,
+  "finished_at": "2026-04-25T10:05:00Z",
+  "result": {"snapshot_id": 56},
+  "error": null
 }
 ```
+
+Recompute 완료의 `result`는 poll ID를 반복하지 않고 실제 산출물만 담는다. 예: `{"snapshot_id": 56, "updated_scores_count": 142}`.
 
 ## 8.4 Targets
 
@@ -205,6 +251,8 @@
 }
 ```
 
+`recompute_job_id`는 `/api/jobs/{id}`로 폴링할 API-visible `AsyncJob.id`다.
+
 ### 8.4.4 `DELETE /api/targets/{id}`
 
 응답 (204).
@@ -212,6 +260,35 @@
 연관된 Asset은 `target` FK가 SET_NULL 되며, 과거 Snapshot은 보존된다.
 
 ## 8.5 Discovery
+
+### 8.5.0 `GET /api/discoveries`
+
+디스커버리 작업 목록 조회. 프론트엔드 `/discoveries` 페이지에서 사용한다.
+
+쿼리 파라미터:
+- `status` (`PENDING`/`RUNNING`/`COMPLETED`/`FAILED`/`CANCELLED`)
+- `sort`, `offset`, `limit`
+
+응답 (200):
+```json
+{
+  "items": [
+    {
+      "id": 77,
+      "cidr": "172.20.0.0/24",
+      "port_list": [22, 443, 8883],
+      "status": "COMPLETED",
+      "created_at": "2026-04-25T09:00:00Z",
+      "started_at": "2026-04-25T09:00:00Z",
+      "finished_at": "2026-04-25T09:01:30Z",
+      "error": null
+    }
+  ],
+  "total": 1,
+  "offset": 0,
+  "limit": 20
+}
+```
 
 ### 8.5.1 `POST /api/discoveries`
 
@@ -226,7 +303,31 @@
 
 `include_default_ports: true`이면 시스템 기본 포트 리스트 (16번 결정의 테스트베드 9개 서비스 포트)에 사용자 입력 `ports`를 합집합한다.
 
-응답 (202): Job Envelope (kind=`discovery`).
+응답 (202): Job Envelope (kind=`discovery`). `id`는 Job ID, `resource.id`는 Discovery ID다.
+
+Discovery 상세 폴링 응답에는 진행률 표시용 `progress`가 포함될 수 있다.
+CIDR/port 입력 검증 실패는 422, Worker/Redis 큐 사용 불가는 503으로 ErrorResponse를 반환한다.
+
+```json
+{
+  "id": 77,
+  "cidr": "172.20.0.0/24",
+  "port_list": [22, 443, 8883],
+  "status": "RUNNING",
+  "progress": {
+    "completed": 4,
+    "total": 256,
+    "current_target": "172.20.0.10",
+    "current_scanner": "network"
+  },
+  "created_at": "2026-04-25T09:00:00Z",
+  "started_at": "2026-04-25T09:00:00Z",
+  "finished_at": null,
+  "error": null
+}
+```
+
+`PENDING` 상태에서는 `started_at`이 `null`이고, `created_at`만 생성 시각으로 채워진다.
 
 ### 8.5.2 `GET /api/discoveries/{id}/endpoints`
 
@@ -250,9 +351,13 @@
       "suggested_host": "web.testbed.local"
     }
   ],
-  "total": 25
+  "total": 25,
+  "offset": 0,
+  "limit": 20
 }
 ```
+
+`detected_protocol`은 실제 식별된 서비스 프로토콜이다 (`HTTPS`, `MQTT`, `PostgreSQL`, `SSH`, `IKE`, `UNKNOWN` 등). `suggested_protocol_hint`는 Target 생성에 사용할 스캐너 힌트이며 `TLS`/`SSH`/`IKE`/`SMTP`/`IMAP`/`POP3`/`UNKNOWN` 중 하나다.
 
 `suggested_host`는 reverse DNS 또는 인증서 SAN에서 추정 (26b).
 
@@ -321,9 +426,17 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
 {
   "id": 123,
   "kind": "scan_job",
+  "resource": {
+    "kind": "scan_job",
+    "id": 123
+  },
   "status": "PENDING",
+  "progress": null,
   "started_at": null,
-  "finished_at": null
+  "cancel_requested_at": null,
+  "finished_at": null,
+  "result": null,
+  "error": null
 }
 ```
 
@@ -364,14 +477,24 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
       "error": "agent_unavailable"
     }
   ],
-  "total": 18
+  "total": 18,
+  "offset": 0,
+  "limit": 20
 }
 ```
 
 ### 8.6.4 `POST /api/jobs/{id}/cancel`
 
-응답 (200): Job Envelope, 상태 `CANCELLED`로 전이.
-응답 (409): 이미 종료된 Job (`COMPLETED`/`FAILED`).
+모든 `AsyncJob`에 대한 취소 요청 엔드포인트다.
+
+취소 가능 범위:
+- `scan_job`: `PENDING`, `RUNNING` 취소 가능
+- `discovery`: `PENDING`, `RUNNING` 취소 가능
+- `recompute`: `PENDING`만 취소 가능. `RUNNING` 이후에는 `409 job_not_cancellable`
+
+응답 (202): Job Envelope. `RUNNING` scan/discovery는 즉시 `CANCELLED`가 아닐 수 있으며, 이 경우 `cancel_requested_at`이 채워지고 Worker가 확인한 뒤 `CANCELLED`로 전이한다.
+응답 (404): 존재하지 않는 Job.
+응답 (409): ErrorResponse `{"error": "job_not_cancellable", ...}`. 이미 종료된 Job (`COMPLETED`/`FAILED`/`CANCELLED`) 또는 현재 상태에서 취소 불가.
 
 ## 8.7 Snapshots & Diff
 
@@ -395,7 +518,9 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
       }
     }
   ],
-  "total": 5
+  "total": 5,
+  "offset": 0,
+  "limit": 20
 }
 ```
 
@@ -438,10 +563,10 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
 ### 8.8.1 `GET /api/snapshots/{sid}/assets`
 
 쿼리 파라미터:
-- `asset_class` (`crypto`/`host`/`service`/`data`)
-- `asset_type` (`algorithm`/`certificate`/...)
+- `asset_class` (`crypto`/`host`/`service`/`data`, CSV 다중 선택 가능)
+- `asset_type` (`algorithm`/`certificate`/..., CSV 다중 선택 가능)
 - `target_id`
-- `min_score`, `max_score`, `tier` (`CRITICAL` 등)
+- `min_score`, `max_score`, `tier` (`CRITICAL` 등, CSV 다중 선택 가능)
 - `quantum_vulnerable` (`true`/`false`)
 - `q` (자유 텍스트, name 부분 일치)
 - `sort` (예: `-risk_score`, `name`)
@@ -472,7 +597,9 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
       }
     }
   ],
-  "total": 142
+  "total": 142,
+  "offset": 0,
+  "limit": 20
 }
 ```
 
@@ -495,6 +622,27 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
     "id": 1,
     "host": "web.testbed.local",
     "port": 443
+  },
+  "effective_context": {
+    "sensitivity": "critical",
+    "lifespan_years": 10,
+    "criticality": "critical",
+    "exposure": "internal_network",
+    "service_role": "web-frontend"
+  },
+  "context_override": {
+    "sensitivity": "critical",
+    "lifespan_years": null,
+    "criticality": "critical",
+    "exposure": null,
+    "service_role": null
+  },
+  "context_sources": {
+    "sensitivity": "asset_override",
+    "lifespan_years": "target",
+    "criticality": "asset_override",
+    "exposure": "target",
+    "service_role": "heuristic"
   },
   "risk": {
     "score": 84,
@@ -529,7 +677,7 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
 }
 ```
 
-`history`는 동일 자연 키의 과거 스냅샷 RiskScore (6.10).
+`effective_context`는 위험도 계산에 실제로 사용된 값이다. `context_override`는 `AssetContextOverride`에 저장된 원본 override이며, 값이 `null`이면 해당 필드는 Target/휴리스틱 상속 상태다. `context_sources`는 각 필드가 `asset_override`, `target`, `heuristic` 중 어디에서 왔는지 표시한다. `history`는 동일 자연 키의 과거 스냅샷 RiskScore (6.10).
 
 ### 8.8.3 `PATCH /api/assets/{id}/context`
 
@@ -543,14 +691,39 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
 }
 ```
 
+필드 생략은 기존 override 유지, 명시적 `null`은 해당 override 제거 후 Target/휴리스틱 상속값으로 복귀를 의미한다. override는 `AssetContextOverride`에 저장된다.
+
 응답 (200):
 ```json
 {
   "asset_id": 9001,
   "applied_overrides": {"sensitivity": "critical", "criticality": "critical"},
+  "effective_context": {
+    "sensitivity": "critical",
+    "lifespan_years": 10,
+    "criticality": "critical",
+    "exposure": "internal_network",
+    "service_role": "web-frontend"
+  },
+  "context_override": {
+    "sensitivity": "critical",
+    "lifespan_years": null,
+    "criticality": "critical",
+    "exposure": null,
+    "service_role": null
+  },
+  "context_sources": {
+    "sensitivity": "asset_override",
+    "lifespan_years": "target",
+    "criticality": "asset_override",
+    "exposure": "target",
+    "service_role": "heuristic"
+  },
   "recompute_job_id": 791
 }
 ```
+
+`recompute_job_id`는 `/api/jobs/{id}`로 폴링할 API-visible `AsyncJob.id`다.
 
 ### 8.8.4 `POST /api/assets/{id}/qualitative`
 
@@ -566,7 +739,7 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 
 자산별 RiskScore 일람 (자산 정보 일부 포함).
 
-쿼리 파라미터: `tier`, `min_score`, `max_score`, `sort`, `offset`, `limit`.
+쿼리 파라미터: `tier` (CSV 다중 선택 가능), `min_score`, `max_score`, `sort`, `offset`, `limit`.
 
 응답:
 ```json
@@ -582,7 +755,9 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
       "computed_at": "..."
     }
   ],
-  "total": 142
+  "total": 142,
+  "offset": 0,
+  "limit": 20
 }
 ```
 
@@ -624,14 +799,25 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 
 기본 가중치 갱신. 기존 RiskScore는 자동 재계산되지 않음 (사용자가 명시적으로 8.9.3 호출).
 
-요청: 6.3.3의 weights 객체.
-응답 (200): 갱신된 가중치.
+요청: 6.3.3의 weights 객체. 요청에는 `updated_at`을 포함하지 않는다.
+```json
+{
+  "wA": 1.0,
+  "wD": 1.0,
+  "wE": 1.0,
+  "wL": 1.5,
+  "wC": 1.0
+}
+```
+
+응답 (200): 갱신된 가중치 + `updated_at`.
 
 ## 8.10 Migration
 
 ### 8.10.1 `GET /api/snapshots/{sid}/migration-plan`
 
-쿼리 파라미터: `min_score`, `tier`, `asset_type`, `target_id`, `offset`, `limit`.
+쿼리 파라미터: `min_score`, `tier` (CSV 다중 선택 가능), `asset_type` (CSV 다중 선택 가능), `target_id`, `offset`, `limit`.
+추가로 `asset_ids=9001,9002` 형식의 특정 자산 필터를 사용할 수 있다.
 
 응답:
 ```json
@@ -663,11 +849,33 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
       "tier": "CRITICAL"
     }
   ],
-  "total": 23
+  "total": 23,
+  "offset": 0,
+  "limit": 20
 }
 ```
 
 권장 알고리즘 결정 규칙은 11번 문서(`11-migration-plan.md`)에서 상세 정의.
+
+### 8.10.2 `GET /api/snapshots/{sid}/migration-plan/impact`
+
+선택된 자산들에 대한 전환 영향 분석만 별도 조회한다. Migration Plan 페이지에서 사용자가 Plan에 추가한 자산들의 호스트/서비스 영향과 예상 작업량을 갱신할 때 사용한다.
+
+쿼리 파라미터:
+- `asset_ids` (콤마 구분, 필수)
+
+응답:
+```json
+{
+  "selected_count": 23,
+  "hosts": ["web.testbed.local", "mail.testbed.local", "db.testbed.local"],
+  "services": ["svc-web-https", "svc-mail-imaps", "svc-db-postgres"],
+  "cert_reissues": 12,
+  "config_changes": 4,
+  "key_regens": 8,
+  "estimated_downtime_min": 30
+}
+```
 
 ## 8.11 Agents
 
@@ -685,11 +893,19 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 }
 ```
 
-응답 (201):
+응답:
+- `201 Created`: 새 hostname 등록
+- `200 OK`: 기존 hostname 재등록. `agent_url`, `capabilities`, `os_distribution`을 갱신하고 새 token을 발급해 기존 token을 폐기
+- `401 Unauthorized`: bootstrap token 누락/오류
+
+등록 응답의 `agent_token`은 1회만 노출된다. Agent는 `id`와 token을 컨테이너 재시작 후에도 유지되도록 파일/볼륨에 저장한다. 권장 경로: `/var/lib/pqc-agent/credentials.json`. DB에는 raw token을 저장하지 않고 `agent_token_hash`만 저장한다.
+
 ```json
 {
   "id": "f1e2d3c4-...",
-  "agent_token": "<원문 토큰, 등록 시 1회만 노출>"
+  "agent_token": "<원문 토큰, 등록 시 1회만 노출>",
+  "registration_action": "created",
+  "token_rotated_at": "2026-04-25T09:00:00Z"
 }
 ```
 
@@ -706,12 +922,15 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
       "capabilities": ["cert_store", "ssh_config", ...],
       "os_distribution": "alpine:3.20",
       "registered_at": "...",
+      "token_rotated_at": "...",
       "last_seen": "...",
       "active": true,
       "is_stale": false
     }
   ],
-  "total": 3
+  "total": 3,
+  "offset": 0,
+  "limit": 20
 }
 ```
 
@@ -743,6 +962,8 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 
 쿼리 파라미터: `snapshot_id` (생략 시 최신).
 
+스냅샷이 아직 없으면 `snapshot`은 `null`이고 집계 객체/배열은 빈 값으로 반환한다. 프론트엔드는 이 응답을 Empty State로 렌더링한다.
+
 응답:
 ```json
 {
@@ -756,7 +977,18 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
   "by_algorithm_family": {"RSA": 35, "ECDSA": 12, "ECDH": 18, "DH": 5, "Ed25519": 4, "AES": 30, "SHA": 15, "ML-KEM": 1, "ML-DSA": 1},
   "quantum_vulnerable_ratio": {"vulnerable": 75, "safe": 50, "unknown": 17},
   "recent_jobs": [
-    {"id": 123, "status": "COMPLETED", "started_at": "...", "finished_at": "..."}
+    {
+      "id": 123,
+      "kind": "scan_job",
+      "resource": {"kind": "scan_job", "id": 123},
+      "status": "COMPLETED",
+      "progress": null,
+      "started_at": "...",
+      "cancel_requested_at": null,
+      "finished_at": "...",
+      "result": {"snapshot_id": 56},
+      "error": null
+    }
   ],
   "agents_status": {"total": 3, "active": 3, "stale": 0},
   "trend": [
@@ -809,6 +1041,13 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 | `X-Request-Id` | 모든 응답에 요청 추적용 UUID. 클라이언트가 보낸 경우 그대로 반향 |
 | `Content-Disposition` | export 엔드포인트만 (8.7.2) |
 
-## 8.15 OpenAPI 자동화
+## 8.15 OpenAPI 계약 자동화
 
-Django Ninja는 `/api/openapi.json` (스펙)과 `/api/docs` (Swagger UI)를 자동 노출한다. 본 문서는 의도와 시맨틱을 정의하며, 실제 엔드포인트 시그니처/필드 타입은 OpenAPI 문서와 일치해야 한다.
+정적 설계 기준 원본은 `docs/api/openapi.yaml`이다. Django Ninja는 구현 결과물로 `/api/openapi.json` (스펙)과 `/api/docs` (Swagger UI)를 자동 노출한다.
+
+구현 단계의 원칙:
+
+- Django Ninja schema/router 이름은 `docs/api/openapi.yaml`의 `operationId`와 `components.schemas` 이름을 따른다.
+- 프론트엔드 타입은 우선 `docs/api/openapi.yaml`에서 생성한다.
+- 백엔드 구현 후 CI에서 `docs/api/openapi.yaml`과 `/api/openapi.json`의 path, method, required field, enum 차이를 검증한다.
+- 문서 예시는 `docs/api/examples/*.json`에 보관하고, Markdown 본문의 예시는 해당 파일과 의미적으로 일치해야 한다.

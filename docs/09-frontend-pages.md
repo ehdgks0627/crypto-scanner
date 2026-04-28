@@ -242,7 +242,7 @@ Header에 작은 점 아이콘 (녹/황/적). 1분 주기로 `/api/dashboard/sum
 └─────────────────────────────────────────────────────────┘
 ```
 
-제출 시 `POST /api/discoveries` → 응답 Job ID로 `/discoveries/{id}` 이동.
+제출 시 `POST /api/discoveries` → `job.resource.id`로 `/discoveries/{id}` 이동한다. 전역 Job 목록/카운터에서는 `job.id`를 사용한다.
 
 ### 9.4.6 Discovery Detail (`/discoveries/:id`)
 
@@ -492,7 +492,8 @@ Header에 작은 점 아이콘 (녹/황/적). 1분 주기로 `/api/dashboard/sum
 │ └─────────────────────────────────────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────────┤
 │ 컨텍스트 Override                                                │
-│  현재 (Target 상속): high / 10y / high / internal / web-frontend│
+│  Effective: critical / 10y / critical / internal / web-frontend │
+│  Sources: override / target / override / target / heuristic     │
 │  Override 시: [편집 →] 모달                                      │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -505,7 +506,7 @@ Header에 작은 점 아이콘 (녹/황/적). 1분 주기로 `/api/dashboard/sum
 - `<DependencyGraph />` — React Flow, 자산 노드를 클릭하면 해당 Asset Detail로
 - `<RiskTrendChart />` — Recharts LineChart
 - `<QualitativeCard />` — LLM 정성 분석, 재요청 버튼
-- `<ContextOverrideDialog />` — PATCH `/api/assets/{id}/context`
+- `<ContextOverrideDialog />` — `effective_context`, `context_override`, `context_sources` 표시 후 PATCH `/api/assets/{id}/context`
 
 ### 9.4.13 Snapshot Diff (`/snapshots/:id/diff`)
 
@@ -583,7 +584,7 @@ Header에 작은 점 아이콘 (녹/황/적). 1분 주기로 `/api/dashboard/sum
 
 ### 9.4.15 Migration Plan (`/snapshots/:id/migration`)
 
-**API**: `GET /api/snapshots/{id}/migration-plan`.
+**API**: `GET /api/snapshots/{id}/migration-plan`, `GET /api/snapshots/{id}/migration-plan/impact`.
 
 **레이아웃**:
 

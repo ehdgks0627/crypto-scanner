@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "id": 56,
+      "scan_job_id": 123,
+      "serial_number": "urn:uuid:9f8e7d6c-0000-4000-8000-000000000056",
+      "asset_count": 142,
+      "created_at": "2026-04-25T10:05:00Z",
+      "summary": {
+        "by_tier": {
+          "CRITICAL": 8,
+          "HIGH": 15,
+          "MEDIUM": 30,
+          "LOW": 89
+        },
+        "by_type": {
+          "algorithm": 50,
+          "certificate": 20,
+          "key": 30,
+          "protocol": 15,
+          "keystore": 2,
+          "device": 7,
+          "service": 14,
+          "data": 4
+        }
+      },
+      "validation_errors": []
+    }
+  ],
+  "total": 1,
+  "offset": 0,
+  "limit": 20
+}

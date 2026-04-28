@@ -85,7 +85,7 @@ sequenceDiagram
     F->>B: POST /api/discoveries
     B->>DB: Discovery 레코드 생성 (PENDING)
     B->>W: enqueue discovery_job
-    B-->>F: 202 {id: 4, status: PENDING}
+    B-->>F: 202 JobEnvelope<br/>{id: 91, kind: discovery, resource: {kind: discovery, id: 4}, status: PENDING, result: null, error: null}
     F->>F: navigate /discoveries/4
 
     loop 5초 폴링
@@ -219,7 +219,7 @@ sequenceDiagram
     W->>DB: status=COMPLETED
 
     F->>B: GET /api/jobs/123
-    B-->>F: status=COMPLETED, result.snapshot_id=56
+    B-->>F: JobEnvelope COMPLETED<br/>{resource: {kind: scan_job, id: 123}, result: {snapshot_id: 56}, error: null}
     F-->>U: Toast "스캔 완료"<br/>[결과 보기] CTA
     U->>F: [결과 보기] 클릭
     F->>F: navigate /snapshots/56
@@ -245,14 +245,15 @@ sequenceDiagram
     F->>F: 확인 다이얼로그
     U->>F: [예]
     F->>B: POST /api/jobs/123/cancel
-    B->>W: revoke task
-    B->>B: status=CANCELLED
-    B-->>F: 200
+    B->>B: cancel_requested_at 기록
+    B-->>F: 202 JobEnvelope<br/>{id: 123, kind: scan_job, resource: {kind: scan_job, id: 123}, status: RUNNING, result: null, error: null, cancel_requested_at: "..."}
+    W->>W: cancel_requested_at 확인
+    W->>B: status=CANCELLED
     F->>F: invalidate ['job', 123]
     F-->>U: Toast "스캔 취소됨"
 ```
 
-진행 중인 ScanRunLog는 별도 처리 없이 그대로 종료. 이미 생성된 Asset/Snapshot이 있다면 그대로 보존 (정합성 보장 위해 트랜잭션 단위로 처리, 7.6).
+`scan_job`과 `discovery`는 `PENDING`/`RUNNING` 취소 가능하다. `recompute`는 `PENDING`만 취소 가능하며 `RUNNING` 이후에는 `409 job_not_cancellable`을 반환한다. 취소된 scan은 Snapshot을 만들지 않는다. 취소된 discovery는 이미 저장된 endpoint를 partial 결과로 보존한다.
 
 ## 10.7 F5: Asset 탐색 및 상세 조회
 
@@ -322,9 +323,9 @@ sequenceDiagram
 
     U->>F: [재계산 실행] 클릭
     F->>B: POST /api/snapshots/56/recompute<br/>{weights: {wL: 1.5, ...}}
-    B->>DB: Recompute Job 생성 (PENDING)
+    B->>DB: AsyncJob(kind=recompute) 생성 (PENDING)
     B->>W: enqueue recompute_job
-    B-->>F: 202 {id: 791, kind: recompute}
+    B-->>F: 202 JobEnvelope<br/>{id: 791, kind: recompute, resource: {kind: recompute, id: 791}, status: PENDING, result: null, error: null}
     F->>F: 폴링 시작 + 페이지에 "재계산 중" 인디케이터
 
     W->>DB: 모든 Asset의 RiskScore 재계산
@@ -366,6 +367,8 @@ sequenceDiagram
 
     U->>F: 여러 자산을 [Plan에 추가]
     F->>F: 클라이언트 상태에 누적 (Zustand)
+    F->>B: GET /api/snapshots/56/migration-plan/impact?asset_ids=...
+    B-->>F: 영향 분석 집계
     Note over F: 우측/하단에 시뮬레이션 박스 갱신<br/>"영향 받는 서비스: 4개"
 
     U->>F: [📥 보고서 다운로드] 클릭
@@ -429,16 +432,16 @@ sequenceDiagram
     U->>F: /snapshots/56/assets/9001
     U->>F: "컨텍스트 Override [편집]" 클릭
     F->>F: ContextOverrideDialog 열림
-    Note over F: 현재 Target 상속 값 표시<br/>각 필드 옆 [override] 토글
+    Note over F: effective_context + context_sources 표시<br/>각 필드 옆 [override] 토글
     U->>F: criticality "high" → "critical"<br/>나머지는 상속 유지
     U->>F: [저장]
     F->>B: PATCH /api/assets/9001/context
     B->>B: Asset 컨텍스트 저장
     B->>W: enqueue 재계산 Job (해당 Asset만)
-    B-->>F: {asset_id, applied_overrides, recompute_job_id}
+    B-->>F: {asset_id, applied_overrides, effective_context, context_override, context_sources, recompute_job_id: 791}
     F->>F: 폴링 시작
     W->>W: RiskScore 재계산
-    F->>B: GET /api/jobs/recompute_job_id
+    F->>B: GET /api/jobs/791
     B-->>F: COMPLETED
     F->>F: invalidate ['asset', 9001]
     F->>B: GET /api/assets/9001
@@ -482,10 +485,16 @@ sequenceDiagram
     Compose->>A: 컨테이너 시작 (BACKEND_URL, BOOTSTRAP_TOKEN env)
     A->>A: HTTP 서버 기동 (9100)
     A->>A: capability 검출
+    A->>A: /var/lib/pqc-agent/credentials.json 확인
+    alt 저장된 token 있음
+        A->>B: POST /api/agents/{id}/heartbeat<br/>Authorization: Bearer ***
+        B-->>A: 200
+    else token 없음 또는 heartbeat 401
     A->>B: POST /api/agents/register<br/>X-Bootstrap-Token: ***
-    B->>B: Bootstrap 토큰 검증 + Agent 토큰 발급
-    B-->>A: 201 {id, agent_token}
-    A->>A: 토큰 메모리 저장
+        B->>B: Bootstrap 토큰 검증 + hostname upsert + token rotation
+        B-->>A: 201/200 {id, agent_token, registration_action, token_rotated_at}
+        A->>A: id/token을 credentials.json에 저장
+    end
     loop 5분마다
         A->>B: POST /api/agents/{id}/heartbeat
         B->>B: last_seen 갱신

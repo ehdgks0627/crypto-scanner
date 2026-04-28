@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "f1e2d3c4-0000-4000-8000-000000000001",
+      "hostname": "web.testbed.local",
+      "agent_url": "http://web.testbed.local:9100",
+      "capabilities": ["cert_store", "ssh_config", "app_cert_files", "app_config"],
+      "os_distribution": "alpine:3.20",
+      "registered_at": "2026-04-25T09:00:00Z",
+      "token_rotated_at": "2026-04-25T09:00:00Z",
+      "last_seen": "2026-04-25T10:00:00Z",
+      "active": true,
+      "is_stale": false
+    }
+  ],
+  "total": 1,
+  "offset": 0,
+  "limit": 20
+}

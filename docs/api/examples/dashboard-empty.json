@@ -1,0 +1,18 @@
+{
+  "snapshot": null,
+  "by_tier": {},
+  "by_asset_type": {},
+  "by_algorithm_family": {},
+  "quantum_vulnerable_ratio": {
+    "vulnerable": 0,
+    "safe": 0,
+    "unknown": 0
+  },
+  "recent_jobs": [],
+  "agents_status": {
+    "total": 0,
+    "active": 0,
+    "stale": 0
+  },
+  "trend": []
+}
