@@ -69,17 +69,11 @@ def patch_asset_context(request, asset_id: int, payload: AssetContextPatch):
 @router.post("/assets/{asset_id}/qualitative")
 def request_qualitative_assessment(request, asset_id: int):
     try:
-        asset = Asset.objects.get(id=asset_id)
+        asset = Asset.objects.select_related("target").get(id=asset_id)
     except Asset.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
     assessment, _created = QualitativeAssessment.objects.update_or_create(
         asset=asset,
-        defaults={
-            "provider": "stub",
-            "summary": f"Qualitative assessment for {asset.name}.",
-            "threat_scenarios": ["future_quantum_decryption"],
-            "migration_recommendation": "Plan migration to a PQC or hybrid alternative.",
-            "confidence": 0.7,
-        },
+        defaults=services.generate_qualitative_assessment(asset),
     )
     return services.serialize_qualitative(assessment)

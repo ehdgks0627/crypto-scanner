@@ -4,6 +4,9 @@ from apps.risk import services as risk_services
 
 
 CONTEXT_FIELDS = ["sensitivity", "lifespan_years", "criticality", "exposure", "service_role"]
+QUANTUM_VULNERABLE_FAMILIES = {"RSA", "DSA", "ECDSA", "ECDH", "DH"}
+CONTEXT_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+EXPOSURE_LEVELS = {"air_gapped": 0, "internal_network": 1, "dmz": 2, "public_internet": 3}
 
 
 class EnqueueUnavailable(Exception):
@@ -63,6 +66,104 @@ def create_recompute_job(asset_id: int):
     job.save(update_fields=["resource_id"])
     enqueue_asset_recompute(job)
     return job
+
+
+def generate_qualitative_assessment(asset):
+    override = getattr(asset, "context_override", None)
+    context = effective_context(asset, override)
+    risk_score = asset.risk_scores.order_by("-id").first()
+    score = risk_score.score if risk_score else _heuristic_qualitative_score(asset, context)
+    return {
+        "provider": "mock-rulebook",
+        "summary": _qualitative_summary(asset, context, score),
+        "threat_scenarios": _qualitative_threat_scenarios(asset, context),
+        "migration_recommendation": _qualitative_migration_recommendation(asset, score),
+        "confidence": _qualitative_confidence(asset, context, risk_score, score),
+    }
+
+
+def _family_key(asset):
+    return (asset.algorithm_family or "").upper()
+
+
+def _is_quantum_vulnerable(asset):
+    return _family_key(asset) in QUANTUM_VULNERABLE_FAMILIES
+
+
+def _heuristic_qualitative_score(asset, context):
+    score = 55 if _is_quantum_vulnerable(asset) else 15
+    score += {"certificate": 5, "key": 8, "ssh_host_key": 10, "ssh_user_key": 10}.get(asset.asset_type, 0)
+    score += CONTEXT_LEVELS.get(context.get("sensitivity"), 0) * 4
+    score += CONTEXT_LEVELS.get(context.get("criticality"), 0) * 5
+    score += EXPOSURE_LEVELS.get(context.get("exposure"), 0) * 5
+    lifespan = context.get("lifespan_years")
+    if lifespan is not None:
+        if lifespan >= 10:
+            score += 10
+        elif lifespan >= 5:
+            score += 6
+        elif lifespan > 0:
+            score += 2
+    return max(0, min(100, score))
+
+
+def _qualitative_summary(asset, context, score):
+    name = asset.name or asset.natural_key or f"asset {asset.id}"
+    algorithm = asset.algorithm or asset.algorithm_family or "unknown algorithm"
+    target = target_label(asset) or "unmapped target"
+    exposure = context.get("exposure") or "unknown exposure"
+    role = context.get("service_role") or asset.asset_type or "unknown role"
+    if score >= 80:
+        posture = "near-term PQC migration planning is recommended."
+    elif score >= 60:
+        posture = "migration planning should be scheduled before the protected data or identity lifetime grows."
+    elif _is_quantum_vulnerable(asset):
+        posture = "quantum exposure exists, but the current context lowers the immediate operational priority."
+    else:
+        posture = "no immediate quantum-driven replacement is indicated from the current context."
+    return f"{name} uses {algorithm} on {target}. For {role} with {exposure}, {posture}"
+
+
+def _qualitative_threat_scenarios(asset, context):
+    scenarios = []
+    if _is_quantum_vulnerable(asset):
+        scenarios.append("harvest_now_decrypt_later")
+    lifespan = context.get("lifespan_years")
+    if lifespan is not None and lifespan >= 5:
+        scenarios.append("long_lived_data_exposure")
+    if context.get("exposure") in {"public_internet", "dmz"}:
+        scenarios.append("network_exposed_cryptographic_service")
+    if asset.asset_type in {"certificate", "key", "ssh_host_key", "ssh_user_key"}:
+        scenarios.append("service_identity_compromise")
+    return scenarios or ["cryptographic_inventory_drift"]
+
+
+def _qualitative_migration_recommendation(asset, score):
+    family = _family_key(asset)
+    priority = "Prioritize" if score >= 80 else "Plan"
+    if family == "RSA":
+        return f"{priority} a hybrid RSA/PQC transition and validate peer compatibility before replacing this asset."
+    if family in {"ECDSA", "DSA"}:
+        return f"{priority} replacement with ML-DSA or a hybrid certificate path where clients require classical trust."
+    if family in {"ECDH", "DH"}:
+        return f"{priority} migration to ML-KEM or a hybrid key-establishment mode for supported protocols."
+    if family.startswith("ML-") or family in {"SLH-DSA", "FN-DSA"}:
+        return "Maintain the current PQC posture and monitor interoperability, lifecycle, and policy requirements."
+    return f"{priority} owner review and select a PQC or hybrid alternative if this asset protects long-lived data."
+
+
+def _qualitative_confidence(asset, context, risk_score, score):
+    populated_context = sum(1 for value in context.values() if value is not None)
+    confidence = 0.42
+    confidence += 0.18 if risk_score else 0.04
+    confidence += min(score, 100) / 1000
+    confidence += min(populated_context * 0.025, 0.12)
+    confidence += 0.05 if asset.algorithm_family else 0
+    confidence += 0.03 if asset.algorithm else 0
+    confidence += 0.03 if asset.target_id else 0
+    if _is_quantum_vulnerable(asset):
+        confidence += 0.03
+    return round(max(0.35, min(0.95, confidence)), 2)
 
 
 def serialize_asset_summary(asset, risk_score=None):

@@ -275,3 +275,59 @@ def test_api_ast_005_qualitative_request_updates_existing_record(client):
     assert QualitativeAssessment.objects.count() == 1
     assessment.refresh_from_db()
     assert assessment.summary == body["summary"]
+
+
+def test_api_ast_006_qualitative_request_uses_asset_context_and_risk(client):
+    target_a = create_target(
+        host="api.testbed.local",
+        context={
+            "sensitivity": "critical",
+            "lifespan_years": 12,
+            "criticality": "critical",
+            "exposure": "public_internet",
+            "service_role": "customer-api",
+        },
+    )
+    target_b = create_target(
+        host="archive.testbed.local",
+        port=8443,
+        context={
+            "sensitivity": "low",
+            "lifespan_years": 1,
+            "criticality": "low",
+            "exposure": "air_gapped",
+            "service_role": "archive",
+        },
+    )
+    rsa_asset = create_asset(
+        target=target_a,
+        name="customer API certificate",
+        natural_key="qualitative:rsa",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+    )
+    pqc_asset = create_asset(
+        target=target_b,
+        name="archive signing key",
+        natural_key="qualitative:pqc",
+        algorithm="ML-DSA-65",
+        algorithm_family="ML-DSA",
+    )
+    create_risk_score(rsa_asset, score=95.0, tier="CRITICAL")
+    create_risk_score(pqc_asset, score=25.0, tier="LOW")
+
+    rsa_response = client.post(f"/api/assets/{rsa_asset.id}/qualitative")
+    pqc_response = client.post(f"/api/assets/{pqc_asset.id}/qualitative")
+
+    assert rsa_response.status_code == 200
+    assert pqc_response.status_code == 200
+    rsa_body = rsa_response.json()
+    pqc_body = pqc_response.json()
+    assert rsa_body["summary"] != pqc_body["summary"]
+    assert rsa_body["confidence"] != pqc_body["confidence"]
+    assert "ssh.testbed.local" not in rsa_body["summary"]
+    assert "ssh.testbed.local" not in pqc_body["summary"]
+    assert rsa_body["migration_recommendation"] != "Plan migration to a PQC or hybrid alternative."
+    assert "harvest_now_decrypt_later" in rsa_body["threat_scenarios"]
+    assert 0 <= rsa_body["confidence"] <= 1
+    assert 0 <= pqc_body["confidence"] <= 1
