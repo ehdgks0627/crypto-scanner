@@ -1,0 +1,40 @@
+name: crypto-scanner-issue-agent
+
+services:
+  issue-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: crypto-scanner-issue-agent:latest
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      RUN_ONCE: ${RUN_ONCE:-0}
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-300}
+    volumes:
+      - type: bind
+        source: ${SSH_CONFIG_SOURCE:-${HOME}/.ssh/config}
+        target: /host-ssh/config
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${SSH_KEY_SOURCE:-${HOME}/.ssh/crypto_scanner_issue_agent_ed25519}
+        target: /host-ssh/deploy_key
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${SSH_KNOWN_HOSTS_SOURCE:-${HOME}/.ssh/known_hosts}
+        target: /host-ssh/known_hosts
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CODEX_AUTH_SOURCE:-${HOME}/.codex/auth.json}
+        target: /host-codex/auth.json
+        read_only: true
+        bind:
+          create_host_path: false
+    restart: unless-stopped

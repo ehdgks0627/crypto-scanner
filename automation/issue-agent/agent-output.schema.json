@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Issue agent result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "summary", "tests", "files_changed", "close_issue"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["implemented", "blocked", "no_changes"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "files_changed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "commit_message": {
+      "type": "string"
+    },
+    "commit_sha": {
+      "type": "string"
+    },
+    "close_issue": {
+      "type": "boolean"
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}
