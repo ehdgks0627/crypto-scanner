@@ -37,4 +37,4 @@ services:
         read_only: true
         bind:
           create_host_path: false
-    restart: unless-stopped
+    restart: "${RESTART_POLICY:-unless-stopped}"

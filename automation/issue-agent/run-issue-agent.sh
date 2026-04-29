@@ -581,6 +581,8 @@ run_once() {
   log "Selected issue #${ACTIVE_ISSUE_NUMBER}"
   gh issue edit "$ACTIVE_ISSUE_NUMBER" -R "$REPO" \
     --add-label "$ISSUE_LABEL_IN_PROGRESS" >/dev/null
+  gh issue edit "$ACTIVE_ISSUE_NUMBER" -R "$REPO" \
+    --remove-label "$ISSUE_LABEL_FAILED" >/dev/null 2>&1 || true
 
   if [[ "$COMMENT_ON_START" == "1" ]]; then
     gh issue comment "$ACTIVE_ISSUE_NUMBER" -R "$REPO" \
