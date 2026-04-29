@@ -72,4 +72,43 @@ describe("JobDetailView", () => {
     expect(screen.getByText("network")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
   });
+
+  it("renders structured job and log errors as text", async () => {
+    vi.spyOn(services.jobs, "get").mockResolvedValue({
+      id: 14,
+      kind: "scan_job",
+      resource: { kind: "scan_job", id: 14 },
+      status: "FAILED",
+      progress: null,
+      started_at: null,
+      cancel_requested_at: null,
+      finished_at: "2026-04-29T00:00:00Z",
+      result: null,
+      error: { code: "scan_failed", message: "Worker returned a structured failure" } as unknown as string
+    });
+    vi.spyOn(services.jobs, "logs").mockResolvedValue({
+      items: [
+        {
+          id: 2,
+          scan_job_id: 14,
+          target_id: 5,
+          target_label: "api.testbed.local:443",
+          scanner_kind: "network",
+          status: "ERROR",
+          findings_count: 0,
+          started_at: "2026-04-29T00:00:00Z",
+          finished_at: "2026-04-29T00:01:00Z",
+          error: { code: "handshake_failed", message: "TLS handshake failed" } as unknown as string
+        }
+      ],
+      total: 1,
+      offset: 0,
+      limit: 100
+    });
+
+    renderWithApp(<JobDetailView id={14} />);
+
+    expect(await screen.findByText("scan_failed: Worker returned a structured failure")).toBeInTheDocument();
+    expect(screen.getByText("handshake_failed: TLS handshake failed")).toBeInTheDocument();
+  });
 });

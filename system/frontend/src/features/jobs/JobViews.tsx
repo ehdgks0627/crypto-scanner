@@ -22,6 +22,31 @@ import { formatDateTime } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import { ScanSelectionModel } from "./scanSelection";
 
+function formatJobError(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value instanceof Error) {
+    return value.message;
+  }
+  if (typeof value === "object") {
+    const message = "message" in value ? value.message : undefined;
+    const code = "code" in value ? value.code : undefined;
+    if (typeof message === "string" && message.trim()) {
+      return typeof code === "string" && code.trim() ? `${code}: ${message}` : message;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "알 수 없는 오류";
+    }
+  }
+  return String(value);
+}
+
 export function JobsView() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -256,6 +281,7 @@ export function JobDetailView({ id }: { id: number }) {
 
   const progress = new JobProgressModel(job.data.progress);
   const canCancel = canCancelJob(job.data);
+  const jobError = formatJobError(job.data.error);
 
   return (
     <Section>
@@ -293,7 +319,7 @@ export function JobDetailView({ id }: { id: number }) {
               <Progress value={progress.percent()} />
               <p className="muted">{progress.label()}</p>
             </div>
-            {job.data.error ? <p className="state-view--error" role="alert">{job.data.error}</p> : null}
+            {jobError ? <p className="state-view--error" role="alert">{jobError}</p> : null}
           </CardContent>
         </Card>
         <Card>
@@ -349,7 +375,7 @@ export function JobDetailView({ id }: { id: number }) {
                 { key: "status", header: "Status", render: (log) => <StatusBadge status={log.status} /> },
                 { key: "findings", header: "Findings", render: (log) => log.findings_count },
                 { key: "started", header: "Started", render: (log) => formatDateTime(log.started_at) },
-                { key: "error", header: "Error", render: (log) => log.error ?? "-" }
+                { key: "error", header: "Error", render: (log) => formatJobError(log.error) ?? "-" }
               ]}
             />
           ) : null}
