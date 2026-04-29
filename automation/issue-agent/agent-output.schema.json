@@ -3,7 +3,16 @@
   "title": "Issue agent result",
   "type": "object",
   "additionalProperties": false,
-  "required": ["status", "summary", "tests", "files_changed", "close_issue"],
+  "required": [
+    "status",
+    "summary",
+    "tests",
+    "files_changed",
+    "commit_message",
+    "commit_sha",
+    "close_issue",
+    "notes"
+  ],
   "properties": {
     "status": {
       "type": "string",

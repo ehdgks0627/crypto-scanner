@@ -269,6 +269,14 @@ json_array_to_lines() {
   ' "$1"
 }
 
+agent_status() {
+  jq -r '.status // "blocked"' "$1"
+}
+
+commit_count_since_base() {
+  git rev-list --count "${BASE_SHA}..HEAD"
+}
+
 write_fallback_output() {
   local status="$1"
   local summary="$2"
@@ -340,7 +348,7 @@ run_llm() {
   local codex_args=(
     exec
     --cd "$REPO_DIR"
-    --full-auto
+    --dangerously-bypass-approvals-and-sandbox
     -c "model_reasoning_effort=\"${CODEX_REASONING_EFFORT}\""
     --output-schema "$SCHEMA_FILE"
     --output-last-message "$output_file"
@@ -380,8 +388,23 @@ run_verify_command() {
 }
 
 push_changes() {
+  local status commit_count
+
   if [[ "$AUTO_PUSH" != "1" ]]; then
     log "AUTO_PUSH is disabled; skipping push"
+    return
+  fi
+
+  status="$(agent_status "$AGENT_OUTPUT")"
+  commit_count="$(commit_count_since_base)"
+
+  if [[ "$status" != "implemented" ]]; then
+    log "Agent status is ${status}; skipping push"
+    return
+  fi
+
+  if [[ "$commit_count" == "0" ]]; then
+    log "No commits were created; skipping push"
     return
   fi
 
@@ -424,6 +447,12 @@ deploy_changes() {
   if [[ "$AUTO_PUSH" != "1" || "$PUSH_MODE" == "none" ]]; then
     DEPLOY_STATUS="skipped"
     log "Push is disabled; skipping deploy"
+    return
+  fi
+
+  if [[ -z "$PUSHED_SHA" ]]; then
+    DEPLOY_STATUS="skipped"
+    log "No pushed commit; skipping deploy"
     return
   fi
 
@@ -523,6 +552,8 @@ complete_issue() {
 }
 
 run_once() {
+  local current_status current_commit_count
+
   ensure_label "$ISSUE_LABEL_IN_PROGRESS" "fbca04" "Issue is being handled by the automated LLM agent."
   ensure_label "$ISSUE_LABEL_FAILED" "d73a4a" "Automated LLM agent failed while handling this issue."
   ensure_label "$ISSUE_LABEL_DONE" "0e8a16" "Issue was fixed by the automated LLM agent."
@@ -580,7 +611,9 @@ run_once() {
 
   commit_dirty_fallback
 
-  if [[ "$(git rev-list --count "${BASE_SHA}..HEAD")" == "0" ]]; then
+  current_status="$(agent_status "$AGENT_OUTPUT")"
+  current_commit_count="$(commit_count_since_base)"
+  if [[ "$current_commit_count" == "0" && "$current_status" != "blocked" ]]; then
     AGENT_OUTPUT="${RUN_DIR}/agent-output-no-changes.json"
     write_fallback_output "no_changes" "The agent finished without creating a commit." "$AGENT_OUTPUT"
   fi

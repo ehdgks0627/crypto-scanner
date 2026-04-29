@@ -143,7 +143,7 @@ AUTO_CLOSE=0
 By default the runner uses:
 
 ```sh
-codex exec --full-auto -c 'model_reasoning_effort="xhigh"'
+codex exec --dangerously-bypass-approvals-and-sandbox -c 'model_reasoning_effort="xhigh"'
 ```
 
 To use another agent, set `LLM_COMMAND`. The command receives:
