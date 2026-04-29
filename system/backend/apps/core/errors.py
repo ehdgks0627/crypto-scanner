@@ -22,5 +22,14 @@ def validation_error_handler(request, exc: ValidationError):
     )
 
 
+def internal_error_handler(request, exc: Exception):
+    return error_response(
+        "internal",
+        "Internal server error.",
+        status=500,
+    )
+
+
 def register_exception_handlers(api) -> None:
     api.add_exception_handler(ValidationError, validation_error_handler)
+    api.add_exception_handler(Exception, internal_error_handler)
