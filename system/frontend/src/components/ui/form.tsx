@@ -10,6 +10,10 @@ export function FieldLabel({ children }: PropsWithChildren) {
   return <span className="ui-field__label">{children}</span>;
 }
 
+export function FieldHint({ children }: PropsWithChildren) {
+  return <span className="ui-field__hint">{children}</span>;
+}
+
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn("ui-input", props.className)} {...props} />;
 }

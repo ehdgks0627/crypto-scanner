@@ -11,7 +11,7 @@ import { ErrorState, LoadingState, Section } from "../../components/common/State
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Field, FieldLabel, Input, Select } from "../../components/ui/form";
+import { Field, FieldHint, FieldLabel, Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
 import { areRiskWeightsValid, updateRiskWeight } from "../../domain/riskWeights";
 import { useUiStore } from "../../stores/uiStore";
@@ -79,7 +79,7 @@ export function SettingsView() {
               <Field>
                 <FieldLabel>Bootstrap Token</FieldLabel>
                 <Input value="****" readOnly aria-label="Bootstrap Token masked" />
-                <span className="muted">변경은 docker env에서만 수행합니다.</span>
+                <FieldHint>변경은 docker env에서만 수행합니다.</FieldHint>
               </Field>
             </div>
           </CardContent>
