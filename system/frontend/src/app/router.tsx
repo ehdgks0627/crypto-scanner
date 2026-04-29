@@ -1,31 +1,28 @@
-import { lazy, Suspense, type ComponentType } from "react";
+import { Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { AppLayout } from "./layout";
+import { lazyRoute } from "./lazyRoute";
 import { LoadingState } from "../components/common/StateViews";
 
-const DashboardPage = lazy(() => import("../pages/DashboardPage").then(toDefault("DashboardPage")));
-const TargetsPage = lazy(() => import("../pages/TargetsPage").then(toDefault("TargetsPage")));
-const TargetDetailPage = lazy(() => import("../pages/TargetDetailPage").then(toDefault("TargetDetailPage")));
-const DiscoveriesPage = lazy(() => import("../pages/DiscoveriesPage").then(toDefault("DiscoveriesPage")));
-const DiscoveryNewPage = lazy(() => import("../pages/DiscoveryNewPage").then(toDefault("DiscoveryNewPage")));
-const DiscoveryDetailPage = lazy(() => import("../pages/DiscoveryDetailPage").then(toDefault("DiscoveryDetailPage")));
-const ScansPage = lazy(() => import("../pages/ScansPage").then(toDefault("ScansPage")));
-const ScanNewPage = lazy(() => import("../pages/ScanNewPage").then(toDefault("ScanNewPage")));
-const ScanDetailPage = lazy(() => import("../pages/ScanDetailPage").then(toDefault("ScanDetailPage")));
-const SnapshotsPage = lazy(() => import("../pages/SnapshotsPage").then(toDefault("SnapshotsPage")));
-const SnapshotDetailPage = lazy(() => import("../pages/SnapshotDetailPage").then(toDefault("SnapshotDetailPage")));
-const AssetDetailPage = lazy(() => import("../pages/AssetDetailPage").then(toDefault("AssetDetailPage")));
-const SnapshotDiffPage = lazy(() => import("../pages/SnapshotDiffPage").then(toDefault("SnapshotDiffPage")));
-const SnapshotRiskPage = lazy(() => import("../pages/SnapshotRiskPage").then(toDefault("SnapshotRiskPage")));
-const SnapshotMigrationPage = lazy(() => import("../pages/SnapshotMigrationPage").then(toDefault("SnapshotMigrationPage")));
-const CbomPage = lazy(() => import("../pages/CbomPage").then(toDefault("CbomPage")));
-const AgentsPage = lazy(() => import("../pages/AgentsPage").then(toDefault("AgentsPage")));
-const SettingsPage = lazy(() => import("../pages/SettingsPage").then(toDefault("SettingsPage")));
-
-function toDefault<T extends Record<string, ComponentType>>(key: keyof T) {
-  return (module: T) => ({ default: module[key] });
-}
+const DashboardPage = lazyRoute(() => import("../pages/DashboardPage"), "DashboardPage");
+const TargetsPage = lazyRoute(() => import("../pages/TargetsPage"), "TargetsPage");
+const TargetDetailPage = lazyRoute(() => import("../pages/TargetDetailPage"), "TargetDetailPage");
+const DiscoveriesPage = lazyRoute(() => import("../pages/DiscoveriesPage"), "DiscoveriesPage");
+const DiscoveryNewPage = lazyRoute(() => import("../pages/DiscoveryNewPage"), "DiscoveryNewPage");
+const DiscoveryDetailPage = lazyRoute(() => import("../pages/DiscoveryDetailPage"), "DiscoveryDetailPage");
+const ScansPage = lazyRoute(() => import("../pages/ScansPage"), "ScansPage");
+const ScanNewPage = lazyRoute(() => import("../pages/ScanNewPage"), "ScanNewPage");
+const ScanDetailPage = lazyRoute(() => import("../pages/ScanDetailPage"), "ScanDetailPage");
+const SnapshotsPage = lazyRoute(() => import("../pages/SnapshotsPage"), "SnapshotsPage");
+const SnapshotDetailPage = lazyRoute(() => import("../pages/SnapshotDetailPage"), "SnapshotDetailPage");
+const AssetDetailPage = lazyRoute(() => import("../pages/AssetDetailPage"), "AssetDetailPage");
+const SnapshotDiffPage = lazyRoute(() => import("../pages/SnapshotDiffPage"), "SnapshotDiffPage");
+const SnapshotRiskPage = lazyRoute(() => import("../pages/SnapshotRiskPage"), "SnapshotRiskPage");
+const SnapshotMigrationPage = lazyRoute(() => import("../pages/SnapshotMigrationPage"), "SnapshotMigrationPage");
+const CbomPage = lazyRoute(() => import("../pages/CbomPage"), "CbomPage");
+const AgentsPage = lazyRoute(() => import("../pages/AgentsPage"), "AgentsPage");
+const SettingsPage = lazyRoute(() => import("../pages/SettingsPage"), "SettingsPage");
 
 function page(element: JSX.Element) {
   return <Suspense fallback={<LoadingState />}>{element}</Suspense>;
