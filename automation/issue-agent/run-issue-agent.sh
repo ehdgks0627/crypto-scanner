@@ -25,7 +25,7 @@ DRY_RUN_LIMIT="${DRY_RUN_LIMIT:-10}"
 ISSUE_LABEL_IN_PROGRESS="${ISSUE_LABEL_IN_PROGRESS:-ai-in-progress}"
 ISSUE_LABEL_FAILED="${ISSUE_LABEL_FAILED:-ai-failed}"
 ISSUE_LABEL_DONE="${ISSUE_LABEL_DONE:-ai-fixed}"
-ISSUE_SEARCH="${ISSUE_SEARCH:-is:issue is:open -label:${ISSUE_LABEL_IN_PROGRESS} sort:created-asc}"
+ISSUE_SEARCH="${ISSUE_SEARCH:-is:issue is:open -label:${ISSUE_LABEL_IN_PROGRESS} -label:${ISSUE_LABEL_DONE} sort:created-asc}"
 PUSH_MODE="${PUSH_MODE:-direct}"
 AUTO_PUSH="${AUTO_PUSH:-1}"
 AUTO_CLOSE="${AUTO_CLOSE:-1}"
@@ -242,13 +242,14 @@ print_pending_issues_public_api() {
   fi
 
   curl -fsSL "${api_url}?state=open&sort=created&direction=asc&per_page=${DRY_RUN_LIMIT}" \
-    | jq -r --arg in_progress "$ISSUE_LABEL_IN_PROGRESS" '
+    | jq -r --arg in_progress "$ISSUE_LABEL_IN_PROGRESS" --arg done "$ISSUE_LABEL_DONE" '
       def label_names:
         (.labels // [] | map(.name) | join(", ")) as $labels
         | if $labels == "" then "-" else $labels end;
 
       map(select(.pull_request | not))
       | map(select((.labels // [] | map(.name) | index($in_progress)) | not))
+      | map(select((.labels // [] | map(.name) | index($done)) | not))
       | if length == 0 then
           "No pending open issues matched the query."
         else
@@ -319,7 +320,7 @@ build_prompt() {
 - ${SCHEMA_FILE}의 스키마와 일치해야 합니다.
 - 수정이 커밋된 경우에만 status에 "implemented"를 사용하세요.
 - 실행한 모든 검사를 "tests"에 포함하세요.
-- push와 배포 이후 이슈를 닫아도 될 때만 "close_issue"를 true로 설정하세요.
+- 수정이 완료되면 자동화가 이슈를 닫습니다. "close_issue"는 스키마 호환을 위해 유지하되, 수정 완료 여부와 일관되게 설정하세요.
 - status, close_issue 같은 스키마 값과 파일 경로, 명령어는 원문을 유지하세요.
 - summary, tests의 설명, notes처럼 GitHub 이슈 코멘트에 표시될 사람용 문장은 한국어로 작성하세요.
 
@@ -531,10 +532,9 @@ COMMENT
 complete_issue() {
   local output_file="$1"
   local comment_file="$2"
-  local status close_issue
+  local status
 
   status="$(jq -r '.status // "blocked"' "$output_file")"
-  close_issue="$(jq -r '.close_issue // false' "$output_file")"
 
   gh issue edit "$ACTIVE_ISSUE_NUMBER" -R "$REPO" \
     --remove-label "$ISSUE_LABEL_IN_PROGRESS" >/dev/null 2>&1 || true
@@ -549,7 +549,7 @@ complete_issue() {
       --add-label "$ISSUE_LABEL_FAILED" >/dev/null 2>&1 || true
   fi
 
-  if [[ "$AUTO_CLOSE" == "1" && "$close_issue" == "true" && "$status" == "implemented" ]]; then
+  if [[ "$AUTO_CLOSE" == "1" && "$status" == "implemented" ]]; then
     if [[ "$PUSH_MODE" == "branch" && "$AUTO_CLOSE_ON_BRANCH" != "1" ]]; then
       gh issue comment "$ACTIVE_ISSUE_NUMBER" -R "$REPO" --body-file "$comment_file"
       log "Leaving issue open because PUSH_MODE=branch and AUTO_CLOSE_ON_BRANCH is disabled"
