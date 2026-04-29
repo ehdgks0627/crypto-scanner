@@ -143,7 +143,7 @@ AUTO_CLOSE=0
 By default the runner uses:
 
 ```sh
-codex exec --sandbox danger-full-access --ask-for-approval never
+codex exec --full-auto -c 'model_reasoning_effort="xhigh"'
 ```
 
 To use another agent, set `LLM_COMMAND`. The command receives:

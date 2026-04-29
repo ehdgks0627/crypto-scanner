@@ -37,6 +37,7 @@ POST_FAILURE_COMMENT="${POST_FAILURE_COMMENT:-1}"
 GIT_USER_NAME="${GIT_USER_NAME:-crypto-scanner-issue-agent}"
 GIT_USER_EMAIL="${GIT_USER_EMAIL:-issue-agent@users.noreply.github.com}"
 CODEX_MODEL="${CODEX_MODEL:-}"
+CODEX_REASONING_EFFORT="${CODEX_REASONING_EFFORT:-xhigh}"
 VERIFY_COMMAND="${VERIFY_COMMAND:-}"
 AUTO_DEPLOY="${AUTO_DEPLOY:-1}"
 SSH_DEPLOY_HOST="${SSH_DEPLOY_HOST:-pqc}"
@@ -108,7 +109,10 @@ setup_ssh_credentials() {
 
   if [[ -f "$HOST_SSH_DIR/deploy_key" ]]; then
     cp -L "$HOST_SSH_DIR/deploy_key" "$HOME/.ssh/deploy_key"
-    SSH_OPTIONS="${SSH_OPTIONS} -i ${HOME}/.ssh/deploy_key"
+    if [[ -f "$HOME/.ssh/config" ]]; then
+      sed -i '/^[[:space:]]*IdentityFile[[:space:]]/d' "$HOME/.ssh/config"
+    fi
+    SSH_OPTIONS="${SSH_OPTIONS} -o IdentityFile=${HOME}/.ssh/deploy_key -o IdentitiesOnly=yes"
   fi
 
   chmod 700 "$HOME/.ssh" 2>/dev/null || true
@@ -336,8 +340,8 @@ run_llm() {
   local codex_args=(
     exec
     --cd "$REPO_DIR"
-    --sandbox danger-full-access
-    --ask-for-approval never
+    --full-auto
+    -c "model_reasoning_effort=\"${CODEX_REASONING_EFFORT}\""
     --output-schema "$SCHEMA_FILE"
     --output-last-message "$output_file"
   )
