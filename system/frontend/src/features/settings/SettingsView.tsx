@@ -5,15 +5,30 @@ import { toast } from "sonner";
 
 import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
-import type { RiskWeightsInput } from "../../api/types";
-import { JsonPreview } from "../../components/common/JsonPreview";
+import type { RiskWeightsInput, Schema } from "../../api/types";
 import { PageHeader } from "../../components/common/PageHeader";
 import { ErrorState, LoadingState, Section } from "../../components/common/StateViews";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Field, FieldLabel, Input, Select } from "../../components/ui/form";
+import { DataTable } from "../../components/ui/table";
 import { areRiskWeightsValid, updateRiskWeight } from "../../domain/riskWeights";
 import { useUiStore } from "../../stores/uiStore";
+
+type AlgorithmRiskRow = Schema<"AlgorithmRiskTable">["items"][number];
+
+const factorFormatter = new Intl.NumberFormat("ko-KR", {
+  maximumFractionDigits: 4
+});
+
+function formatFactorA(value: number) {
+  return factorFormatter.format(value);
+}
+
+function formatNotes(notes: AlgorithmRiskRow["notes"]) {
+  return notes?.trim() ? notes : "-";
+}
 
 export function SettingsView() {
   const queryClient = useQueryClient();
@@ -21,6 +36,7 @@ export function SettingsView() {
   const [weights, setWeights] = useState<RiskWeightsInput>({ wA: 1, wD: 1, wE: 1, wL: 1, wC: 1 });
   const riskWeights = useQuery({ queryKey: queryKeys.risk.weights, queryFn: () => services.risk.weights() });
   const algorithmRiskTable = useQuery({ queryKey: queryKeys.meta.algorithmRiskTable, queryFn: () => services.meta.algorithmRiskTable() });
+  const algorithmRiskRows = algorithmRiskTable.data?.items ?? [];
   const saveWeights = useMutation({
     mutationFn: () => services.risk.putWeights(weights),
     onSuccess: async () => {
@@ -104,7 +120,26 @@ export function SettingsView() {
           <CardTitle>Algorithm Risk Table</CardTitle>
         </CardHeader>
         <CardContent>
-          {algorithmRiskTable.data ? <JsonPreview value={algorithmRiskTable.data} /> : <LoadingState />}
+          {algorithmRiskTable.isLoading ? <LoadingState /> : null}
+          {algorithmRiskTable.isError ? <ErrorState error={algorithmRiskTable.error} onRetry={() => void algorithmRiskTable.refetch()} /> : null}
+          {!algorithmRiskTable.isLoading && !algorithmRiskTable.isError ? (
+            <DataTable
+              items={algorithmRiskRows}
+              getRowKey={(row, index) => `${row.algorithm}-${index}`}
+              empty="설정된 규칙이 없습니다"
+              columns={[
+                { key: "algorithm", header: "Algorithm", render: (row) => row.algorithm },
+                { key: "factor_a", header: "Factor A", align: "right", render: (row) => formatFactorA(row.factor_a) },
+                {
+                  key: "quantum_vulnerable",
+                  header: "Quantum Vulnerable",
+                  align: "center",
+                  render: (row) => <Badge tone={row.quantum_vulnerable ? "red" : "green"}>{row.quantum_vulnerable ? "Yes" : "No"}</Badge>
+                },
+                { key: "notes", header: "Notes", render: (row) => formatNotes(row.notes) }
+              ]}
+            />
+          ) : null}
         </CardContent>
       </Card>
     </Section>
