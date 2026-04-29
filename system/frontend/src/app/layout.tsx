@@ -1,7 +1,7 @@
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, Bot, Database, Gauge, ListChecks, Moon, Radar, RefreshCw, Server, Settings, ShieldAlert, Sun, Target, Workflow } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { queryKeys } from "../api/queryKeys";
 import { services } from "../api/services";
@@ -9,6 +9,7 @@ import { Button } from "../components/ui/button";
 import { isActiveJobStatus, isTerminalJobStatus } from "../domain/jobStatus";
 import { useJobWatchStore } from "../stores/jobWatchStore";
 import { useUiStore } from "../stores/uiStore";
+import { getSnapshotSidebarState } from "./snapshotSidebar";
 
 const navItems = [
   { to: "/", label: "대시보드", icon: Gauge },
@@ -23,10 +24,12 @@ const navItems = [
 
 export function AppLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useUiStore();
   const trackedJobIds = useJobWatchStore((state) => state.trackedJobIds);
   const untrackJob = useJobWatchStore((state) => state.untrackJob);
+  const snapshotSidebarState = useMemo(() => getSnapshotSidebarState(location.pathname), [location.pathname]);
   const health = useQuery({
     queryKey: queryKeys.health,
     queryFn: () => services.health.get(),
@@ -140,6 +143,19 @@ export function AppLayout() {
         <nav>
           {navItems.map((item) => {
             const Icon = item.icon;
+            if (item.to === "/snapshots") {
+              return (
+                <Link
+                  key={item.to}
+                  to={snapshotSidebarState.snapshotPath}
+                  className={snapshotSidebarState.activeSection === "snapshot" ? "active" : undefined}
+                  aria-current={snapshotSidebarState.activeSection === "snapshot" ? "page" : undefined}
+                >
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            }
             return (
               <NavLink key={item.to} to={item.to} end={item.to === "/"}>
                 <Icon size={16} />
@@ -148,14 +164,22 @@ export function AppLayout() {
             );
           })}
         </nav>
-        <NavLink to="/snapshots" className="sidebar-link-secondary">
+        <Link
+          to={snapshotSidebarState.migrationPath}
+          className={`sidebar-link-secondary${snapshotSidebarState.activeSection === "migration" ? " active" : ""}`}
+          aria-current={snapshotSidebarState.activeSection === "migration" ? "page" : undefined}
+        >
           <ListChecks size={16} />
           <span>마이그레이션</span>
-        </NavLink>
-        <NavLink to="/snapshots" className="sidebar-link-secondary">
+        </Link>
+        <Link
+          to={snapshotSidebarState.riskPath}
+          className={`sidebar-link-secondary${snapshotSidebarState.activeSection === "risk" ? " active" : ""}`}
+          aria-current={snapshotSidebarState.activeSection === "risk" ? "page" : undefined}
+        >
           <Workflow size={16} />
           <span>위험평가</span>
-        </NavLink>
+        </Link>
       </aside>
       <main className="app-main">
         <Outlet />
