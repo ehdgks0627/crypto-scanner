@@ -248,8 +248,9 @@ export function JobDetailView({ id }: { id: number }) {
   });
   const cancel = useMutation({
     mutationFn: () => services.jobs.cancel(id),
-    onSuccess: async () => {
+    onSuccess: async (updatedJob) => {
       toast.success("취소 요청을 보냈습니다.");
+      queryClient.setQueryData(queryKeys.jobs.detail(id), updatedJob);
       await queryClient.invalidateQueries({ queryKey: queryKeys.jobs.detail(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
     },

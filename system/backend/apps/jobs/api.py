@@ -91,18 +91,18 @@ def get_job(request, job_id: int):
 @router.post("/jobs/{job_id}/cancel")
 def cancel_job(request, job_id: int):
     try:
-        async_job = AsyncJob.objects.get(id=job_id)
+        with transaction.atomic():
+            async_job = AsyncJob.objects.select_for_update().get(id=job_id)
+            if not services.request_cancel(async_job):
+                return error_response(
+                    "job_not_cancellable",
+                    "Job is not cancellable.",
+                    {"job_id": async_job.id, "kind": async_job.kind, "status": async_job.status},
+                    status=409,
+                )
+            async_job.refresh_from_db()
     except AsyncJob.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
-
-    if not services.request_cancel(async_job):
-        return error_response(
-            "job_not_cancellable",
-            "Job is not cancellable.",
-            {"job_id": async_job.id, "kind": async_job.kind, "status": async_job.status},
-            status=409,
-        )
-    async_job.refresh_from_db()
     return JsonResponse(services.serialize_job(async_job), status=202)
 
 

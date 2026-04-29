@@ -18,6 +18,7 @@ def serialize_discovery(discovery):
         "id": discovery.id,
         "job_id": discovery.async_job_id,
         "status": discovery.status,
+        "progress": discovery.async_job.progress,
         "cidr": discovery.cidr,
         "port_list": discovery.ports,
         "ports": discovery.ports,

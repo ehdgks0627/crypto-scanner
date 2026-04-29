@@ -69,6 +69,7 @@ class QueuedTask(models.Model):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
 
     async_job = models.ForeignKey(AsyncJob, null=True, blank=True, on_delete=models.CASCADE, related_name="queued_tasks")
     task_name = models.CharField(max_length=128)
@@ -84,7 +85,7 @@ class QueuedTask(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(status__in=["QUEUED", "RUNNING", "COMPLETED", "FAILED"]),
+                condition=models.Q(status__in=["QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]),
                 name="queued_task_status_valid",
             ),
         ]

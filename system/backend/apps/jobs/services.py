@@ -2,7 +2,7 @@ from datetime import UTC
 
 from django.utils import timezone
 
-from apps.jobs.models import QueuedTask
+from apps.jobs.models import AsyncJob, QueuedTask
 
 
 class EnqueueUnavailable(Exception):
@@ -71,15 +71,64 @@ def enqueue_task(task_name: str, payload: dict, async_job=None) -> QueuedTask:
 
 
 def request_cancel(async_job):
-    terminal = {"COMPLETED", "FAILED", "CANCELLED"}
+    if async_job.status == AsyncJob.CANCELLED:
+        now = timezone.now()
+        update_fields = []
+        if async_job.cancel_requested_at is None:
+            async_job.cancel_requested_at = now
+            update_fields.append("cancel_requested_at")
+        if async_job.finished_at is None:
+            async_job.finished_at = now
+            update_fields.append("finished_at")
+        if update_fields:
+            async_job.save(update_fields=[*update_fields, "updated_at"])
+        _cancel_queued_tasks(async_job)
+        _sync_cancelled_resource(async_job, async_job.finished_at or now)
+        return True
+    terminal = {AsyncJob.COMPLETED, AsyncJob.FAILED}
     if async_job.status in terminal:
         return False
-    if async_job.kind == "recompute" and async_job.status == "RUNNING":
+    if async_job.kind == "recompute" and async_job.status == AsyncJob.RUNNING:
         return False
-    if async_job.kind == "recompute" and async_job.status == "PENDING":
-        async_job.status = "CANCELLED"
-        async_job.finished_at = timezone.now()
-    else:
-        async_job.cancel_requested_at = timezone.now()
-    async_job.save()
+
+    now = timezone.now()
+    async_job.status = AsyncJob.CANCELLED
+    async_job.cancel_requested_at = async_job.cancel_requested_at or now
+    async_job.finished_at = async_job.finished_at or now
+    async_job.save(update_fields=["status", "cancel_requested_at", "finished_at", "updated_at"])
+    _cancel_queued_tasks(async_job)
+    _sync_cancelled_resource(async_job, now)
     return True
+
+
+def _cancel_queued_tasks(async_job):
+    async_job.queued_tasks.filter(status__in=[QueuedTask.QUEUED, QueuedTask.RUNNING]).update(
+        status=QueuedTask.CANCELLED,
+        last_error="cancel_requested",
+        updated_at=timezone.now(),
+    )
+
+
+def _sync_cancelled_resource(async_job, finished_at):
+    if async_job.kind != "discovery":
+        return
+
+    from apps.discoveries.models import Discovery
+
+    try:
+        discovery = async_job.discovery
+    except Discovery.DoesNotExist:
+        return
+
+    update_fields = []
+    if discovery.status != AsyncJob.CANCELLED:
+        discovery.status = AsyncJob.CANCELLED
+        update_fields.append("status")
+    if discovery.finished_at is None:
+        discovery.finished_at = finished_at
+        update_fields.append("finished_at")
+    if not discovery.error:
+        discovery.error = "cancel_requested"
+        update_fields.append("error")
+    if update_fields:
+        discovery.save(update_fields=[*update_fields, "updated_at"])

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
-import type { JobStatus } from "../../api/types";
+import type { JobStatus, Schema } from "../../api/types";
 import { StatusBadge } from "../../components/common/Badges";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { PageHeader } from "../../components/common/PageHeader";
@@ -243,8 +243,20 @@ export function DiscoveryDetailView({ id }: { id: number }) {
       toast.success("디스커버리 취소 요청을 보냈습니다.");
       setCancelRequested(true);
       queryClient.setQueryData(queryKeys.jobs.detail(job.id), job);
+      queryClient.setQueryData(queryKeys.discoveries.detail(id), (current: Schema<"Discovery"> | undefined) =>
+        current
+          ? {
+              ...current,
+              status: job.status,
+              progress: job.progress ?? current.progress,
+              finished_at: job.finished_at ?? current.finished_at,
+              error: job.status === "CANCELLED" ? (current.error ?? "cancel_requested") : current.error
+            }
+          : current
+      );
       await queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.detail(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.endpoints(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "취소 실패")

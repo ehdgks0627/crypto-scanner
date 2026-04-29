@@ -54,7 +54,7 @@ def list_discoveries(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    queryset = Discovery.objects.all().order_by("-id")
+    queryset = Discovery.objects.select_related("async_job").order_by("-id")
     if status:
         queryset = queryset.filter(status=status)
     total = queryset.count()
@@ -91,7 +91,7 @@ def create_discovery(request, payload: DiscoveryCreate):
 @router.get("/discoveries/{discovery_id}")
 def get_discovery(request, discovery_id: int):
     try:
-        discovery = Discovery.objects.get(id=discovery_id)
+        discovery = Discovery.objects.select_related("async_job").get(id=discovery_id)
     except Discovery.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
     return JsonResponse(services.serialize_discovery(discovery), headers={"Cache-Control": "no-store"})

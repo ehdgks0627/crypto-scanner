@@ -140,18 +140,65 @@ def test_api_job_006_failed_job_returns_error_and_finished_at(client):
 
 
 @pytest.mark.parametrize("kind", ["scan_job", "discovery"])
-def test_api_job_007_running_scan_and_discovery_cancel_sets_requested_at(client, kind):
-    job = create_async_job(kind=kind, status="RUNNING")
+@pytest.mark.parametrize("status", ["PENDING", "RUNNING"])
+def test_api_job_007_scan_and_discovery_cancel_immediately_finishes_job(client, kind, status):
+    from apps.jobs.models import QueuedTask
+
+    job = create_async_job(kind=kind, status=status)
+    queued_task = QueuedTask.objects.create(async_job=job, task_name=kind, payload={})
 
     response = client.post(f"/api/jobs/{job.id}/cancel")
 
     assert response.status_code == 202
     body = response.json()
-    assert body["status"] == "RUNNING"
+    assert body["status"] == "CANCELLED"
     assert body["cancel_requested_at"] is not None
+    assert body["finished_at"] is not None
     job.refresh_from_db()
-    assert job.status == "RUNNING"
+    assert job.status == "CANCELLED"
     assert job.cancel_requested_at is not None
+    assert job.finished_at is not None
+    queued_task.refresh_from_db()
+    assert queued_task.status == QueuedTask.CANCELLED
+    assert queued_task.last_error == "cancel_requested"
+
+
+def test_api_job_007b_discovery_cancel_syncs_domain_status(client):
+    from apps.discoveries.models import Discovery
+
+    job = create_async_job(kind="discovery", status="RUNNING", started_at=timezone.now())
+    discovery = Discovery.objects.create(
+        async_job=job,
+        cidr="10.0.0.0/24",
+        status="RUNNING",
+        started_at=job.started_at,
+    )
+    job.resource_id = discovery.id
+    job.save(update_fields=["resource_id"])
+
+    response = client.post(f"/api/jobs/{job.id}/cancel")
+    detail_response = client.get(f"/api/discoveries/{discovery.id}")
+    list_response = client.get("/api/discoveries?status=CANCELLED")
+
+    assert response.status_code == 202
+    discovery.refresh_from_db()
+    assert discovery.status == "CANCELLED"
+    assert discovery.finished_at is not None
+    assert discovery.error == "cancel_requested"
+    assert detail_response.json()["status"] == "CANCELLED"
+    assert detail_response.json()["progress"] is None
+    assert any(item["id"] == discovery.id for item in list_response.json()["items"])
+
+
+def test_api_job_007c_cancelled_job_cancel_is_idempotent(client):
+    job = create_async_job(kind="scan_job", status="CANCELLED")
+
+    first_response = client.post(f"/api/jobs/{job.id}/cancel")
+    second_response = client.post(f"/api/jobs/{job.id}/cancel")
+
+    assert first_response.status_code == 202
+    assert second_response.status_code == 202
+    assert second_response.json()["status"] == "CANCELLED"
 
 
 def test_api_job_008_pending_recompute_can_be_cancelled(client):
@@ -176,7 +223,7 @@ def test_api_job_009_running_recompute_cannot_be_cancelled(client):
     assert body["details"] == {"job_id": job.id, "kind": "recompute", "status": "RUNNING"}
 
 
-@pytest.mark.parametrize("status", ["COMPLETED", "FAILED", "CANCELLED"])
+@pytest.mark.parametrize("status", ["COMPLETED", "FAILED"])
 def test_api_job_010_terminal_job_cancel_returns_job_not_cancellable(client, status):
     job = create_async_job(kind="scan_job", status=status)
 
