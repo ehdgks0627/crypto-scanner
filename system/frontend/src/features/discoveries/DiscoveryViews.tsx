@@ -26,12 +26,29 @@ import { DiscoveryPromotionModel } from "./discoveryPromotion";
 export function DiscoveriesView() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<JobStatus | "">("");
+  const [selectedDiscoveryIds, setSelectedDiscoveryIds] = useState<number[]>([]);
   const discoveries = useQuery({
     queryKey: queryKeys.discoveries.list(status || undefined),
     queryFn: () => services.discoveries.list(status || undefined),
     refetchInterval: (query) =>
       status === "RUNNING" || status === "PENDING" || (!status && pageHasActiveJob(query.state.data?.items)) ? 5_000 : false
   });
+  const visibleDiscoveryIds = useMemo(() => discoveries.data?.items.map((item) => item.id) ?? [], [discoveries.data?.items]);
+  const allVisibleSelected = visibleDiscoveryIds.length > 0 && visibleDiscoveryIds.every((id) => selectedDiscoveryIds.includes(id));
+
+  useEffect(() => {
+    const visibleIds = new Set(visibleDiscoveryIds);
+    setSelectedDiscoveryIds((current) => {
+      const next = current.filter((id) => visibleIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [visibleDiscoveryIds]);
+
+  function toggleDiscovery(discoveryId: number, checked: boolean) {
+    setSelectedDiscoveryIds((current) =>
+      checked ? [...current.filter((id) => id !== discoveryId), discoveryId] : current.filter((id) => id !== discoveryId)
+    );
+  }
 
   return (
     <Section>
@@ -47,15 +64,23 @@ export function DiscoveriesView() {
       <Card>
         <CardContent>
           <div className="toolbar">
-            <Select aria-label="Discovery status filter" value={status} onChange={(event) => setStatus(event.target.value as JobStatus | "")}>
-              <option value="">All statuses</option>
-              {["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"].map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </Select>
-            <span className="muted">Total {discoveries.data?.total ?? 0}</span>
+            <div className="toolbar__filters">
+              <Select aria-label="Discovery status filter" value={status} onChange={(event) => setStatus(event.target.value as JobStatus | "")}>
+                <option value="">All statuses</option>
+                {["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"].map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </Select>
+              <span className="muted">Total {discoveries.data?.total ?? 0}</span>
+            </div>
+            <span className="inline-actions">
+              <span className="muted">선택 {selectedDiscoveryIds.length}개</span>
+              <Button type="button" size="sm" variant="ghost" disabled={selectedDiscoveryIds.length === 0} onClick={() => setSelectedDiscoveryIds([])}>
+                선택 해제
+              </Button>
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -69,6 +94,24 @@ export function DiscoveriesView() {
               getRowKey={(item) => item.id}
               empty={<EmptyState title="디스커버리 작업이 없습니다" />}
               columns={[
+                {
+                  key: "select",
+                  header: (
+                    <Checkbox
+                      aria-label="현재 표시된 Discovery 전체 선택"
+                      checked={allVisibleSelected}
+                      disabled={visibleDiscoveryIds.length === 0}
+                      onChange={(event) => setSelectedDiscoveryIds(event.target.checked ? visibleDiscoveryIds : [])}
+                    />
+                  ),
+                  render: (item) => (
+                    <Checkbox
+                      aria-label={`Discovery #${item.id} 선택`}
+                      checked={selectedDiscoveryIds.includes(item.id)}
+                      onChange={(event) => toggleDiscovery(item.id, event.target.checked)}
+                    />
+                  )
+                },
                 { key: "id", header: "ID", render: (item) => <button className="link-button" onClick={() => navigate(`/discoveries/${item.id}`)}>#{item.id}</button> },
                 { key: "cidr", header: "CIDR", render: (item) => item.cidr },
                 { key: "ports", header: "Ports", render: (item) => item.port_list.join(", ") || "default" },
