@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -9,27 +9,86 @@ import type { Schema } from "../../api/types";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
+import { Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
 import { formatDateTime, formatRelative } from "../../lib/format";
+
+type AgentActiveFilter = "all" | "active" | "inactive";
+
+function filterToActive(filter: AgentActiveFilter) {
+  if (filter === "active") {
+    return true;
+  }
+  if (filter === "inactive") {
+    return false;
+  }
+  return undefined;
+}
+
+function pageWithInactiveAgent(page: Schema<"AgentPage">, agentId: string, activeFilter: unknown): Schema<"AgentPage"> {
+  const items = page.items.map((agent) => (agent.id === agentId ? { ...agent, active: false } : agent));
+  const visibleItems = activeFilter === true ? items.filter((agent) => agent.id !== agentId) : items;
+  const removedCount = page.items.length - visibleItems.length;
+  return {
+    ...page,
+    items: visibleItems,
+    total: Math.max(0, page.total - removedCount)
+  };
+}
 
 export function AgentsView() {
   const queryClient = useQueryClient();
   const [pendingDeactivate, setPendingDeactivate] = useState<Schema<"Agent"> | null>(null);
+  const [activeFilter, setActiveFilter] = useState<AgentActiveFilter>("all");
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+  const active = filterToActive(activeFilter);
   const agents = useQuery({
-    queryKey: queryKeys.agents.list(),
-    queryFn: () => services.agents.list()
+    queryKey: queryKeys.agents.list(active),
+    queryFn: () => services.agents.list(active)
   });
   const deactivate = useMutation({
     mutationFn: (id: string) => services.agents.delete(id),
+    onMutate: async (id) => {
+      setDeactivateError(null);
+      await queryClient.cancelQueries({ queryKey: queryKeys.agents.all });
+      const previousAgentPages = queryClient.getQueriesData<Schema<"AgentPage">>({ queryKey: queryKeys.agents.listPrefix });
+      const previousAgentDetail = queryClient.getQueryData<Schema<"Agent">>(queryKeys.agents.detail(id));
+
+      previousAgentPages.forEach(([queryKey, page]) => {
+        if (!page) {
+          return;
+        }
+        const cachedActiveFilter = Array.isArray(queryKey) ? queryKey[2] : undefined;
+        queryClient.setQueryData(queryKey, pageWithInactiveAgent(page, id, cachedActiveFilter));
+      });
+      if (previousAgentDetail) {
+        queryClient.setQueryData(queryKeys.agents.detail(id), { ...previousAgentDetail, active: false });
+      }
+
+      return { previousAgentPages, previousAgentDetail };
+    },
     onSuccess: async () => {
       toast.success("에이전트를 비활성화했습니다.");
       setPendingDeactivate(null);
+    },
+    onError: (error, id, context) => {
+      context?.previousAgentPages.forEach(([queryKey, page]) => {
+        queryClient.setQueryData(queryKey, page);
+      });
+      if (context?.previousAgentDetail) {
+        queryClient.setQueryData(queryKeys.agents.detail(id), context.previousAgentDetail);
+      }
+      const message = error instanceof Error ? error.message : "비활성화 실패";
+      setDeactivateError(message);
+      toast.error(message);
+    },
+    onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "비활성화 실패")
+    }
   });
 
   return (
@@ -38,6 +97,24 @@ export function AgentsView() {
         title="Agents"
         description="호스트 내부 스캐너 에이전트 등록 상태를 관리합니다."
       />
+      <Card>
+        <CardContent>
+          <div className="toolbar">
+            <div className="toolbar__filters">
+              <Select
+                aria-label="Agent status filter"
+                value={activeFilter}
+                onChange={(event) => setActiveFilter(event.target.value as AgentActiveFilter)}
+              >
+                <option value="all">전체 상태</option>
+                <option value="active">활성</option>
+                <option value="inactive">비활성</option>
+              </Select>
+            </div>
+            <span className="muted">Total {agents.data?.total ?? 0}</span>
+          </div>
+        </CardContent>
+      </Card>
       {agents.isLoading ? <LoadingState /> : null}
       {agents.isError ? <ErrorState error={agents.error} onRetry={() => void agents.refetch()} /> : null}
       {agents.data ? (
@@ -50,8 +127,25 @@ export function AgentsView() {
               columns={[
                 { key: "host", header: "Hostname", render: (agent) => agent.hostname },
                 { key: "url", header: "URL", render: (agent) => agent.agent_url },
-                { key: "active", header: "Active", render: (agent) => (agent.active ? "yes" : "no") },
-                { key: "stale", header: "Stale", render: (agent) => (agent.is_stale ? "yes" : "no") },
+                {
+                  key: "active",
+                  header: "Status",
+                  render: (agent) => {
+                    if (deactivate.isPending && deactivate.variables === agent.id) {
+                      return <Badge tone="yellow">비활성화 중</Badge>;
+                    }
+                    return <Badge tone={agent.active ? "green" : "neutral"}>{agent.active ? "활성" : "비활성"}</Badge>;
+                  }
+                },
+                {
+                  key: "stale",
+                  header: "Heartbeat",
+                  render: (agent) => (
+                    <Badge tone={!agent.active ? "neutral" : agent.is_stale ? "yellow" : "green"}>
+                      {!agent.active ? "중지" : agent.is_stale ? "지연" : "정상"}
+                    </Badge>
+                  )
+                },
                 { key: "caps", header: "Capabilities", render: (agent) => agent.capabilities.join(", ") },
                 { key: "last", header: "Last Seen", render: (agent) => formatRelative(agent.last_seen) },
                 { key: "registered", header: "Registered", render: (agent) => formatDateTime(agent.registered_at) },
@@ -59,11 +153,24 @@ export function AgentsView() {
                   key: "actions",
                   header: "",
                   align: "right",
-                  render: (agent) => (
-                    <Button type="button" size="icon" variant="ghost" onClick={() => setPendingDeactivate(agent)} aria-label={`${agent.hostname} 비활성화`}>
-                      <Trash2 size={15} />
-                    </Button>
-                  )
+                  render: (agent) => {
+                    const isDeactivating = deactivate.isPending && deactivate.variables === agent.id;
+                    return (
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        disabled={!agent.active || deactivate.isPending}
+                        onClick={() => {
+                          setDeactivateError(null);
+                          setPendingDeactivate(agent);
+                        }}
+                        aria-label={`${agent.hostname} 비활성화`}
+                      >
+                        {isDeactivating ? <Loader2 className="spin" size={15} /> : <Trash2 size={15} />}
+                      </Button>
+                    );
+                  }
                 }
               ]}
             />
@@ -74,8 +181,9 @@ export function AgentsView() {
         open={Boolean(pendingDeactivate)}
         title="Agent 비활성화"
         description={pendingDeactivate ? `${pendingDeactivate.hostname} Agent를 비활성화합니다. 이후 해당 Agent 기반 scanner는 skip될 수 있습니다.` : ""}
-        confirmLabel="비활성화"
+        confirmLabel={deactivateError ? "다시 시도" : "비활성화"}
         pending={deactivate.isPending}
+        error={deactivateError}
         onCancel={() => setPendingDeactivate(null)}
         onConfirm={() => pendingDeactivate && deactivate.mutate(pendingDeactivate.id)}
       />

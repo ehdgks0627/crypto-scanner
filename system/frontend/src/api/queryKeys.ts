@@ -47,6 +47,7 @@ export const queryKeys = {
   },
   agents: {
     all: ["agents"] as const,
+    listPrefix: ["agents", "list"] as const,
     list: (active?: boolean) => ["agents", "list", active] as const,
     detail: (id: string) => ["agents", "detail", id] as const
   },

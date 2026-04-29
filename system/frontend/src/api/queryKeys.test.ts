@@ -10,4 +10,9 @@ describe("queryKeys", () => {
   it("keeps snapshot asset prefix compatible with filtered asset keys", () => {
     expect(queryKeys.snapshots.assets(7, { tier: ["CRITICAL"] }).slice(0, 3)).toEqual(queryKeys.snapshots.assetsPrefix(7));
   });
+
+  it("keeps agent list prefix compatible with active-state filters", () => {
+    expect(queryKeys.agents.list(true).slice(0, 2)).toEqual(queryKeys.agents.listPrefix);
+    expect(queryKeys.agents.list(false).slice(0, 2)).toEqual(queryKeys.agents.listPrefix);
+  });
 });

@@ -10,6 +10,7 @@ type ConfirmDialogProps = {
   confirmLabel: string;
   confirmVariant?: "primary" | "danger";
   pending?: boolean;
+  error?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -21,6 +22,7 @@ export function ConfirmDialog({
   confirmLabel,
   confirmVariant = "danger",
   pending = false,
+  error,
   onCancel,
   onConfirm
 }: ConfirmDialogProps) {
@@ -29,6 +31,7 @@ export function ConfirmDialog({
     <Dialog open={open} title={title} closeDisabled={pending} describedBy={descriptionId} onClose={onCancel}>
       <div className="section-stack">
         <p id={descriptionId} className="muted">{description}</p>
+        {error ? <div className="callout state-view--error" role="alert">{error}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="ghost" disabled={pending} onClick={onCancel}>
             취소
