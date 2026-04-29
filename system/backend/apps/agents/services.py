@@ -3,6 +3,7 @@ import secrets
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 
+from apps.jobs.services import serialize_dt
 from apps.jobs.models import ScanRunLog
 
 
@@ -27,12 +28,13 @@ def serialize_agent(agent):
     return {
         "id": str(agent.id),
         "hostname": agent.hostname,
+        "agent_url": agent.agent_url,
         "capabilities": agent.capabilities,
+        "os_distribution": agent.os_distribution,
+        "registered_at": serialize_dt(agent.created_at),
         "active": agent.active,
-        "last_seen": agent.last_seen.isoformat().replace("+00:00", "Z") if agent.last_seen else None,
-        "token_rotated_at": agent.token_rotated_at.isoformat().replace("+00:00", "Z")
-        if agent.token_rotated_at
-        else None,
+        "last_seen": serialize_dt(agent.last_seen or agent.created_at),
+        "token_rotated_at": serialize_dt(agent.token_rotated_at or agent.created_at),
         "is_stale": is_stale(agent),
     }
 

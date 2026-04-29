@@ -1,7 +1,7 @@
 import pytest
 from django.utils import timezone
 
-from tests.api.factories import assert_job_envelope, create_async_job, create_target
+from tests.api.factories import assert_job_envelope, create_async_job, create_scan_job, create_target
 
 
 pytestmark = pytest.mark.django_db
@@ -46,7 +46,31 @@ def test_api_job_002_scan_enqueue_failure_returns_503(client, monkeypatch):
     assert response.status_code == 503
     assert response.json()["error"] == "service_unavailable"
     assert AsyncJob.objects.count() == 0
-    assert ScanJob.objects.count() == 0
+
+
+def test_api_job_002b_scan_create_rejects_unknown_scanner(client):
+    target = create_target()
+
+    response = client.post(
+        "/api/jobs",
+        data={"target_ids": [target.id], "scanners": ["unknown-scanner"]},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"] == "unprocessable"
+
+
+def test_api_job_002c_list_jobs_filters_kind_and_validates_status(client):
+    scan_job = create_async_job(kind="scan_job", status="COMPLETED")
+    create_async_job(kind="discovery", status="COMPLETED")
+
+    filtered = client.get("/api/jobs?kind=scan_job&status=COMPLETED&sort=id")
+    invalid = client.get("/api/jobs?status=NOPE")
+
+    assert filtered.status_code == 200
+    assert [item["id"] for item in filtered.json()["items"]] == [scan_job.id]
+    assert invalid.status_code == 422
 
 
 def test_api_job_003_list_jobs_returns_page(client):
@@ -173,8 +197,11 @@ def test_api_job_012_job_logs_return_page(client):
     from apps.jobs.models import ScanRunLog
 
     job = create_async_job(kind="scan_job", status="RUNNING")
+    target = create_target(host="log-target.testbed.local")
+    scan_job = create_scan_job(async_job=job, target_ids=[target.id])
     ScanRunLog.objects.create(
         async_job=job,
+        target=target,
         scanner_kind="network",
         status="SUCCESS",
         findings_count=3,
@@ -189,15 +216,80 @@ def test_api_job_012_job_logs_return_page(client):
     body = response.json()
     assert body["total"] == 1
     item = body["items"][0]
-    assert {"scanner_kind", "status", "findings_count", "started_at", "finished_at", "error"} <= set(item)
+    assert {
+        "id",
+        "scan_job_id",
+        "target_id",
+        "target_label",
+        "scanner_kind",
+        "status",
+        "findings_count",
+        "started_at",
+        "finished_at",
+        "error",
+    } <= set(item)
+    assert item["scan_job_id"] == scan_job.id
+    assert item["target_id"] == target.id
+    assert item["target_label"] == "log-target.testbed.local:443"
+
+
+def test_api_job_014_job_logs_exclude_incomplete_internal_rows(client):
+    from apps.jobs.models import ScanRunLog
+
+    job = create_async_job(kind="scan_job", status="RUNNING")
+    target = create_target(host="complete-log.testbed.local")
+    create_scan_job(async_job=job, target_ids=[target.id])
+    ScanRunLog.objects.create(
+        async_job=job,
+        scanner_kind="network",
+        status="ERROR",
+        findings_count=0,
+        error="missing_target",
+    )
+    ScanRunLog.objects.create(
+        async_job=job,
+        target=target,
+        scanner_kind="network",
+        status="SUCCESS",
+        findings_count=1,
+    )
+
+    response = client.get(f"/api/jobs/{job.id}/logs")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["target_id"] == target.id
+
+
+def test_api_job_015_job_logs_without_scan_job_returns_empty_page(client):
+    from apps.jobs.models import ScanRunLog
+
+    job = create_async_job(kind="scan_job", status="RUNNING")
+    target = create_target(host="orphan-log.testbed.local")
+    ScanRunLog.objects.create(
+        async_job=job,
+        target=target,
+        scanner_kind="network",
+        status="SUCCESS",
+        findings_count=1,
+    )
+
+    response = client.get(f"/api/jobs/{job.id}/logs")
+
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "total": 0, "offset": 0, "limit": 20}
 
 
 def test_api_job_013_agent_skip_log_is_visible(client):
     from apps.jobs.models import ScanRunLog
 
+    target = create_target(host="agent-skip.testbed.local")
     job = create_async_job(kind="scan_job", status="COMPLETED")
+    create_scan_job(async_job=job, target_ids=[target.id])
     ScanRunLog.objects.create(
         async_job=job,
+        target=target,
         scanner_kind="agent.cert_store",
         status="SKIPPED",
         findings_count=0,

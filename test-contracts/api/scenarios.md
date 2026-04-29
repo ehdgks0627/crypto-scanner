@@ -990,7 +990,64 @@ Python test 함수명에서는 scenario id의 hyphen을 underscore로 바꾼다.
 - 응답 헤더 `Cache-Control`은 `max-age=600`이다.
 - 값은 OpenAPI enum과 문서의 지원 목록과 일치한다.
 
-## 11 Django 테스트 변환 가이드
+## 11 Post-review contract hardening scenarios
+
+### API-TGT-009: Target 입력은 OpenAPI enum/format/range 계약을 강제한다
+
+행위:
+- `POST /api/targets` 또는 `PATCH /api/targets/{id}`에 잘못된 IP, URL, protocol_hint, transport, context enum 값을 보낸다.
+
+기대:
+- 응답 상태는 422이다.
+- 잘못된 값은 DB에 저장되지 않는다.
+
+### API-JOB-002B: Scan job 생성은 지원하지 않는 scanner id를 거절한다
+
+행위:
+- `POST /api/jobs`에 `scanners=["unknown-scanner"]`를 보낸다.
+
+기대:
+- 응답 상태는 422이다.
+- AsyncJob/ScanJob이 생성되지 않는다.
+
+### API-JOB-002C: Job 목록 filter는 계약 enum만 허용한다
+
+행위:
+- `GET /api/jobs?kind=scan_job&status=COMPLETED&sort=id`를 호출한다.
+- `GET /api/jobs?status=NOPE`를 호출한다.
+
+기대:
+- 첫 호출은 scan_job만 반환한다.
+- 두 번째 호출은 422를 반환한다.
+
+### API-DSC-002C: Discovery 생성과 목록 filter는 port/status 계약을 강제한다
+
+행위:
+- `POST /api/discoveries`에 0 또는 65536 port를 보낸다.
+- `GET /api/discoveries?status=NOPE`를 호출한다.
+
+기대:
+- 두 요청 모두 422를 반환한다.
+
+### API-RSK-002D: Risk 목록은 min_score와 sort query 계약을 강제한다
+
+행위:
+- `GET /api/snapshots/{sid}/risks?min_score=-1`, `min_score=101`, `min_score=abc`, 또는 `sort=name`을 호출한다.
+
+기대:
+- 각 응답 상태는 422이다.
+- 서버 내부 예외나 빈 결과 200으로 숨기지 않는다.
+
+### API-RSK-009B: Top risks는 존재하지 않는 snapshot을 404로 반환한다
+
+행위:
+- 존재하지 않는 snapshot id로 `GET /api/snapshots/{sid}/risks/top`를 호출한다.
+
+기대:
+- 응답 상태는 404이다.
+- 응답은 표준 ErrorResponse envelope를 따른다.
+
+## 12 Django 테스트 변환 가이드
 
 첫 번째 Django 테스트 단계에서는 다음 순서로 구현한다.
 

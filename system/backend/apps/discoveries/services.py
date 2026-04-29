@@ -19,6 +19,7 @@ def serialize_discovery(discovery):
         "job_id": discovery.async_job_id,
         "status": discovery.status,
         "cidr": discovery.cidr,
+        "port_list": discovery.ports,
         "ports": discovery.ports,
         "include_default_ports": discovery.include_default_ports,
         "created_at": serialize_dt(discovery.created_at),
@@ -31,11 +32,14 @@ def serialize_discovery(discovery):
 def serialize_endpoint(endpoint):
     return {
         "id": endpoint.id,
+        "ip": endpoint.host,
         "host": endpoint.host,
         "port": endpoint.port,
         "transport": endpoint.transport,
         "detected_protocol": endpoint.detected_protocol,
+        "banner_metadata": {},
         "suggested_protocol_hint": endpoint.suggested_protocol_hint,
+        "suggested_host": endpoint.host,
         "promoted": endpoint.promoted,
         "target_id": endpoint.target_id,
     }

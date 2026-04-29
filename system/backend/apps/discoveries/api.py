@@ -1,6 +1,9 @@
+from typing import Annotated, Literal
+
 from django.db import transaction
 from django.http import JsonResponse
 from ninja import Query, Router
+from pydantic import Field
 
 from apps.core.errors import error_response
 from apps.core.pagination import empty_page, page_envelope
@@ -14,21 +17,40 @@ from apps.targets.models import Target, default_context
 router = Router(tags=["Discoveries"])
 
 
+JobStatusParam = Literal["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]
+PortNumber = Annotated[int, Field(ge=1, le=65535)]
+
+
 class DiscoveryCreate(StrictSchema):
     cidr: str
-    ports: list[int] | None = None
-    include_default_ports: bool = False
+    ports: list[PortNumber] | None = None
+    include_default_ports: bool = True
+
+
+class PromotionContextPayload(StrictSchema):
+    sensitivity: Literal["low", "medium", "high", "critical"] | None = None
+    lifespan_years: int | None = Field(default=None, ge=0)
+    criticality: Literal["low", "medium", "high", "critical"] | None = None
+    exposure: Literal["public_internet", "dmz", "internal_network", "air_gapped"] | None = None
+    service_role: str | None = None
+
+
+class DiscoveryPromotionPayload(StrictSchema):
+    endpoint_id: int
+    host: str
+    protocol_hint: Literal["TLS", "SSH", "IKE", "SMTP", "IMAP", "POP3", "UNKNOWN"]
+    context: PromotionContextPayload | None = None
+    agent_enabled: bool = False
 
 
 class PromotePayload(StrictSchema):
-    endpoint_ids: list[int]
-    target_overrides: dict | None = None
+    promotions: list[DiscoveryPromotionPayload] = Field(min_length=1)
 
 
 @router.get("/discoveries")
 def list_discoveries(
     request,
-    status: str | None = None,
+    status: JobStatusParam | None = None,
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
@@ -101,21 +123,38 @@ def promote_discovery_endpoints(request, discovery_id: int, payload: PromotePayl
     if discovery.status == "CANCELLED":
         return error_response("conflict", "Cancelled discovery endpoints cannot be promoted.", status=409)
 
-    overrides = payload.target_overrides or {}
-    context = {**default_context(), **overrides.get("context", {})}
-    promotions = []
-    for endpoint in DiscoveredEndpoint.objects.filter(discovery=discovery, id__in=payload.endpoint_ids):
+    promoted = []
+    skipped = []
+    endpoints = {
+        endpoint.id: endpoint
+        for endpoint in DiscoveredEndpoint.objects.filter(
+            discovery=discovery,
+            id__in=[promotion.endpoint_id for promotion in payload.promotions],
+        )
+    }
+
+    for promotion in payload.promotions:
+        endpoint = endpoints.get(promotion.endpoint_id)
+        if endpoint is None:
+            skipped.append({"endpoint_id": promotion.endpoint_id, "reason": "endpoint_not_found"})
+            continue
+        if endpoint.promoted:
+            skipped.append({"endpoint_id": promotion.endpoint_id, "reason": "already_promoted"})
+            continue
+
+        context = {**default_context(), **((promotion.context.model_dump() if promotion.context else {}) or {})}
         target, _created = Target.objects.get_or_create(
-            host=endpoint.host,
+            host=promotion.host,
             port=endpoint.port,
             transport=endpoint.transport,
             defaults={
-                "protocol_hint": endpoint.suggested_protocol_hint,
+                "protocol_hint": promotion.protocol_hint,
                 "context": context,
+                "agent_enabled": promotion.agent_enabled,
             },
         )
         endpoint.target = target
         endpoint.promoted = True
         endpoint.save(update_fields=["target", "promoted"])
-        promotions.append({"endpoint_id": endpoint.id, "target_id": target.id})
-    return JsonResponse({"promotions": promotions}, status=201)
+        promoted.append({"endpoint_id": endpoint.id, "target_id": target.id})
+    return JsonResponse({"promoted": promoted, "skipped": skipped}, status=201)

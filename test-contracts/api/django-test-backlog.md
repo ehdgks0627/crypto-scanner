@@ -7,7 +7,8 @@ hyphens converted to underscores, for example `API-TGT-001` becomes
 
 ## Current Status
 
-- Done: all 72 scenarios below are covered by executable tests.
+- Done: all listed scenarios below are covered by executable tests, including
+  post-review contract-hardening regressions.
 - Pending: none.
 
 ## Phase 1: Core API Contract
@@ -34,11 +35,14 @@ hyphens converted to underscores, for example `API-TGT-001` becomes
 - [x] `API-TGT-006` `test_api_tgt_006_context_patch_enqueue_failure_rolls_back`
 - [x] `API-TGT-007` `test_api_tgt_007_noop_patch_does_not_create_recompute_job`
 - [x] `API-TGT-008` `test_api_tgt_008_delete_target_soft_unlinks_assets`
+- [x] `API-TGT-009` `test_api_tgt_009_rejects_contract_invalid_target_fields`
 
 ## Phase 3: Jobs And Async Lifecycle
 
 - [x] `API-JOB-001` `test_api_job_001_create_scan_job_returns_job_envelope`
 - [x] `API-JOB-002` `test_api_job_002_scan_enqueue_failure_returns_503`
+- [x] `API-JOB-002B` `test_api_job_002b_scan_create_rejects_unknown_scanner`
+- [x] `API-JOB-002C` `test_api_job_002c_list_jobs_filters_kind_and_validates_status`
 - [x] `API-JOB-003` `test_api_job_003_list_jobs_returns_page`
 - [x] `API-JOB-004` `test_api_job_004_polling_returns_no_store_and_job_envelope`
 - [x] `API-JOB-005` `test_api_job_005_completed_scan_job_returns_snapshot_result`
@@ -55,9 +59,14 @@ hyphens converted to underscores, for example `API-TGT-001` becomes
 
 - [x] `API-DSC-001` `test_api_dsc_001_list_discoveries_returns_page`
 - [x] `API-DSC-002` `test_api_dsc_002_create_discovery_returns_job_envelope`
+- [x] `API-DSC-002B` `test_api_dsc_002b_create_discovery_defaults_default_ports_to_true`
+- [x] `API-DSC-002C` `test_api_dsc_002c_create_discovery_rejects_invalid_ports_and_status_filter`
 - [x] `API-DSC-003` `test_api_dsc_003_detail_separates_created_and_started_at`
 - [x] `API-DSC-004` `test_api_dsc_004_endpoint_list_separates_detected_and_suggested_protocol`
 - [x] `API-DSC-005` `test_api_dsc_005_promote_endpoints_creates_targets`
+- [x] `API-DSC-008` `test_api_dsc_008_promote_applies_per_promotion_target_fields`
+- [x] `API-DSC-009` `test_api_dsc_009_promote_skips_already_promoted_and_missing_endpoints`
+- [x] `API-DSC-010` `test_api_dsc_010_promote_rejects_invalid_protocol_and_context`
 - [x] `API-DSC-006` `test_api_dsc_006_enqueue_failure_returns_503_without_orphans`
 - [x] `API-DSC-007` `test_api_dsc_007_cancelled_discovery_preserves_partial_endpoints`
 
@@ -77,6 +86,9 @@ hyphens converted to underscores, for example `API-TGT-001` becomes
 
 - [x] `API-RSK-001` `test_api_rsk_001_get_default_risk_weights`
 - [x] `API-RSK-002` `test_api_rsk_002_list_snapshot_risks_with_filters`
+- [x] `API-RSK-002B` `test_api_rsk_002b_empty_tier_filter_returns_empty_page`
+- [x] `API-RSK-002C` `test_api_rsk_002c_list_snapshot_risks_applies_max_score_sort_and_missing_snapshot`
+- [x] `API-RSK-002D` `test_api_rsk_002d_list_snapshot_risks_validates_min_score_and_sort`
 - [x] `API-RSK-003` `test_api_rsk_003_put_weights_does_not_accept_updated_at`
 - [x] `API-RSK-004` `test_api_rsk_004_put_weights_rejects_updated_at`
 - [x] `API-RSK-005` `test_api_rsk_005_put_weights_rejects_out_of_range_values`
@@ -84,6 +96,9 @@ hyphens converted to underscores, for example `API-TGT-001` becomes
 - [x] `API-RSK-007` `test_api_rsk_007_completed_recompute_returns_updated_scores_count`
 - [x] `API-RSK-008` `test_api_rsk_008_recompute_enqueue_failure_returns_503`
 - [x] `API-RSK-009` `test_api_rsk_009_top_risks_returns_limited_page`
+- [x] `API-RSK-009B` `test_api_rsk_009b_top_risks_returns_404_for_missing_snapshot`
+- [x] `API-RSK-010` `test_api_rsk_010_recompute_requires_weights`
+- [x] `API-RSK-011` `test_api_rsk_011_recompute_rejects_incomplete_or_out_of_range_weights`
 
 ## Phase 7: Migration
 

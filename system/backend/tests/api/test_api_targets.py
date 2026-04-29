@@ -221,3 +221,29 @@ def test_api_tgt_008_delete_target_soft_unlinks_assets(client):
     asset.refresh_from_db()
     assert asset.snapshot_id == snapshot.id
     assert asset.target_id is None
+
+
+def test_api_tgt_009_rejects_contract_invalid_target_fields(client):
+    invalid_create = client.post(
+        "/api/targets",
+        data={
+            "host": "bad.testbed.local",
+            "ip": "not-an-ip",
+            "port": 443,
+            "protocol_hint": "FTP",
+            "transport": "QUIC",
+            "agent_url": "not-a-url",
+            "context": {"criticality": "urgent", "exposure": "internet"},
+        },
+        content_type="application/json",
+    )
+    target = create_target()
+    invalid_patch = client.patch(
+        f"/api/targets/{target.id}",
+        data={"protocol_hint": "FTP", "transport": "QUIC"},
+        content_type="application/json",
+    )
+
+    assert invalid_create.status_code == 422
+    assert invalid_create.json()["error"] == "unprocessable"
+    assert invalid_patch.status_code == 422

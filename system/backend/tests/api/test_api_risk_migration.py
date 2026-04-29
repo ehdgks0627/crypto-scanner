@@ -38,6 +38,48 @@ def test_api_rsk_002_list_snapshot_risks_with_filters(client):
     } <= set(item)
     assert item["tier"] == "CRITICAL"
     assert item["score"] >= 70
+    assert isinstance(item["score"], int)
+    assert set(item["factors"]) == {"a", "d", "e", "l", "c"}
+    assert item["factors"]["a"] == 0.95
+
+
+def test_api_rsk_002b_empty_tier_filter_returns_empty_page(client):
+    snapshot = create_snapshot()
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/risks?tier=CRITICAL")
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+    assert response.json()["items"] == []
+
+
+def test_api_rsk_002c_list_snapshot_risks_applies_max_score_sort_and_missing_snapshot(client):
+    snapshot = create_snapshot()
+    low = create_asset(snapshot=snapshot, name="low-risk", natural_key="risk:low")
+    high = create_asset(snapshot=snapshot, name="high-risk", natural_key="risk:high")
+    create_risk_score(low, score=20.0, tier="LOW")
+    create_risk_score(high, score=80.0, tier="HIGH")
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/risks?max_score=50&sort=score")
+    missing = client.get("/api/snapshots/999999/risks")
+
+    assert response.status_code == 200
+    assert [item["asset_id"] for item in response.json()["items"]] == [low.id]
+    assert missing.status_code == 404
+
+
+def test_api_rsk_002d_list_snapshot_risks_validates_min_score_and_sort(client):
+    snapshot = create_snapshot()
+
+    negative = client.get(f"/api/snapshots/{snapshot.id}/risks?min_score=-1")
+    too_high = client.get(f"/api/snapshots/{snapshot.id}/risks?min_score=101")
+    non_numeric = client.get(f"/api/snapshots/{snapshot.id}/risks?min_score=abc")
+    invalid_sort = client.get(f"/api/snapshots/{snapshot.id}/risks?sort=name")
+
+    assert negative.status_code == 422
+    assert too_high.status_code == 422
+    assert non_numeric.status_code == 422
+    assert invalid_sort.status_code == 422
 
 
 def test_api_rsk_003_put_weights_does_not_accept_updated_at(client):
@@ -84,7 +126,10 @@ def test_api_rsk_006_recompute_returns_recompute_job_envelope(client):
 
     response = client.post(
         f"/api/snapshots/{snapshot.id}/recompute",
-        data={"weights": {"wA": 1.0, "wD": 1.0, "wE": 1.0, "wL": 1.0, "wC": 1.0}, "persist": True},
+        data={
+            "weights": {"wA": 1.0, "wD": 1.0, "wE": 1.0, "wL": 1.0, "wC": 1.0},
+            "persist_weights_as_default": True,
+        },
         content_type="application/json",
     )
 
@@ -151,7 +196,43 @@ def test_api_rsk_009_top_risks_returns_limited_page(client):
     body = response.json()
     assert len(body["items"]) <= 2
     assert body["limit"] == 2
-    assert [item["score"] for item in body["items"]] == [95.0, 80.0]
+    assert [item["score"] for item in body["items"]] == [95, 80]
+
+
+def test_api_rsk_009b_top_risks_returns_404_for_missing_snapshot(client):
+    response = client.get("/api/snapshots/999999/risks/top")
+
+    assert response.status_code == 404
+
+
+def test_api_rsk_010_recompute_requires_weights(client):
+    snapshot = create_snapshot()
+
+    response = client.post(
+        f"/api/snapshots/{snapshot.id}/recompute",
+        data={"persist_weights_as_default": True},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 422
+
+
+def test_api_rsk_011_recompute_rejects_incomplete_or_out_of_range_weights(client):
+    snapshot = create_snapshot()
+
+    incomplete = client.post(
+        f"/api/snapshots/{snapshot.id}/recompute",
+        data={"weights": {"wA": 1.0}},
+        content_type="application/json",
+    )
+    out_of_range = client.post(
+        f"/api/snapshots/{snapshot.id}/recompute",
+        data={"weights": {"wA": 0.1, "wD": 1.0, "wE": 1.0, "wL": 1.0, "wC": 1.0}},
+        content_type="application/json",
+    )
+
+    assert incomplete.status_code == 422
+    assert out_of_range.status_code == 422
 
 
 def test_api_mig_001_migration_plan_returns_recommendation_page(client):
@@ -163,8 +244,73 @@ def test_api_mig_001_migration_plan_returns_recommendation_page(client):
 
     assert response.status_code == 200
     item = response.json()["items"][0]
-    assert {"current", "recommendation", "alternatives", "risk_score", "tier"} <= set(item)
+    assert {"asset_id", "asset_name", "asset_type", "current", "recommendation", "alternatives", "risk_score", "tier"} <= set(item)
     assert item["recommendation"]["strategy"] in {"replace", "hybrid", "no_change"}
+    assert {"strategy", "target_algorithm", "rationale", "confidence"} <= set(item["recommendation"])
+
+
+def test_api_mig_004_migration_plan_applies_contract_filters_and_pagination(client):
+    snapshot = create_snapshot()
+    target_a = create_target(host="a.testbed.local")
+    target_b = create_target(host="b.testbed.local")
+    asset_a = create_asset(snapshot=snapshot, target=target_a, asset_type="certificate", natural_key="mig:a")
+    asset_b = create_asset(snapshot=snapshot, target=target_b, asset_type="key", natural_key="mig:b")
+    asset_c = create_asset(snapshot=snapshot, target=target_a, asset_type="certificate", natural_key="mig:c")
+    create_risk_score(asset_a, score=95.0, tier="CRITICAL")
+    create_risk_score(asset_b, score=80.0, tier="HIGH")
+    create_risk_score(asset_c, score=30.0, tier="LOW")
+
+    response = client.get(
+        f"/api/snapshots/{snapshot.id}/migration-plan"
+        f"?min_score=70&tier=CRITICAL,HIGH&asset_type=certificate&target_id={target_a.id}"
+        f"&asset_ids={asset_a.id},{asset_b.id}&offset=0&limit=1"
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["offset"] == 0
+    assert body["limit"] == 1
+    assert [item["asset_id"] for item in body["items"]] == [asset_a.id]
+
+
+def test_api_mig_005_migration_plan_validates_score_and_missing_snapshot(client):
+    snapshot = create_snapshot()
+
+    low_response = client.get(f"/api/snapshots/{snapshot.id}/migration-plan?min_score=-1")
+    high_response = client.get(f"/api/snapshots/{snapshot.id}/migration-plan?min_score=101")
+    missing_response = client.get("/api/snapshots/999999/migration-plan")
+
+    assert low_response.status_code == 422
+    assert high_response.status_code == 422
+    assert missing_response.status_code == 404
+
+
+def test_api_mig_006_migration_plan_marks_rsa_hybrid_and_safe_no_change(client):
+    snapshot = create_snapshot()
+    rsa_asset = create_asset(snapshot=snapshot, algorithm="RSA-2048", algorithm_family="RSA", natural_key="mig:rsa")
+    pqc_asset = create_asset(snapshot=snapshot, algorithm="ML-DSA-65", algorithm_family="ML-DSA", natural_key="mig:pqc")
+    create_risk_score(rsa_asset, score=95.4, tier="CRITICAL")
+    create_risk_score(pqc_asset, score=42.2, tier="MEDIUM")
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/migration-plan?asset_ids={rsa_asset.id},{pqc_asset.id}")
+
+    assert response.status_code == 200
+    by_asset = {item["asset_id"]: item for item in response.json()["items"]}
+    assert by_asset[rsa_asset.id]["recommendation"]["strategy"] == "hybrid"
+    assert by_asset[rsa_asset.id]["current"]["quantum_vulnerable"] is True
+    assert by_asset[rsa_asset.id]["risk_score"] == 95
+    assert by_asset[pqc_asset.id]["recommendation"]["strategy"] == "no_change"
+    assert by_asset[pqc_asset.id]["current"]["quantum_vulnerable"] is False
+
+
+def test_api_mig_007_migration_plan_rejects_non_integer_asset_ids(client):
+    snapshot = create_snapshot()
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/migration-plan?asset_ids=abc")
+
+    assert response.status_code == 422
+    assert response.json()["details"]["parameter"] == "asset_ids"
 
 
 def test_api_mig_002_migration_impact_calculates_selected_assets_only(client):
@@ -181,8 +327,8 @@ def test_api_mig_002_migration_impact_calculates_selected_assets_only(client):
     assert response.status_code == 200
     assert response.json() == {
         "selected_count": 2,
-        "hosts": 1,
-        "services": 1,
+        "hosts": ["impact.testbed.local"],
+        "services": ["impact.testbed.local:443"],
         "cert_reissues": 2,
         "config_changes": 2,
         "key_regens": 2,

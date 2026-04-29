@@ -13,7 +13,12 @@ BOOTSTRAP = "test-bootstrap-token"
 def register_agent(client, hostname="agent.testbed.local", capabilities=None, expected_status=201):
     response = client.post(
         "/api/agents/register",
-        data={"hostname": hostname, "capabilities": capabilities or ["agent.cert_store"]},
+        data={
+            "hostname": hostname,
+            "agent_url": f"http://{hostname}:9100",
+            "capabilities": capabilities or ["agent.cert_store"],
+            "os_distribution": "ubuntu-22.04",
+        },
         content_type="application/json",
         headers={"X-Bootstrap-Token": BOOTSTRAP},
     )
@@ -40,6 +45,8 @@ def test_api_agt_001_register_agent_returns_token_once(client, settings):
     assert agent.agent_token_hash
     assert agent.agent_token_hash != body["agent_token"]
     assert agent.last_seen is not None
+    assert agent.agent_url == "http://agent.testbed.local:9100/"
+    assert agent.os_distribution == "ubuntu-22.04"
 
 
 def test_api_agt_002_existing_hostname_registration_rotates_token(client, settings):
@@ -51,7 +58,18 @@ def test_api_agt_002_existing_hostname_registration_rotates_token(client, settin
     old_token = first.json()["agent_token"]
     Agent.objects.filter(id=agent_id).update(active=False)
 
-    second = register_agent(client, expected_status=200)
+    second = client.post(
+        "/api/agents/register",
+        data={
+            "hostname": "agent.testbed.local",
+            "agent_url": "http://agent-new.testbed.local:9200",
+            "capabilities": ["agent.cert_store", "agent.ssh_config"],
+            "os_distribution": "debian-12",
+        },
+        content_type="application/json",
+        headers={"X-Bootstrap-Token": BOOTSTRAP},
+    )
+    assert second.status_code == 200
 
     body = second.json()
     assert body["id"] == agent_id
@@ -59,7 +77,11 @@ def test_api_agt_002_existing_hostname_registration_rotates_token(client, settin
     assert body["agent_token"] != old_token
     assert client.post(f"/api/agents/{agent_id}/heartbeat", headers=bearer(old_token)).status_code == 401
     assert client.post(f"/api/agents/{agent_id}/heartbeat", headers=bearer(body["agent_token"])).status_code == 200
-    assert Agent.objects.get(id=agent_id).active is True
+    agent = Agent.objects.get(id=agent_id)
+    assert agent.active is True
+    assert agent.agent_url == "http://agent-new.testbed.local:9200/"
+    assert agent.capabilities == ["agent.cert_store", "agent.ssh_config"]
+    assert agent.os_distribution == "debian-12"
 
 
 def test_api_agt_003_missing_or_invalid_bootstrap_token_is_rejected(client, settings):
@@ -67,12 +89,35 @@ def test_api_agt_003_missing_or_invalid_bootstrap_token_is_rejected(client, sett
 
     response = client.post(
         "/api/agents/register",
-        data={"hostname": "agent.testbed.local", "capabilities": []},
+        data={"hostname": "agent.testbed.local", "agent_url": "http://agent.testbed.local:9100", "capabilities": []},
         content_type="application/json",
     )
 
     assert response.status_code == 401
     assert response.json()["error"] == "invalid_token"
+
+
+def test_api_agt_003b_registration_accepts_missing_agent_url_and_rejects_invalid_url(client, settings):
+    from apps.agents.models import Agent
+
+    settings.AGENT_BOOTSTRAP_TOKEN = BOOTSTRAP
+
+    missing_url = client.post(
+        "/api/agents/register",
+        data={"hostname": "agent-no-url.testbed.local", "capabilities": []},
+        content_type="application/json",
+        headers={"X-Bootstrap-Token": BOOTSTRAP},
+    )
+    invalid_url = client.post(
+        "/api/agents/register",
+        data={"hostname": "agent-bad-url.testbed.local", "agent_url": "not-a-url", "capabilities": []},
+        content_type="application/json",
+        headers={"X-Bootstrap-Token": BOOTSTRAP},
+    )
+
+    assert missing_url.status_code == 201
+    assert Agent.objects.get(id=missing_url.json()["id"]).agent_url is None
+    assert invalid_url.status_code == 422
 
 
 def test_api_agt_004_heartbeat_updates_last_seen(client, settings):
@@ -139,10 +184,41 @@ def test_api_agt_006_list_agents_marks_stale_and_hides_tokens(client, settings):
     assert response.status_code == 200
     by_id = {item["id"]: item for item in response.json()["items"]}
     assert by_id[str(fresh.id)]["is_stale"] is False
+    assert by_id[str(fresh.id)]["agent_url"] is None
+    assert by_id[str(fresh.id)]["registered_at"] is not None
+    assert by_id[str(fresh.id)]["last_seen"] is not None
     assert by_id[str(stale.id)]["is_stale"] is True
     assert by_id[str(inactive.id)]["active"] is False
     assert "agent_token" not in response.content.decode()
     assert "agent_token_hash" not in response.content.decode()
+
+
+def test_api_agt_010_list_agents_filters_by_active(client, settings):
+    from apps.agents.models import Agent
+
+    settings.AGENT_BOOTSTRAP_TOKEN = BOOTSTRAP
+    active = Agent.objects.create(
+        hostname="active-filter",
+        capabilities=[],
+        agent_token_hash="hash",
+        active=True,
+        last_seen=timezone.now(),
+    )
+    inactive = Agent.objects.create(
+        hostname="inactive-filter",
+        capabilities=[],
+        agent_token_hash="hash",
+        active=False,
+        last_seen=timezone.now(),
+    )
+
+    active_response = client.get("/api/agents?active=true")
+    inactive_response = client.get("/api/agents?active=false")
+
+    assert active_response.status_code == 200
+    assert {item["id"] for item in active_response.json()["items"]} == {str(active.id)}
+    assert inactive_response.status_code == 200
+    assert {item["id"] for item in inactive_response.json()["items"]} == {str(inactive.id)}
 
 
 def test_api_agt_007_agent_detail_hides_tokens(client, settings):
@@ -161,7 +237,15 @@ def test_api_agt_007_agent_detail_hides_tokens(client, settings):
 
     assert response.status_code == 200
     body = response.json()
-    assert {"token_rotated_at", "last_seen", "active", "is_stale"} <= set(body)
+    assert {
+        "agent_url",
+        "os_distribution",
+        "registered_at",
+        "token_rotated_at",
+        "last_seen",
+        "active",
+        "is_stale",
+    } <= set(body)
     assert "agent_token" not in body
     assert "agent_token_hash" not in body
 

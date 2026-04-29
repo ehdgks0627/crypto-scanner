@@ -2,6 +2,8 @@ import uuid
 
 import pytest
 
+from tests.api.factories import create_asset, create_risk_score, create_snapshot
+
 
 pytestmark = pytest.mark.django_db
 
@@ -59,7 +61,13 @@ def test_api_com_004_not_found_uses_standard_error_response(client):
 
 
 def test_api_com_005_csv_query_array_is_accepted(client):
-    response = client.get("/api/snapshots/1/risks?tier=CRITICAL,HIGH")
+    snapshot = create_snapshot()
+    critical_asset = create_asset(snapshot=snapshot, natural_key="common:critical")
+    high_asset = create_asset(snapshot=snapshot, natural_key="common:high")
+    create_risk_score(critical_asset, tier="CRITICAL")
+    create_risk_score(high_asset, tier="HIGH")
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/risks?tier=CRITICAL,HIGH")
 
     assert response.status_code == 200
     body = response.json()
@@ -69,7 +77,9 @@ def test_api_com_005_csv_query_array_is_accepted(client):
 
 
 def test_api_com_006_repeated_query_array_is_rejected(client):
-    response = client.get("/api/snapshots/1/risks?tier=CRITICAL&tier=HIGH")
+    snapshot = create_snapshot()
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/risks?tier=CRITICAL&tier=HIGH")
 
     assert response.status_code == 400
     body = response.json()

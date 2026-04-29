@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.core.middleware.HostValidationMiddleware",
     "apps.core.middleware.RequestIdMiddleware",
     "apps.core.middleware.APIKeyMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -85,8 +86,17 @@ else:
 USE_TZ = True
 TIME_ZONE = "Asia/Seoul"
 
-AGENT_BOOTSTRAP_TOKEN = os.environ.get("AGENT_BOOTSTRAP_TOKEN", "dev-bootstrap-token")
+DEFAULT_AGENT_BOOTSTRAP_TOKEN = "dev-bootstrap-token"
+AGENT_BOOTSTRAP_TOKEN = os.environ.get("AGENT_BOOTSTRAP_TOKEN", DEFAULT_AGENT_BOOTSTRAP_TOKEN)
 API_AUTH_TOKEN = os.environ.get("API_AUTH_TOKEN", "")
+
+if not DEBUG:
+    if not API_AUTH_TOKEN:
+        raise RuntimeError("API_AUTH_TOKEN must be set when DJANGO_DEBUG=false.")
+    if not AGENT_BOOTSTRAP_TOKEN or AGENT_BOOTSTRAP_TOKEN == DEFAULT_AGENT_BOOTSTRAP_TOKEN:
+        raise RuntimeError("AGENT_BOOTSTRAP_TOKEN must be set to a non-default value when DJANGO_DEBUG=false.")
+    if not ALLOWED_HOSTS:
+        raise RuntimeError("DJANGO_ALLOWED_HOSTS must be set when DJANGO_DEBUG=false.")
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", not DEBUG)

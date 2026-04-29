@@ -36,10 +36,13 @@ def test_api_dsh_001_dashboard_summary_uses_latest_snapshot(client):
     assert response.status_code == 200
     body = response.json()
     assert body["snapshot"]["id"] == latest.id
+    assert body["snapshot"]["created_at"] is not None
+    assert body["snapshot"]["asset_count"] == 1
     assert body["by_tier"]["CRITICAL"] == 1
     assert body["by_asset_type"]["certificate"] == 1
     assert body["by_algorithm_family"]["RSA"] == 1
-    assert body["quantum_vulnerable_ratio"] > 0
+    assert body["quantum_vulnerable_ratio"]["vulnerable"] == 1
+    assert body["quantum_vulnerable_ratio"]["safe"] == 0
     assert body["agents_status"] == {"total": 1, "active": 1, "stale": 0}
     assert body["recent_jobs"][0]["id"] == job.id
     assert_job_envelope(body["recent_jobs"][0])
@@ -55,7 +58,7 @@ def test_api_dsh_002_dashboard_empty_state_without_snapshots(client):
     assert body["by_tier"] == {}
     assert body["by_asset_type"] == {}
     assert body["by_algorithm_family"] == {}
-    assert body["quantum_vulnerable_ratio"] == 0
+    assert body["quantum_vulnerable_ratio"] == {"vulnerable": 0, "safe": 0, "unknown": 0}
     assert body["recent_jobs"] == []
     assert body["trend"] == []
 

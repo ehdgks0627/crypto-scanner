@@ -32,7 +32,13 @@ def serialize_job(async_job):
 
 
 def serialize_run_log(log):
+    scan_job = log.async_job.scan_job
+    target_label = f"{log.target.host}:{log.target.port}"
     return {
+        "id": log.id,
+        "scan_job_id": scan_job.id,
+        "target_id": log.target_id,
+        "target_label": target_label,
         "scanner_kind": log.scanner_kind,
         "status": log.status,
         "findings_count": log.findings_count,

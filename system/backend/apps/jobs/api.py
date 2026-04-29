@@ -1,3 +1,5 @@
+from typing import Literal
+
 from django.db import transaction
 from django.http import JsonResponse
 from ninja import Query, Router
@@ -13,21 +15,41 @@ from apps.jobs.models import AsyncJob, ScanJob
 router = Router(tags=["Jobs"])
 
 
+JobStatusParam = Literal["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]
+JobKindParam = Literal["scan_job", "discovery", "recompute"]
+JobSortParam = Literal["id", "-id", "created_at", "-created_at", "finished_at", "-finished_at"]
+ScannerId = Literal[
+    "network",
+    "agent.cert_store",
+    "agent.pkg_keyring",
+    "agent.ssh_userkey",
+    "agent.ssh_config",
+    "agent.keystore",
+    "agent.app_cert_files",
+    "agent.app_config",
+]
+
+
 class ScanJobCreate(StrictSchema):
     target_ids: list[int] = Field(min_length=1)
-    scanners: list[str] = Field(min_length=1)
+    scanners: list[ScannerId] = Field(min_length=1)
 
 
 @router.get("/jobs")
 def list_jobs(
     request,
-    status: str | None = None,
+    status: JobStatusParam | None = None,
+    kind: JobKindParam | None = None,
+    sort: JobSortParam = "-id",
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    queryset = AsyncJob.objects.all().order_by("-id")
+    queryset = AsyncJob.objects.all()
     if status:
         queryset = queryset.filter(status=status)
+    if kind:
+        queryset = queryset.filter(kind=kind)
+    queryset = queryset.order_by(sort)
     total = queryset.count()
     items = [services.serialize_job(job) for job in queryset[offset : offset + limit]]
     if not items:
@@ -95,7 +117,9 @@ def list_job_logs(
         async_job = AsyncJob.objects.get(id=job_id)
     except AsyncJob.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
-    queryset = async_job.run_logs.order_by("id")
+    if not hasattr(async_job, "scan_job"):
+        return page_envelope([], offset=offset, limit=limit, total=0)
+    queryset = async_job.run_logs.select_related("target").filter(target__isnull=False).order_by("id")
     total = queryset.count()
     items = [services.serialize_run_log(log) for log in queryset[offset : offset + limit]]
     return page_envelope(items, offset=offset, limit=limit, total=total)

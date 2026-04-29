@@ -12,7 +12,8 @@ info:
     implementation must expose an equivalent `/api/openapi.json`.
 servers:
   - url: /api
-security: []
+security:
+  - ApiToken: []
 tags:
   - name: Targets
     description: Scan target registration and management.
@@ -76,7 +77,7 @@ paths:
       summary: Create a scan target
       operationId: createTarget
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -129,7 +130,7 @@ paths:
       summary: Update target fields
       operationId: patchTarget
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -983,6 +984,8 @@ paths:
                   externalValue: ./examples/migration-plan.json
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
         default:
           $ref: '#/components/responses/Error'
 
@@ -1153,7 +1156,7 @@ paths:
       security:
         - AgentBearer: []
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -1316,6 +1319,10 @@ paths:
 
 components:
   securitySchemes:
+    ApiToken:
+      type: apiKey
+      in: header
+      name: X-API-Token
     BootstrapToken:
       type: apiKey
       in: header
@@ -1379,7 +1386,7 @@ components:
       schema:
         type: integer
         minimum: 1
-        maximum: 200
+        maximum: 100
         default: 20
     Sort:
       name: sort
@@ -1629,7 +1636,6 @@ components:
           maxLength: 253
         ip:
           type: string
-          format: ip
           nullable: true
         port:
           type: integer
@@ -1779,10 +1785,13 @@ components:
 
     Discovery:
       type: object
-      required: [id, cidr, port_list, status, created_at, started_at]
+      required: [id, job_id, cidr, port_list, status, created_at, started_at]
       properties:
         id:
           type: integer
+        job_id:
+          type: integer
+          description: API-visible AsyncJob id used for polling or cancellation.
         cidr:
           type: string
         port_list:
@@ -2103,6 +2112,7 @@ components:
           type: integer
         scan_job_id:
           type: integer
+          nullable: true
         serial_number:
           type: string
           example: urn:uuid:9f8e7d6c-0000-4000-8000-000000000056
@@ -2237,7 +2247,10 @@ components:
           type: object
           additionalProperties: true
         risk:
-          $ref: '#/components/schemas/AssetRiskSummary'
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AssetRiskSummary'
+          nullable: true
 
     AssetListPage:
       allOf:
@@ -2717,7 +2730,7 @@ components:
 
     AgentRegister:
       type: object
-      required: [hostname, agent_url, capabilities]
+      required: [hostname, capabilities]
       description: Uses X-Bootstrap-Token. New hostnames create an agent; existing hostnames update metadata and rotate the agent token.
       properties:
         hostname:
@@ -2726,6 +2739,7 @@ components:
         agent_url:
           type: string
           format: uri
+          nullable: true
         capabilities:
           type: array
           items:
@@ -2772,6 +2786,7 @@ components:
         agent_url:
           type: string
           format: uri
+          nullable: true
         capabilities:
           type: array
           items:

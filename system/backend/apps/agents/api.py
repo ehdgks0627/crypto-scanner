@@ -1,7 +1,10 @@
+from secrets import compare_digest
+
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from ninja import Query, Router
+from pydantic import AnyUrl
 
 from apps.agents import services
 from apps.agents.models import Agent
@@ -15,7 +18,9 @@ router = Router(tags=["Agents"])
 
 class AgentRegisterPayload(StrictSchema):
     hostname: str
+    agent_url: AnyUrl | None = None
     capabilities: list[str] = []
+    os_distribution: str | None = None
 
 
 def _extract_bearer_token(request):
@@ -30,8 +35,15 @@ def _invalid_token():
 
 
 @router.get("/agents")
-def list_agents(request, offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
+def list_agents(
+    request,
+    active: bool | None = None,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+):
     queryset = Agent.objects.all().order_by("hostname")
+    if active is not None:
+        queryset = queryset.filter(active=active)
     total = queryset.count()
     items = [services.serialize_agent(agent) for agent in queryset[offset : offset + limit]]
     if not items:
@@ -41,7 +53,9 @@ def list_agents(request, offset: int = Query(0, ge=0), limit: int = Query(20, ge
 
 @router.post("/agents/register")
 def register_agent(request, payload: AgentRegisterPayload):
-    if request.headers.get("X-Bootstrap-Token") != getattr(settings, "AGENT_BOOTSTRAP_TOKEN", "dev-bootstrap-token"):
+    provided_token = request.headers.get("X-Bootstrap-Token", "")
+    expected_token = getattr(settings, "AGENT_BOOTSTRAP_TOKEN", "dev-bootstrap-token")
+    if not provided_token or not compare_digest(provided_token, expected_token):
         return _invalid_token()
 
     token = services.generate_token()
@@ -49,7 +63,9 @@ def register_agent(request, payload: AgentRegisterPayload):
     agent, created = Agent.objects.get_or_create(
         hostname=payload.hostname,
         defaults={
+            "agent_url": str(payload.agent_url) if payload.agent_url else None,
             "capabilities": payload.capabilities,
+            "os_distribution": payload.os_distribution,
             "agent_token_hash": services.hash_token(token),
             "active": True,
             "last_seen": now,
@@ -57,7 +73,9 @@ def register_agent(request, payload: AgentRegisterPayload):
         },
     )
     if not created:
+        agent.agent_url = str(payload.agent_url) if payload.agent_url else None
         agent.capabilities = payload.capabilities
+        agent.os_distribution = payload.os_distribution
         agent.agent_token_hash = services.hash_token(token)
         agent.active = True
         agent.last_seen = now

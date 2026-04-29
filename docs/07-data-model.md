@@ -12,7 +12,7 @@ erDiagram
     AsyncJob ||--o| Discovery : tracks
     Target ||--o{ Asset : discovers
     Target ||--o{ ScanJob : "scanned in"
-    ScanJob ||--|| CbomSnapshot : produces
+    ScanJob ||--o{ CbomSnapshot : produces
     ScanJob ||--o{ ScanRunLog : has
     CbomSnapshot ||--o{ Asset : contains
     CbomSnapshot ||--o{ AssetEdge : contains
@@ -70,11 +70,11 @@ erDiagram
 
     CbomSnapshot {
         int id PK
-        int scan_job_id FK
+        int scan_job_id FK nullable
         string serial_number
-        string file_path
-        int asset_count
+        json summary
         json validation_errors
+        json cbom_json
         datetime created_at
     }
 
@@ -353,16 +353,16 @@ Agent의 주기 상태 보고 (옵션, 운영 가시성).
 
 ### 7.3.7 CbomSnapshot
 
-1 Scan Job = 1 Snapshot.
+Scan Job으로 생성된 Snapshot은 해당 Scan Job을 참조한다. 단, 외부 CBOM import 또는 수동 fixture로 생성된 Snapshot은 `scan_job=null`일 수 있다.
 
 | 필드 | 타입 | 제약 | 설명 |
 |---|---|---|---|
 | `id` | BigAutoField | PK | |
-| `scan_job` | OneToOneField(ScanJob) | not null, on_delete=PROTECT | |
-| `serial_number` | CharField(50) | not null, unique | CBOM `urn:uuid:...` |
-| `file_path` | CharField(500) | not null | `/var/cbom/123.json` 같은 경로 |
-| `asset_count` | IntegerField | default 0 | |
+| `scan_job` | ForeignKey(ScanJob) | null 가능, on_delete=SET_NULL | Scan Job 산출물이면 연결, import snapshot이면 null |
+| `serial_number` | CharField(128) | not null | CBOM `urn:uuid:...` |
+| `summary` | JSONField | default `{}` | tier/type 집계 등 |
 | `validation_errors` | JSONField | default `[]` | 5.10 검증 실패 항목 |
+| `cbom_json` | JSONField | default `{}` | export 원본 |
 | `created_at` | DateTimeField | auto_now_add | |
 
 ### 7.3.8 Asset

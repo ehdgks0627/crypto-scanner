@@ -44,6 +44,24 @@ def create_async_job(**overrides):
     return AsyncJob.objects.create(**values)
 
 
+def create_scan_job(async_job=None, **overrides):
+    from apps.jobs.models import ScanJob
+
+    if async_job is None:
+        async_job = create_async_job(kind="scan_job")
+    values = {
+        "async_job": async_job,
+        "target_ids": [],
+        "scanner_selection": ["network"],
+    }
+    values.update(overrides)
+    scan_job = ScanJob.objects.create(**values)
+    if async_job.resource_id != scan_job.id:
+        async_job.resource_id = scan_job.id
+        async_job.save(update_fields=["resource_id"])
+    return scan_job
+
+
 def create_snapshot(**overrides):
     from apps.snapshots.models import CbomSnapshot
 

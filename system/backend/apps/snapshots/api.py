@@ -1,6 +1,9 @@
+from typing import Literal
+
 from django.db import transaction
 from django.http import JsonResponse
 from ninja import Query, Router
+from pydantic import Field
 
 from apps.core.errors import error_response
 from apps.core.pagination import empty_page, page_envelope
@@ -13,10 +16,20 @@ from apps.snapshots.models import CbomSnapshot
 
 router = Router(tags=["Snapshots"])
 
+RiskSortParam = Literal["score", "-score", "computed_at", "-computed_at"]
+
+
+class RiskWeightsPayload(StrictSchema):
+    wA: float = Field(ge=0.5, le=2.0)
+    wD: float = Field(ge=0.5, le=2.0)
+    wE: float = Field(ge=0.5, le=2.0)
+    wL: float = Field(ge=0.5, le=2.0)
+    wC: float = Field(ge=0.5, le=2.0)
+
 
 class RecomputePayload(StrictSchema):
-    weights: dict | None = None
-    persist: bool = False
+    weights: RiskWeightsPayload
+    persist_weights_as_default: bool = False
 
 
 def _snapshot_summary(snapshot):
@@ -58,6 +71,7 @@ def export_snapshot(request, snapshot_id: int):
         return error_response("not_found", "Resource not found.", status=404)
     return JsonResponse(
         snapshot.cbom_json,
+        content_type="application/vnd.cyclonedx+json",
         headers={"Content-Disposition": f'attachment; filename="snapshot-{snapshot.id}.json"'},
     )
 
@@ -75,36 +89,63 @@ def diff_snapshots(request, snapshot_id: int, other: int):
     added_keys = set(assets_b) - set(assets_a)
     removed_keys = set(assets_a) - set(assets_b)
     shared_keys = set(assets_a) & set(assets_b)
-    modified_keys = {
-        key
-        for key in shared_keys
-        if assets_a[key].name != assets_b[key].name or assets_a[key].algorithm != assets_b[key].algorithm
-    }
+    modified_keys = {key for key in shared_keys if _diff_field_changes(assets_a[key], assets_b[key])}
     unchanged_keys = shared_keys - modified_keys
     return {
         "snapshot_a": snapshot_a.id,
         "snapshot_b": snapshot_b.id,
-        "added": [{"asset_id": assets_b[key].id, "natural_key": key} for key in sorted(added_keys)],
-        "removed": [{"asset_id": assets_a[key].id, "natural_key": key} for key in sorted(removed_keys)],
-        "modified": [{"natural_key": key} for key in sorted(modified_keys)],
+        "added": [_diff_asset(assets_b[key]) for key in sorted(added_keys)],
+        "removed": [_diff_asset(assets_a[key]) for key in sorted(removed_keys)],
+        "modified": [
+            {**_diff_asset(assets_b[key]), "field_changes": _diff_field_changes(assets_a[key], assets_b[key])}
+            for key in sorted(modified_keys)
+        ],
         "unchanged_count": len(unchanged_keys),
     }
 
 
 def _parse_csv(value: str | None):
-    return [item for item in (value or "").split(",") if item]
+    return [item.strip() for item in (value or "").split(",") if item.strip()]
+
+
+def _diff_asset(asset):
+    return {
+        "bom_ref": asset.natural_key,
+        "type": asset.asset_type,
+        "name": asset.name,
+    }
+
+
+def _diff_field_changes(before, after):
+    changes = {}
+    for field in ("name", "asset_type", "algorithm", "algorithm_family"):
+        before_value = getattr(before, field)
+        after_value = getattr(after, field)
+        if before_value != after_value:
+            changes[field] = [before_value, after_value]
+    return changes
 
 
 def _risk_for_asset(asset):
     return asset.risk_scores.order_by("-id").first()
 
 
+def _is_quantum_vulnerable(asset):
+    return asset.algorithm_family in {"RSA", "ECDSA", "ECDH", "DH"}
+
+
 @router.get("/snapshots/{snapshot_id}/assets")
 def list_snapshot_assets(
     request,
     snapshot_id: int,
+    asset_class: str | None = None,
     asset_type: str | None = None,
+    target_id: int | None = None,
+    min_score: int | None = Query(None, ge=0, le=100),
+    max_score: int | None = Query(None, ge=0, le=100),
     tier: str | None = None,
+    quantum_vulnerable: bool | None = None,
+    q: str | None = None,
     sort: str | None = None,
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
@@ -115,14 +156,40 @@ def list_snapshot_assets(
         snapshot = CbomSnapshot.objects.get(id=snapshot_id)
     except CbomSnapshot.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
-    assets = list(snapshot.assets.all())
+    assets = list(snapshot.assets.select_related("target").prefetch_related("risk_scores"))
+    asset_classes = set(_parse_csv(asset_class))
+    if asset_classes:
+        assets = [asset for asset in assets if asset.asset_class in asset_classes]
     if asset_type:
-        assets = [asset for asset in assets if asset.asset_type == asset_type]
+        asset_types = set(_parse_csv(asset_type))
+        assets = [asset for asset in assets if asset.asset_type in asset_types]
+    if target_id is not None:
+        assets = [asset for asset in assets if asset.target_id == target_id]
     tiers = set(_parse_csv(tier))
     if tiers:
         assets = [asset for asset in assets if _risk_for_asset(asset) and _risk_for_asset(asset).tier in tiers]
+    if min_score is not None:
+        assets = [asset for asset in assets if _risk_for_asset(asset) and _risk_for_asset(asset).score >= min_score]
+    if max_score is not None:
+        assets = [asset for asset in assets if _risk_for_asset(asset) and _risk_for_asset(asset).score <= max_score]
+    if quantum_vulnerable is not None:
+        assets = [asset for asset in assets if _is_quantum_vulnerable(asset) is quantum_vulnerable]
+    if q:
+        query = q.casefold()
+        assets = [
+            asset
+            for asset in assets
+            if query in asset.name.casefold()
+            or query in asset.natural_key.casefold()
+            or query in asset.algorithm.casefold()
+            or (asset.target and query in asset.target.host.casefold())
+        ]
     if sort == "-risk_score":
         assets.sort(key=lambda asset: (_risk_for_asset(asset).score if _risk_for_asset(asset) else 0), reverse=True)
+    elif sort == "name":
+        assets.sort(key=lambda asset: asset.name.casefold())
+    elif sort == "-name":
+        assets.sort(key=lambda asset: asset.name.casefold(), reverse=True)
     total = len(assets)
     items = [asset_services.serialize_asset_summary(asset, _risk_for_asset(asset)) for asset in assets[offset : offset + limit]]
     return page_envelope(items, offset=offset, limit=limit, total=total)
@@ -132,9 +199,17 @@ def list_snapshot_assets(
 def list_snapshot_risks(
     request,
     snapshot_id: int,
+    min_score: int | None = Query(None, ge=0, le=100),
+    max_score: int | None = Query(None, ge=0, le=100),
+    sort: RiskSortParam | None = None,
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
+    try:
+        CbomSnapshot.objects.get(id=snapshot_id)
+    except CbomSnapshot.DoesNotExist:
+        return error_response("not_found", "Resource not found.", status=404)
+
     tiers = request.GET.getlist("tier")
     if len(tiers) > 1:
         return error_response(
@@ -145,22 +220,30 @@ def list_snapshot_risks(
         )
 
     selected_tiers = tiers[0].split(",") if tiers and tiers[0] else []
-    min_score = request.GET.get("min_score")
     queryset = RiskScore.objects.filter(snapshot_id=snapshot_id).select_related("asset").order_by("-score")
     if selected_tiers:
         queryset = queryset.filter(tier__in=selected_tiers)
-    if min_score:
-        queryset = queryset.filter(score__gte=float(min_score))
+    if min_score is not None:
+        queryset = queryset.filter(score__gte=min_score)
+    if max_score is not None:
+        queryset = queryset.filter(score__lte=max_score)
+    if sort == "score":
+        queryset = queryset.order_by("score")
+    elif sort == "-score":
+        queryset = queryset.order_by("-score")
+    elif sort == "-computed_at":
+        queryset = queryset.order_by("-computed_at")
+    elif sort == "computed_at":
+        queryset = queryset.order_by("computed_at")
     total = queryset.count()
     items = [risk_services.serialize_risk_score(score) for score in queryset[offset : offset + limit]]
-    if not items and selected_tiers:
-        items = [{"tier": tier} for tier in selected_tiers]
-        total = len(items)
     return page_envelope(items, offset=offset, limit=limit, total=total)
 
 
 @router.get("/snapshots/{snapshot_id}/risks/top")
 def list_top_snapshot_risks(request, snapshot_id: int, n: int = Query(10, ge=1, le=100)):
+    if not CbomSnapshot.objects.filter(id=snapshot_id).exists():
+        return error_response("not_found", "Resource not found.", status=404)
     queryset = RiskScore.objects.filter(snapshot_id=snapshot_id).select_related("asset").order_by("-score")[:n]
     items = [risk_services.serialize_risk_score(score) for score in queryset]
     return page_envelope(items, offset=0, limit=n, total=len(items))
@@ -181,29 +264,75 @@ def recompute_snapshot(request, snapshot_id: int, payload: RecomputePayload):
 
 
 @router.get("/snapshots/{snapshot_id}/migration-plan")
-def get_migration_plan(request, snapshot_id: int, tier: str | None = None, asset_type: str | None = None):
+def get_migration_plan(
+    request,
+    snapshot_id: int,
+    min_score: int | None = Query(None, ge=0, le=100),
+    tier: str | None = None,
+    asset_type: str | None = None,
+    target_id: int | None = None,
+    asset_ids: str | None = None,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+):
+    try:
+        CbomSnapshot.objects.get(id=snapshot_id)
+    except CbomSnapshot.DoesNotExist:
+        return error_response("not_found", "Resource not found.", status=404)
+
     tiers = set(_parse_csv(tier))
     queryset = RiskScore.objects.filter(snapshot_id=snapshot_id).select_related("asset").order_by("-score")
+    if min_score is not None:
+        queryset = queryset.filter(score__gte=min_score)
     if tiers:
         queryset = queryset.filter(tier__in=tiers)
     if asset_type:
-        queryset = queryset.filter(asset__asset_type=asset_type)
+        queryset = queryset.filter(asset__asset_type__in=_parse_csv(asset_type))
+    if target_id is not None:
+        queryset = queryset.filter(asset__target_id=target_id)
+    if asset_ids:
+        try:
+            selected_asset_ids = [int(value) for value in _parse_csv(asset_ids)]
+        except ValueError:
+            return error_response("unprocessable", "asset_ids must be CSV integers.", {"parameter": "asset_ids"}, status=422)
+        queryset = queryset.filter(asset_id__in=selected_asset_ids)
+
+    total = queryset.count()
     items = []
-    for risk_score in queryset:
+    for risk_score in queryset[offset : offset + limit]:
         strategy = "no_change" if not risk_score.asset.algorithm.startswith("RSA") else "hybrid"
         items.append(
             {
-                "current": {"asset_id": risk_score.asset_id, "algorithm": risk_score.asset.algorithm},
+                "asset_id": risk_score.asset_id,
+                "asset_name": risk_score.asset.name,
+                "asset_type": risk_score.asset.asset_type,
+                "current": {
+                    "algorithm": risk_score.asset.algorithm,
+                    "key_size_bits": None,
+                    "quantum_vulnerable": risk_score.asset.algorithm_family in {"RSA", "ECDSA", "ECDH", "DH"},
+                },
                 "recommendation": {
                     "strategy": strategy,
                     "target_algorithm": "RSA-2048 + ML-DSA-65" if strategy == "hybrid" else risk_score.asset.algorithm,
+                    "rationale": "RSA-family assets should migrate with a hybrid PQC transition."
+                    if strategy == "hybrid"
+                    else "No immediate PQC migration is required for this asset.",
+                    "confidence": 0.8,
                 },
-                "alternatives": [],
-                "risk_score": risk_score.score,
+                "alternatives": [
+                    {
+                        "strategy": "replace",
+                        "target_algorithm": "ML-DSA-65",
+                        "trade_off": "Removes classical dependency but requires compatibility validation.",
+                    }
+                ]
+                if strategy == "hybrid"
+                else [],
+                "risk_score": round(risk_score.score),
                 "tier": risk_score.tier,
             }
         )
-    return page_envelope(items, total=len(items))
+    return page_envelope(items, offset=offset, limit=limit, total=total)
 
 
 @router.get("/snapshots/{snapshot_id}/migration-plan/impact")
@@ -214,7 +343,11 @@ def get_migration_impact(request, snapshot_id: int, asset_ids: str = ""):
         ids = [int(value) for value in asset_ids.split(",") if value]
     except ValueError:
         return error_response("unprocessable", "asset_ids must be CSV integers.", {"parameter": "asset_ids"}, status=422)
-    assets = list(CbomSnapshot.objects.get(id=snapshot_id).assets.filter(id__in=ids))
+    try:
+        snapshot = CbomSnapshot.objects.get(id=snapshot_id)
+    except CbomSnapshot.DoesNotExist:
+        return error_response("not_found", "Resource not found.", status=404)
+    assets = list(snapshot.assets.select_related("target").filter(id__in=ids))
     found_ids = {asset.id for asset in assets}
     invalid_ids = [asset_id for asset_id in ids if asset_id not in found_ids]
     if invalid_ids:
@@ -225,11 +358,12 @@ def get_migration_impact(request, snapshot_id: int, asset_ids: str = ""):
             status=422,
         )
     count = len(assets)
-    host_count = len({asset.target_id for asset in assets if asset.target_id})
+    hosts = sorted({asset.target.host for asset in assets if asset.target})
+    services = sorted({f"{asset.target.host}:{asset.target.port}" for asset in assets if asset.target})
     return {
         "selected_count": count,
-        "hosts": host_count,
-        "services": host_count,
+        "hosts": hosts,
+        "services": services,
         "cert_reissues": count,
         "config_changes": count,
         "key_regens": count,

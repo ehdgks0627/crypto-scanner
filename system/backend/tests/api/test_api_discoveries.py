@@ -51,6 +51,34 @@ def test_api_dsc_002_create_discovery_returns_job_envelope(client):
     assert body["result"] is None
 
 
+def test_api_dsc_002b_create_discovery_defaults_default_ports_to_true(client):
+    from apps.discoveries.models import Discovery
+
+    response = client.post(
+        "/api/discoveries",
+        data={"cidr": "10.0.1.0/24"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 202
+    discovery = Discovery.objects.get(id=response.json()["resource"]["id"])
+    assert discovery.include_default_ports is True
+    assert discovery.ports == []
+
+
+def test_api_dsc_002c_create_discovery_rejects_invalid_ports_and_status_filter(client):
+    invalid_ports = client.post(
+        "/api/discoveries",
+        data={"cidr": "10.0.2.0/24", "ports": [0, 65536]},
+        content_type="application/json",
+    )
+    invalid_status = client.get("/api/discoveries?status=NOPE")
+
+    assert invalid_ports.status_code == 422
+    assert invalid_ports.json()["error"] == "unprocessable"
+    assert invalid_status.status_code == 422
+
+
 def test_api_dsc_003_detail_separates_created_and_started_at(client):
     pending = create_discovery(status="PENDING", started_at=None)
     running = create_discovery(status="RUNNING", started_at=timezone.now())
@@ -114,13 +142,29 @@ def test_api_dsc_005_promote_endpoints_creates_targets(client):
 
     response = client.post(
         f"/api/discoveries/{discovery.id}/promote",
-        data={"endpoint_ids": [endpoint_a.id, endpoint_b.id], "target_overrides": {"context": {"criticality": "high"}}},
+        data={
+            "promotions": [
+                {
+                    "endpoint_id": endpoint_a.id,
+                    "host": "web.testbed.local",
+                    "protocol_hint": "TLS",
+                    "context": {"criticality": "high"},
+                },
+                {
+                    "endpoint_id": endpoint_b.id,
+                    "host": "ssh.testbed.local",
+                    "protocol_hint": "SSH",
+                    "context": {"criticality": "high"},
+                },
+            ]
+        },
         content_type="application/json",
     )
 
     assert response.status_code == 201
     body = response.json()
-    assert len(body["promotions"]) == 2
+    assert len(body["promoted"]) == 2
+    assert body["skipped"] == []
     assert Target.objects.count() == 2
     endpoint_a.refresh_from_db()
     endpoint_b.refresh_from_db()
@@ -128,6 +172,112 @@ def test_api_dsc_005_promote_endpoints_creates_targets(client):
     assert endpoint_a.target_id is not None
     assert endpoint_b.promoted is True
     assert endpoint_b.target_id is not None
+
+
+def test_api_dsc_008_promote_applies_per_promotion_target_fields(client):
+    from apps.discoveries.models import DiscoveredEndpoint
+    from apps.targets.models import Target
+
+    discovery = create_discovery(status="COMPLETED")
+    endpoint = DiscoveredEndpoint.objects.create(
+        discovery=discovery,
+        host="10.0.0.8",
+        port=443,
+        transport="TCP",
+        detected_protocol="HTTPS",
+        suggested_protocol_hint="TLS",
+    )
+
+    response = client.post(
+        f"/api/discoveries/{discovery.id}/promote",
+        data={
+            "promotions": [
+                {
+                    "endpoint_id": endpoint.id,
+                    "host": "app.testbed.local",
+                    "protocol_hint": "TLS",
+                    "agent_enabled": True,
+                    "context": {"criticality": "critical", "service_role": "edge-api"},
+                }
+            ]
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    target = Target.objects.get(id=response.json()["promoted"][0]["target_id"])
+    assert target.host == "app.testbed.local"
+    assert target.protocol_hint == "TLS"
+    assert target.agent_enabled is True
+    assert target.context["criticality"] == "critical"
+    assert target.context["service_role"] == "edge-api"
+
+
+def test_api_dsc_009_promote_skips_missing_and_already_promoted_endpoints(client):
+    from apps.discoveries.models import DiscoveredEndpoint
+    from tests.api.factories import create_target
+
+    discovery = create_discovery(status="COMPLETED")
+    target = create_target(host="existing.testbed.local")
+    endpoint = DiscoveredEndpoint.objects.create(
+        discovery=discovery,
+        host="existing.testbed.local",
+        port=443,
+        transport="TCP",
+        detected_protocol="HTTPS",
+        suggested_protocol_hint="TLS",
+        promoted=True,
+        target=target,
+    )
+
+    response = client.post(
+        f"/api/discoveries/{discovery.id}/promote",
+        data={
+            "promotions": [
+                {"endpoint_id": endpoint.id, "host": "existing.testbed.local", "protocol_hint": "TLS"},
+                {"endpoint_id": 999999, "host": "missing.testbed.local", "protocol_hint": "TLS"},
+            ]
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["promoted"] == []
+    assert response.json()["skipped"] == [
+        {"endpoint_id": endpoint.id, "reason": "already_promoted"},
+        {"endpoint_id": 999999, "reason": "endpoint_not_found"},
+    ]
+
+
+def test_api_dsc_010_promote_rejects_invalid_protocol_and_context(client):
+    from apps.discoveries.models import DiscoveredEndpoint
+
+    discovery = create_discovery(status="COMPLETED")
+    endpoint = DiscoveredEndpoint.objects.create(
+        discovery=discovery,
+        host="web.testbed.local",
+        port=443,
+        transport="TCP",
+        detected_protocol="HTTPS",
+        suggested_protocol_hint="TLS",
+    )
+
+    response = client.post(
+        f"/api/discoveries/{discovery.id}/promote",
+        data={
+            "promotions": [
+                {
+                    "endpoint_id": endpoint.id,
+                    "host": "web.testbed.local",
+                    "protocol_hint": "HTTP",
+                    "context": {"exposure": "internet"},
+                }
+            ]
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 422
 
 
 def test_api_dsc_006_enqueue_failure_returns_503_without_orphans(client, monkeypatch):
@@ -175,7 +325,7 @@ def test_api_dsc_007_cancelled_discovery_preserves_partial_endpoints(client):
     endpoints_response = client.get(f"/api/discoveries/{discovery.id}/endpoints")
     promote_response = client.post(
         f"/api/discoveries/{discovery.id}/promote",
-        data={"endpoint_ids": []},
+        data={"promotions": [{"endpoint_id": 1, "host": "web.testbed.local", "protocol_hint": "TLS"}]},
         content_type="application/json",
     )
 

@@ -1,5 +1,8 @@
+from typing import Literal
+
 from django.db import transaction
 from ninja import Router
+from pydantic import Field
 
 from apps.assets import services
 from apps.assets.models import Asset, AssetContextOverride, QualitativeAssessment
@@ -11,10 +14,10 @@ router = Router(tags=["Assets"])
 
 
 class AssetContextPatch(StrictSchema):
-    sensitivity: str | None = None
-    lifespan_years: int | None = None
-    criticality: str | None = None
-    exposure: str | None = None
+    sensitivity: Literal["low", "medium", "high", "critical"] | None = None
+    lifespan_years: int | None = Field(default=None, ge=0)
+    criticality: Literal["low", "medium", "high", "critical"] | None = None
+    exposure: Literal["public_internet", "dmz", "internal_network", "air_gapped"] | None = None
     service_role: str | None = None
 
 
@@ -54,7 +57,11 @@ def patch_asset_context(request, asset_id: int, payload: AssetContextPatch):
     asset.refresh_from_db()
     override.refresh_from_db()
     return {
-        **services.serialize_asset_detail(asset),
+        "asset_id": asset.id,
+        "applied_overrides": patch,
+        "effective_context": services.effective_context(asset, override),
+        "context_override": services.override_to_dict(override),
+        "context_sources": services.context_sources(asset, override),
         "recompute_job_id": async_job.id,
     }
 

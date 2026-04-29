@@ -1,9 +1,11 @@
+from typing import Literal
+
 from datetime import UTC
 
 from django.db import IntegrityError, transaction
 from django.http import HttpResponse, JsonResponse
 from ninja import Query, Router
-from pydantic import Field
+from pydantic import AnyUrl, Field, IPvAnyAddress
 
 from apps.core.errors import error_response
 from apps.core.pagination import empty_page
@@ -17,39 +19,39 @@ router = Router(tags=["Targets"])
 
 
 class TargetContextPayload(StrictSchema):
-    sensitivity: str | None = None
+    sensitivity: Literal["low", "medium", "high", "critical"] | None = None
     lifespan_years: int | None = Field(default=None, ge=0)
-    criticality: str | None = None
-    exposure: str | None = None
+    criticality: Literal["low", "medium", "high", "critical"] | None = None
+    exposure: Literal["public_internet", "dmz", "internal_network", "air_gapped"] | None = None
     service_role: str | None = None
 
 
 class TargetCreatePayload(StrictSchema):
-    host: str
-    ip: str | None = None
+    host: str = Field(max_length=253)
+    ip: IPvAnyAddress | None = None
     port: int = Field(ge=1, le=65535)
-    protocol_hint: str
-    sni: str | None = None
-    transport: str = "TCP"
+    protocol_hint: Literal["TLS", "SSH", "IKE", "SMTP", "IMAP", "POP3", "UNKNOWN"]
+    sni: str | None = Field(default=None, max_length=253)
+    transport: Literal["TCP", "UDP"] = "TCP"
     agent_enabled: bool = False
-    agent_url: str | None = None
+    agent_url: AnyUrl | None = None
     context: TargetContextPayload | None = None
 
 
 class TargetPatchPayload(StrictSchema):
-    host: str | None = None
-    ip: str | None = None
+    host: str | None = Field(default=None, max_length=253)
+    ip: IPvAnyAddress | None = None
     port: int | None = Field(default=None, ge=1, le=65535)
-    protocol_hint: str | None = None
-    sni: str | None = None
-    transport: str | None = None
+    protocol_hint: Literal["TLS", "SSH", "IKE", "SMTP", "IMAP", "POP3", "UNKNOWN"] | None = None
+    sni: str | None = Field(default=None, max_length=253)
+    transport: Literal["TCP", "UDP"] | None = None
     agent_enabled: bool | None = None
-    agent_url: str | None = None
+    agent_url: AnyUrl | None = None
     context: TargetContextPayload | None = None
 
 
 def _schema_dict(schema, *, exclude_unset: bool = False):
-    return schema.model_dump(exclude_unset=exclude_unset)
+    return schema.model_dump(exclude_unset=exclude_unset, mode="json")
 
 
 def _normalized_context(context: dict | None):

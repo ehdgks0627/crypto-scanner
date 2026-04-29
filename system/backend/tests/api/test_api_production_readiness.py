@@ -1,3 +1,8 @@
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from tests.api.factories import create_target
@@ -20,6 +25,63 @@ def test_pr_auth_001_optional_api_token_middleware_protects_non_exempt_endpoints
     assert health.status_code == 200
 
 
+def test_pr_auth_002_production_requires_api_and_non_default_bootstrap_tokens():
+    backend_dir = Path(__file__).resolve().parents[2]
+    env = {
+        **os.environ,
+        "DJANGO_DEBUG": "false",
+        "DJANGO_SECRET_KEY": "production-secret",
+        "API_AUTH_TOKEN": "",
+        "AGENT_BOOTSTRAP_TOKEN": "dev-bootstrap-token",
+    }
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import pqc_ras.settings"],
+        cwd=backend_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "API_AUTH_TOKEN must be set" in result.stderr
+
+
+def test_pr_auth_003_production_requires_allowed_hosts():
+    backend_dir = Path(__file__).resolve().parents[2]
+    env = {
+        **os.environ,
+        "DJANGO_DEBUG": "false",
+        "DJANGO_SECRET_KEY": "production-secret",
+        "API_AUTH_TOKEN": "api-token",
+        "AGENT_BOOTSTRAP_TOKEN": "bootstrap-token",
+        "DJANGO_ALLOWED_HOSTS": "",
+    }
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import pqc_ras.settings"],
+        cwd=backend_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "DJANGO_ALLOWED_HOSTS must be set" in result.stderr
+
+
+def test_pr_auth_004_allowed_hosts_is_enforced_at_request_time(client, settings):
+    settings.ALLOWED_HOSTS = ["good.test"]
+
+    blocked = client.get("/api/health", HTTP_HOST="evil.test")
+    allowed = client.get("/api/health", HTTP_HOST="good.test")
+
+    assert blocked.status_code == 400
+    assert allowed.status_code == 200
+
+
 def test_pr_val_001_mutation_payloads_reject_unknown_fields(client):
     response = client.post(
         "/api/targets",
@@ -38,7 +100,11 @@ def test_pr_agt_001_agent_token_uses_password_hasher(client, settings):
 
     response = client.post(
         "/api/agents/register",
-        data={"hostname": "agent-hash.testbed.local", "capabilities": ["agent.cert_store"]},
+        data={
+            "hostname": "agent-hash.testbed.local",
+            "agent_url": "http://agent-hash.testbed.local:9100",
+            "capabilities": ["agent.cert_store"],
+        },
         content_type="application/json",
         headers={"X-Bootstrap-Token": "bootstrap"},
     )

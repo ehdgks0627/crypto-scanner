@@ -3,7 +3,7 @@ from ninja import Router
 from apps.agents.models import Agent
 from apps.agents.services import is_stale
 from apps.jobs.models import AsyncJob
-from apps.jobs.services import serialize_job
+from apps.jobs.services import serialize_dt, serialize_job
 from apps.risk.models import RiskScore
 from apps.snapshots.models import CbomSnapshot
 
@@ -11,9 +11,12 @@ from apps.snapshots.models import CbomSnapshot
 router = Router(tags=["Dashboard"])
 
 
+VULNERABLE_ALGORITHM_FAMILIES = {"RSA", "ECDSA", "ECDH", "DH"}
+
+
 @router.get("/dashboard/summary")
-def get_dashboard_summary(request):
-    latest = CbomSnapshot.objects.order_by("-id").first()
+def get_dashboard_summary(request, snapshot_id: int | None = None):
+    latest = CbomSnapshot.objects.filter(id=snapshot_id).first() if snapshot_id else CbomSnapshot.objects.order_by("-id").first()
     agents = list(Agent.objects.all())
     agent_status = {
         "total": len(agents),
@@ -28,32 +31,56 @@ def get_dashboard_summary(request):
             "by_tier": {},
             "by_asset_type": {},
             "by_algorithm_family": {},
-            "quantum_vulnerable_ratio": 0,
+            "quantum_vulnerable_ratio": {"vulnerable": 0, "safe": 0, "unknown": 0},
             "recent_jobs": recent_jobs,
             "agents_status": agent_status,
             "trend": [],
         }
 
     risk_scores = list(RiskScore.objects.filter(snapshot=latest).select_related("asset"))
+    assets = list(latest.assets.all())
     by_tier = {}
     by_asset_type = {}
     by_algorithm_family = {}
     vulnerable_count = 0
     for risk_score in risk_scores:
         by_tier[risk_score.tier] = by_tier.get(risk_score.tier, 0) + 1
-        asset = risk_score.asset
+    for asset in assets:
         by_asset_type[asset.asset_type] = by_asset_type.get(asset.asset_type, 0) + 1
-        by_algorithm_family[asset.algorithm_family] = by_algorithm_family.get(asset.algorithm_family, 0) + 1
-        if asset.algorithm_family in {"RSA", "ECDSA", "ECDH", "DH"}:
+        family = asset.algorithm_family or "UNKNOWN"
+        by_algorithm_family[family] = by_algorithm_family.get(family, 0) + 1
+        if asset.algorithm_family in VULNERABLE_ALGORITHM_FAMILIES:
             vulnerable_count += 1
-    ratio = vulnerable_count / len(risk_scores) if risk_scores else 0
+    known_count = len([asset for asset in assets if asset.algorithm_family])
+    safe_count = max(known_count - vulnerable_count, 0)
+    unknown_count = max(len(assets) - known_count, 0)
+    trend = []
+    for snapshot in CbomSnapshot.objects.order_by("-created_at")[:10]:
+        trend_scores = RiskScore.objects.filter(snapshot=snapshot)
+        trend.append(
+            {
+                "snapshot_id": snapshot.id,
+                "created_at": serialize_dt(snapshot.created_at),
+                "critical_count": trend_scores.filter(tier="CRITICAL").count(),
+                "total_count": snapshot.assets.count(),
+            }
+        )
+    trend.reverse()
     return {
-        "snapshot": {"id": latest.id, "serial_number": latest.serial_number},
+        "snapshot": {
+            "id": latest.id,
+            "created_at": serialize_dt(latest.created_at),
+            "asset_count": len(assets),
+        },
         "by_tier": by_tier,
         "by_asset_type": by_asset_type,
         "by_algorithm_family": by_algorithm_family,
-        "quantum_vulnerable_ratio": ratio,
+        "quantum_vulnerable_ratio": {
+            "vulnerable": vulnerable_count,
+            "safe": safe_count,
+            "unknown": unknown_count,
+        },
         "recent_jobs": recent_jobs,
         "agents_status": agent_status,
-        "trend": [],
+        "trend": trend,
     }
