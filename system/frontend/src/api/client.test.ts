@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiClient, ApiError } from "./client";
+import { ApiClient, ApiError, createRequestId } from "./client";
 import { DiscoveryService, RiskService } from "./services";
 
 describe("ApiClient", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("serializes arrays as CSV query params and returns JSON", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const request = input as Request;
@@ -21,6 +25,18 @@ describe("ApiClient", () => {
 
     expect(response).toEqual({ items: [], total: 0, offset: 0, limit: 20 });
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("falls back when crypto.randomUUID is unavailable on non-secure HTTP pages", async () => {
+    vi.stubGlobal("crypto", {
+      getRandomValues: (array: Uint8Array) => {
+        array.fill(0x11);
+        return array;
+      }
+    });
+    const requestId = createRequestId();
+
+    expect(requestId).toBe("11111111-1111-4111-9111-111111111111");
   });
 
   it("normalizes API error envelopes", async () => {

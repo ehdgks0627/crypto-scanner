@@ -126,7 +126,7 @@ export function AppLayout() {
           <span>PQC Risk Assessment</span>
         </button>
         <div className="app-header__actions">
-          <Button type="button" variant="ghost" onClick={() => navigate("/scans")}>
+          <Button type="button" variant="ghost" onClick={() => navigate("/scans")} aria-label={`활성 Job: ${activeCount}`}>
             <RefreshCw size={15} />
             활성 Job: {activeCount}
           </Button>

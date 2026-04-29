@@ -2,8 +2,7 @@ import type { ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-
-const palette = ["#b42318", "#b54708", "#175cd3", "#067647", "#6941c6", "#0e9384"];
+import { chartPalette, chartTheme } from "./chartTheme";
 
 export function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -17,25 +16,32 @@ export function ChartCard({ title, children }: { title: string; children: ReactN
 }
 
 export function DonutChartCard({ title, data }: { title: string; data: Array<{ name: string; value: number }> }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
   return (
     <ChartCard title={title}>
-      <ResponsiveContainer width="100%" height={210}>
-        <PieChart>
-          <Pie data={data} innerRadius={55} outerRadius={80} dataKey="value" nameKey="name" paddingAngle={3}>
-            {data.map((entry, index) => (
-              <Cell key={entry.name} fill={palette[index % palette.length]} />
-            ))}
-          </Pie>
-          <Tooltip />
-        </PieChart>
-      </ResponsiveContainer>
-      <div className="chart-legend">
-        {data.map((entry, index) => (
-          <span key={entry.name}>
-            <i style={{ background: palette[index % palette.length] }} />
-            {entry.name} {entry.value}
-          </span>
-        ))}
+      <div className="donut-chart-body">
+        <ResponsiveContainer width="100%" height={210}>
+          <PieChart>
+            <Pie data={data} innerRadius={55} outerRadius={80} dataKey="value" nameKey="name" paddingAngle={3} isAnimationActive={false}>
+              {data.map((entry, index) => (
+                <Cell key={entry.name} fill={chartPalette[index % chartPalette.length]} />
+              ))}
+            </Pie>
+            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="chart-center-value">
+              {total}
+            </text>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="chart-legend chart-legend--stack">
+          {data.map((entry, index) => (
+            <span key={entry.name}>
+              <i style={{ background: chartPalette[index % chartPalette.length] }} />
+              {entry.name} {entry.value}
+            </span>
+          ))}
+        </div>
       </div>
     </ChartCard>
   );
@@ -44,13 +50,13 @@ export function DonutChartCard({ title, data }: { title: string; data: Array<{ n
 export function BarChartCard({ title, data }: { title: string; data: Array<{ name: string; value: number }> }) {
   return (
     <ChartCard title={title}>
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} layout="vertical" margin={{ left: 20, right: 12 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" horizontal={false} />
           <XAxis type="number" />
           <YAxis dataKey="name" type="category" width={110} />
           <Tooltip />
-          <Bar dataKey="value" fill="#175cd3" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="value" fill={chartTheme.primary} radius={[0, chartTheme.radius, chartTheme.radius, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -62,12 +68,12 @@ export function TrendChartCard({ data }: { data: Array<{ name: string; critical:
     <ChartCard title="시간대별 트렌드">
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Line type="monotone" dataKey="critical" stroke="#b42318" strokeWidth={2} />
-          <Line type="monotone" dataKey="total" stroke="#175cd3" strokeWidth={2} />
+          <Line type="monotone" dataKey="critical" stroke={chartTheme.critical} strokeWidth={2} isAnimationActive={false} />
+          <Line type="monotone" dataKey="total" stroke={chartTheme.primary} strokeWidth={2} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
     </ChartCard>

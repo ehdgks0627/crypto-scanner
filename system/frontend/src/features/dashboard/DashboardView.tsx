@@ -14,7 +14,6 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
-import { SnapshotSummaryModel } from "../../domain/models";
 import { formatDateTime, formatNumber } from "../../lib/format";
 
 function objectToChartData(value: Record<string, number> | undefined) {
@@ -87,7 +86,7 @@ export function DashboardView() {
     <Section>
       <PageHeader
         title="대시보드"
-        description={new SnapshotSummaryModel(dashboardSnapshot).label()}
+        eyebrow="DASHBOARD"
         actions={
           <>
             <Select aria-label="Dashboard snapshot selector" value={snapshotId ?? ""} onChange={(event) => setSnapshotId(event.target.value ? Number(event.target.value) : undefined)}>
@@ -125,34 +124,34 @@ export function DashboardView() {
         />
       </div>
 
-      <div className="content-grid">
+      <div className="dashboard-chart-grid">
         <DonutChartCard title="위험도 등급 분포" data={tierData} />
         <DonutChartCard title="자산 타입 분포" data={assetTypeData} />
         <BarChartCard title="알고리즘 패밀리 분포" data={algorithmData} />
         <DonutChartCard title="양자취약/안전 비율" data={quantumData} />
-        <div className="is-wide">
-          <TrendChartCard data={trend} />
-        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>최근 Scan Jobs</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            items={summary.data.recent_jobs}
-            getRowKey={(job) => job.id}
-            columns={[
-              { key: "id", header: "Job", render: (job) => <button className="link-button" onClick={() => navigate(`/scans/${job.id}`)}>#{job.id}</button> },
-              { key: "kind", header: "Kind", render: (job) => job.kind },
-              { key: "status", header: "Status", render: (job) => <StatusBadge status={job.status} /> },
-              { key: "started", header: "Started", render: (job) => formatDateTime(job.started_at) },
-              { key: "finished", header: "Finished", render: (job) => formatDateTime(job.finished_at) }
-            ]}
-          />
-        </CardContent>
-      </Card>
+      <div className="dashboard-secondary-grid">
+        <Card>
+          <CardHeader>
+            <CardTitle>최근 Scan Jobs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              items={summary.data.recent_jobs}
+              getRowKey={(job) => job.id}
+              columns={[
+                { key: "id", header: "Job", render: (job) => <button className="link-button" onClick={() => navigate(`/scans/${job.id}`)}>#{job.id}</button> },
+                { key: "kind", header: "Kind", render: (job) => job.kind },
+                { key: "status", header: "Status", render: (job) => <StatusBadge status={job.status} /> },
+                { key: "started", header: "Started", render: (job) => formatDateTime(job.started_at) },
+                { key: "finished", header: "Finished", render: (job) => formatDateTime(job.finished_at) }
+              ]}
+            />
+          </CardContent>
+        </Card>
+        <TrendChartCard data={trend} />
+      </div>
     </Section>
   );
 }
