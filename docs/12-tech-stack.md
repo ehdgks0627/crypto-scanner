@@ -315,7 +315,7 @@ CELERY_RESULT_BACKEND=redis://redis:6379/2
 CBOM_FILE_DIR=/var/cbom
 
 # Agent 인증
-BOOTSTRAP_TOKEN=<랜덤 32자, 테스트베드와 동일값>
+AGENT_BOOTSTRAP_TOKEN=<랜덤 32자, 테스트베드 BOOTSTRAP_TOKEN과 동일값>
 
 # 호스트네임 해석 (테스트베드)
 DNS_RESOLVER=host.docker.internal:5353
@@ -340,15 +340,18 @@ WORKER_CONCURRENCY=3
 ```ini
 # 시스템 백엔드 URL (Agent의 자기등록 대상)
 BACKEND_URL=http://host.docker.internal:8000
-BOOTSTRAP_TOKEN=<system/.env와 동일>
+BOOTSTRAP_TOKEN=<system AGENT_BOOTSTRAP_TOKEN과 동일>
 
 # Agent 동작
 AGENT_LISTEN=0.0.0.0:9100
 AGENT_LOG_LEVEL=INFO
+AGENT_PUBLIC_HOST=127.0.0.1
 
 # 테스트베드 네트워크
-TESTBED_SUBNET=172.20.0.0/24
+TESTBED_BIND_ADDR=127.0.0.1
 DNS_PORT_HOST=5353
+IPSEC_NATT_PORT=45000
+# 브리지 subnet은 dnsmasq 정적 레코드와 함께 compose에 172.31.240.0/24로 고정
 
 # 인증서 생성 시 사용
 CERT_VALIDITY_DAYS=365
@@ -363,7 +366,7 @@ CERT_NEAR_EXPIRY_DAYS=15
 | `BOOTSTRAP_TOKEN` | testbed/.env | 사전 공유 토큰 |
 | `AGENT_HOSTNAME` | docker-compose 서비스명 또는 명시 | 등록 시 사용 |
 | `AGENT_LISTEN` | testbed/.env | 0.0.0.0:9100 |
-| `AGENT_CAPABILITIES` | docker-compose | 쉼표 구분 (`cert_store,ssh_config`) — 비활성화 옵션 |
+| `AGENT_CAPABILITIES` | docker-compose | 쉼표 구분 (`agent.cert_store,agent.ssh_config`) — 비활성화 옵션 |
 
 ## 12.7 docker-compose 구성
 
@@ -435,7 +438,7 @@ services:
     env_file: .env
     environment:
       AGENT_HOSTNAME: web.testbed.local
-      AGENT_CAPABILITIES: cert_store,pkg_keyring,app_cert_files,app_config
+      AGENT_CAPABILITIES: agent.cert_store,agent.pkg_keyring,agent.app_cert_files,agent.app_config
     ports: ["4430:443", "9101:9100"]
     networks: [pqc-testbed-net]
     extra_hosts:
@@ -451,7 +454,7 @@ services:
     env_file: .env
     environment:
       AGENT_HOSTNAME: ssh.testbed.local
-      AGENT_CAPABILITIES: ssh_userkey,ssh_config,cert_store
+      AGENT_CAPABILITIES: agent.ssh_userkey,agent.ssh_config,agent.cert_store
     ports: ["2222:22", "9102:9100"]
     networks: [pqc-testbed-net]
     extra_hosts:
@@ -465,7 +468,7 @@ services:
   ipsec:
     build: ./services/ipsec
     cap_add: [NET_ADMIN, SYS_MODULE]
-    ports: ["5000:500/udp", "4500:4500/udp"]
+    ports: ["5000:500/udp", "45000:4500/udp"]
     networks: [pqc-testbed-net]
 
   mail:
@@ -483,7 +486,7 @@ services:
     env_file: .env
     environment:
       AGENT_HOSTNAME: db.testbed.local
-      AGENT_CAPABILITIES: cert_store,keystore,app_cert_files,app_config
+      AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_cert_files,agent.app_config
     ports: ["54320:5432", "9103:9100"]
     networks: [pqc-testbed-net]
     extra_hosts:
@@ -494,7 +497,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: ${TESTBED_SUBNET}
+        - subnet: 172.31.240.0/24
 ```
 
 ### 12.7.3 호스트 포트 충돌 방지 정책
@@ -512,10 +515,10 @@ cd crypto-scanner
 
 # 시스템 스택 .env 작성
 cp system/.env.example system/.env
-openssl rand -hex 32   # BOOTSTRAP_TOKEN, DJANGO_SECRET_KEY 생성에 사용
+openssl rand -hex 32   # AGENT_BOOTSTRAP_TOKEN/BOOTSTRAP_TOKEN, DJANGO_SECRET_KEY 생성에 사용
 # system/.env 편집
 
-# 테스트베드 .env 작성 (BOOTSTRAP_TOKEN 같은 값 사용)
+# 테스트베드 .env 작성 (system AGENT_BOOTSTRAP_TOKEN과 같은 값을 BOOTSTRAP_TOKEN에 사용)
 cp testbed/.env.example testbed/.env
 # testbed/.env 편집
 ```
@@ -680,7 +683,7 @@ Prometheus 메트릭 endpoint (`/metrics`). 주요 지표:
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
-| Agent 등록 실패 (401) | BOOTSTRAP_TOKEN 불일치 | 시스템/테스트베드 두 .env가 동일 토큰인지 확인 |
+| Agent 등록 실패 (401) | Bootstrap token 불일치 | system `AGENT_BOOTSTRAP_TOKEN`과 testbed `BOOTSTRAP_TOKEN`이 동일한지 확인 |
 | 테스트베드 호스트네임 해석 실패 | dnsmasq 미기동 또는 host.docker.internal 미지원 환경 | `extra_hosts: host.docker.internal:host-gateway` 추가, Linux는 docker-compose v2.20+ 필요 |
 | TLS Probe 실패 (PQC 서버) | OQS OpenSSL 미설치 | Worker 이미지에 OQS provider 빌드 포함 또는 PQC 협상 비활성화 옵션 |
 | IKE Probe 무응답 | strongswan capability 부족 | 테스트베드 ipsec 컨테이너에 `NET_ADMIN`, `SYS_MODULE` 권한 |

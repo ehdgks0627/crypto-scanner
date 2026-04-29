@@ -1,0 +1,197 @@
+[
+  {
+    "model": "targets.target",
+    "pk": 1,
+    "fields": {
+      "host": "web.testbed.local",
+      "ip": null,
+      "port": 443,
+      "protocol_hint": "TLS",
+      "sni": "web.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 3, "criticality": "medium", "exposure": "dmz", "service_role": "testbed HTTPS"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 2,
+    "fields": {
+      "host": "web-ec.testbed.local",
+      "ip": null,
+      "port": 443,
+      "protocol_hint": "TLS",
+      "sni": "web-ec.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 3, "criticality": "medium", "exposure": "dmz", "service_role": "testbed HTTPS ECDSA SNI"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 3,
+    "fields": {
+      "host": "pqc-tls.testbed.local",
+      "ip": null,
+      "port": 443,
+      "protocol_hint": "TLS",
+      "sni": "pqc-tls.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "low", "lifespan_years": 3, "criticality": "low", "exposure": "dmz", "service_role": "PQC placeholder TLS"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 4,
+    "fields": {
+      "host": "ssh.testbed.local",
+      "ip": null,
+      "port": 22,
+      "protocol_hint": "SSH",
+      "sni": null,
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 5, "criticality": "medium", "exposure": "internal_network", "service_role": "testbed SSH"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 5,
+    "fields": {
+      "host": "mqtt.testbed.local",
+      "ip": null,
+      "port": 8883,
+      "protocol_hint": "TLS",
+      "sni": "mqtt.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 4, "criticality": "medium", "exposure": "internal_network", "service_role": "testbed MQTT TLS"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 6,
+    "fields": {
+      "host": "ipsec.testbed.local",
+      "ip": null,
+      "port": 500,
+      "protocol_hint": "IKE",
+      "sni": null,
+      "transport": "UDP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 7, "criticality": "high", "exposure": "dmz", "service_role": "testbed IKE"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 7,
+    "fields": {
+      "host": "ipsec.testbed.local",
+      "ip": null,
+      "port": 4500,
+      "protocol_hint": "IKE",
+      "sni": null,
+      "transport": "UDP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 7, "criticality": "high", "exposure": "dmz", "service_role": "testbed IKE NAT-T"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 8,
+    "fields": {
+      "host": "mail.testbed.local",
+      "ip": null,
+      "port": 25,
+      "protocol_hint": "SMTP",
+      "sni": "mail.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 3, "criticality": "medium", "exposure": "internal_network", "service_role": "testbed SMTP STARTTLS"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 9,
+    "fields": {
+      "host": "mail.testbed.local",
+      "ip": null,
+      "port": 465,
+      "protocol_hint": "SMTP",
+      "sni": "mail.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 3, "criticality": "medium", "exposure": "internal_network", "service_role": "testbed SMTPS"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 10,
+    "fields": {
+      "host": "mail.testbed.local",
+      "ip": null,
+      "port": 587,
+      "protocol_hint": "SMTP",
+      "sni": "mail.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 3, "criticality": "medium", "exposure": "internal_network", "service_role": "testbed submission STARTTLS"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 11,
+    "fields": {
+      "host": "mail.testbed.local",
+      "ip": null,
+      "port": 993,
+      "protocol_hint": "IMAP",
+      "sni": "mail.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 3, "criticality": "medium", "exposure": "internal_network", "service_role": "testbed IMAPS"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 12,
+    "fields": {
+      "host": "mail.testbed.local",
+      "ip": null,
+      "port": 995,
+      "protocol_hint": "POP3",
+      "sni": "mail.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 3, "criticality": "medium", "exposure": "internal_network", "service_role": "testbed POP3S"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 13,
+    "fields": {
+      "host": "db.testbed.local",
+      "ip": null,
+      "port": 5432,
+      "protocol_hint": "UNKNOWN",
+      "sni": null,
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 6, "criticality": "high", "exposure": "internal_network", "service_role": "testbed PostgreSQL TLS"}
+    }
+  }
+]

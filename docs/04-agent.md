@@ -49,6 +49,7 @@ Agent는 **데이터를 자체 보관하지 않는다**. 모든 결과는 응답
 | `app_config` | 애플리케이션 설정 파일 내 알고리즘 정책 (`postgresql.conf`의 `ssl_ciphers` 등) |
 
 각 Capability는 Agent에서 활성/비활성 가능 (환경변수로). 등록 시 자기가 가진 Capability 목록을 백엔드에 알린다.
+백엔드 API에 등록되는 capability 값은 Job scanner id와 동일하게 `agent.<capability>` 형식(`agent.cert_store` 등)을 사용한다.
 
 ## 4.5 Agent 등록 흐름
 
@@ -81,7 +82,7 @@ sequenceDiagram
 
 ### 4.5.2 Bootstrap 토큰 (15c 보강)
 
-- **Bootstrap 토큰**: 시스템 스택 docker-compose의 환경변수 `BOOTSTRAP_TOKEN`로 백엔드에 주입. 같은 값을 테스트베드 docker-compose에도 주입하여 Agent들이 알게 함
+- **Bootstrap 토큰**: 시스템 백엔드의 환경변수 `AGENT_BOOTSTRAP_TOKEN`으로 주입. 같은 값을 테스트베드 docker-compose의 `BOOTSTRAP_TOKEN`에도 주입하여 Agent들이 알게 함
 - **Agent 토큰**: 백엔드가 Agent별로 발급하는 UUID. 등록 응답으로 1회만 전달, 이후 Agent ↔ Worker/Backend 통신 시 `Authorization: Bearer <agent_token>` 사용
 - 두 토큰은 분리: Bootstrap 토큰은 등록만, Agent 토큰은 운영 중 통신용
 
@@ -101,14 +102,14 @@ Agent는 백엔드/Worker에게 다음 엔드포인트를 제공한다.
 | 항목 | 값 |
 |---|---|
 | 인증 | Bearer agent_token |
-| 응답 | `{"capabilities": ["cert_store", "ssh_config", ...]}` |
+| 응답 | `{"capabilities": ["agent.cert_store", "agent.ssh_config", ...]}` |
 
 ### 4.6.3 `POST /scan`
 
 | 항목 | 값 |
 |---|---|
 | 인증 | Bearer agent_token |
-| 요청 | `{"capabilities": ["cert_store", "ssh_userkey"], "options": {...}}` |
+| 요청 | `{"capabilities": ["agent.cert_store", "agent.ssh_userkey"], "options": {...}}` |
 | 응답 | `200 AgentScanResult` |
 | 시간 | 동기 처리. 단일 호스트 스캔 5분 이내 가정 |
 
@@ -118,7 +119,7 @@ Agent는 백엔드/Worker에게 다음 엔드포인트를 제공한다.
 
 ```json
 {
-  "capabilities": ["cert_store", "pkg_keyring", "ssh_config"],
+  "capabilities": ["agent.cert_store", "agent.pkg_keyring", "agent.ssh_config"],
   "options": {
     "max_files_per_capability": 1000,
     "follow_symlinks": false,
@@ -303,7 +304,7 @@ sequenceDiagram
 
 ### 4.8.2 Scanner 선택과 Agent
 
-Scan Job 생성 시 사용자가 체크박스로 선택한 스캐너 종류 중 Agent 관련 항목(예: `cert_store`, `ssh_config` 등)은 **해당 호스트에 Agent가 등록되어 있고 capability를 지원하는 경우에만** 실행된다. 그 외에는 조용히 skip되며 Job 결과 보고서에 "skipped: agent_unavailable" 같은 노트로 표기된다.
+Scan Job 생성 시 사용자가 체크박스로 선택한 스캐너 종류 중 Agent 관련 항목(예: `agent.cert_store`, `agent.ssh_config` 등)은 **해당 호스트에 Agent가 등록되어 있고 capability를 지원하는 경우에만** 실행된다. 그 외에는 조용히 skip되며 Job 결과 보고서에 "skipped: agent_unavailable" 같은 노트로 표기된다.
 
 ## 4.9 보안 / 운영 고려
 

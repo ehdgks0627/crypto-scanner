@@ -22,7 +22,7 @@
 | 2 | PQC-enabled TLS Server | `pqc-tls.testbed.local` | 443/TCP | OQS Provider 기반 빌드 | ✗ | 외부 시점 스캔만 (전환 후 자산 참조 예시) |
 | 3 | SSH Server | `ssh.testbed.local` | 22/TCP | `linuxserver/openssh-server` | ✓ | 협조 가능 호스트 (사용자 키·`authorized_keys`·`sshd_config` 정책 식별) |
 | 4 | MQTT Broker | `mqtt.testbed.local` | 8883/TCP | `eclipse-mosquitto:2` | ✗ | 외부 시점 스캔만 |
-| 5 | IPsec Gateway | `ipsec.testbed.local` | 500, 4500/UDP | `strongswan/strongswan` | ✗ | 외부 시점 스캔만 (IKE_SA_INIT 분석) |
+| 5 | IPsec Gateway | `ipsec.testbed.local` | 500, 4500/UDP | `strongx509/strongswan` (digest pin) | ✗ | 외부 시점 스캔만 (IKE_SA_INIT 분석) |
 | 6 | Mail Server | `mail.testbed.local` | 25, 465, 587, 993, 995/TCP | postfix+dovecot 자체 구성 | ✗ | 외부 시점 스캔만 (멀티 포트, 포트별 cert 다양성) |
 | 7 | Database Server | `db.testbed.local` | 5432/TCP | `postgres:16` (TLS 활성) | ✓ | 협조 가능 호스트 (keystore·약한 키 파일까지 식별) |
 
@@ -37,14 +37,14 @@
 
 | 호스트네임 | 컨테이너명 | 내부 IP |
 |---|---|---|
-| `dns.testbed.local` | `tb-dns` | 172.20.0.2 |
-| `web.testbed.local` | `tb-web` | 172.20.0.10 |
-| `pqc-tls.testbed.local` | `tb-pqc-tls` | 172.20.0.11 |
-| `ssh.testbed.local` | `tb-ssh` | 172.20.0.12 |
-| `mqtt.testbed.local` | `tb-mqtt` | 172.20.0.13 |
-| `ipsec.testbed.local` | `tb-ipsec` | 172.20.0.14 |
-| `mail.testbed.local` | `tb-mail` | 172.20.0.15 |
-| `db.testbed.local` | `tb-db` | 172.20.0.16 |
+| `dns.testbed.local` | `tb-dns` | 172.31.240.2 |
+| `web.testbed.local` | `tb-web` | 172.31.240.10 |
+| `pqc-tls.testbed.local` | `tb-pqc-tls` | 172.31.240.11 |
+| `ssh.testbed.local` | `tb-ssh` | 172.31.240.12 |
+| `mqtt.testbed.local` | `tb-mqtt` | 172.31.240.13 |
+| `ipsec.testbed.local` | `tb-ipsec` | 172.31.240.14 |
+| `mail.testbed.local` | `tb-mail` | 172.31.240.15 |
+| `db.testbed.local` | `tb-db` | 172.31.240.16 |
 
 ### 2.3.2 호스트 노출 포트
 
@@ -57,7 +57,7 @@
 | 4431/TCP | tb-pqc-tls | PQC TLS |
 | 2222/TCP | tb-ssh | SSH |
 | 8883/TCP | tb-mqtt | MQTT over TLS |
-| 5000/UDP, 4500/UDP | tb-ipsec | IKE/IPsec |
+| 5000/UDP, 45000/UDP | tb-ipsec | IKE/IPsec (`45000`은 호스트 VPN 충돌 회피용 NAT-T host port) |
 | 2525, 4465, 5587, 9993, 9995 /TCP | tb-mail | Mail (호스트 충돌 회피) |
 | 54320/TCP | tb-db | PostgreSQL |
 

@@ -1,0 +1,11 @@
+.env
+certs/README.generated.txt
+certs/ca/
+certs/web/
+certs/web-ec/
+certs/pqc-tls/
+certs/mqtt/
+certs/mail/
+certs/mail-imaps/
+certs/db/
+certs/ipsec/

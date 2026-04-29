@@ -81,7 +81,7 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     U->>F: /discoveries/new 진입
-    U->>F: CIDR "172.20.0.0/24" 입력<br/>기본 포트 ☑<br/>[디스커버리 시작]
+    U->>F: CIDR "172.31.240.0/24" 입력<br/>기본 포트 ☑<br/>[디스커버리 시작]
     F->>B: POST /api/discoveries
     B->>DB: Discovery 레코드 생성 (PENDING)
     B->>W: enqueue discovery_job

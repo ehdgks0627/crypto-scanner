@@ -74,13 +74,13 @@ flowchart LR
 
 **dnsmasq 설정 예시**:
 ```
-address=/web.testbed.local/172.20.0.10
-address=/pqc-tls.testbed.local/172.20.0.11
-address=/ssh.testbed.local/172.20.0.12
-address=/mqtt.testbed.local/172.20.0.13
-address=/ipsec.testbed.local/172.20.0.14
-address=/mail.testbed.local/172.20.0.15
-address=/db.testbed.local/172.20.0.16
+address=/web.testbed.local/172.31.240.10
+address=/pqc-tls.testbed.local/172.31.240.11
+address=/ssh.testbed.local/172.31.240.12
+address=/mqtt.testbed.local/172.31.240.13
+address=/ipsec.testbed.local/172.31.240.14
+address=/mail.testbed.local/172.31.240.15
+address=/db.testbed.local/172.31.240.16
 ```
 
 > 상세 호스트/IP 매핑은 `02-testbed.md` 참고.

@@ -297,7 +297,7 @@ PKCS#12, JKS 등 다중 키 보관 파일. Agent의 `keystore` capability에서 
   "name": "web.testbed.local",
   "properties": [
     {"name": "internal:asset_class", "value": "host"},
-    {"name": "internal:ip", "value": "172.20.0.10"},
+    {"name": "internal:ip", "value": "172.31.240.10"},
     {"name": "internal:os", "value": "linux"},
     {"name": "internal:os_distribution", "value": "alpine:3.20"},
     {"name": "internal:agent_enabled", "value": "true"}

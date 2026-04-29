@@ -34,7 +34,7 @@
 |---|---|
 | **ALPN** | Application-Layer Protocol Negotiation. TLS 핸드셰이크에서 상위 프로토콜(HTTP/2, MQTT, IMAP 등)을 협상하는 확장 (RFC 7301). 본 시스템의 프로토콜 식별 Tier 1. |
 | **CBOM** | Cryptography Bill of Materials. SBOM의 암호 자산 확장. |
-| **CIDR** | Classless Inter-Domain Routing. IP 주소 대역 표기법 (`172.20.0.0/24`). |
+| **CIDR** | Classless Inter-Domain Routing. IP 주소 대역 표기법 (`172.31.240.0/24`). |
 | **CRQC** | Cryptographically Relevant Quantum Computer. RSA-2048이나 ECC 등 고전 공개키 암호를 실시간 해독 가능한 수준의 양자컴퓨터. |
 | **CycloneDX** | OWASP의 SBOM/CBOM 표준. 본 시스템은 1.6 사양을 채택. |
 | **DH (Diffie-Hellman)** | 유한체 기반 키 교환 알고리즘. 양자 위협에 취약. |
