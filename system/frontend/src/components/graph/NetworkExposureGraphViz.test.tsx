@@ -16,6 +16,12 @@ vi.mock("@hpcc-js/wasm/graphviz", () => ({
   }
 }));
 
+vi.mock("./NetworkExposureGraph3DView", () => ({
+  NetworkExposureGraph3DView: ({ graph }: { graph: NetworkExposureGraph }) => (
+    <div className="network-graph-stage network-graph-stage--3d">3D graph nodes {graph.nodes.length}</div>
+  )
+}));
+
 const targetNode = {
   id: "target:1",
   kind: "target" as const,
@@ -92,5 +98,31 @@ describe("NetworkExposureGraphViz", () => {
     render(<NetworkExposureGraphViz graph={graphWith([targetNode])} />);
 
     expect(await screen.findByText("Graphviz 그래프를 렌더링하지 못했습니다")).toBeInTheDocument();
+  });
+
+  it("zooms the 2D graph and resets the viewport scale", async () => {
+    const { container } = render(<NetworkExposureGraphViz graph={graphWith([targetNode])} />);
+
+    await screen.findByText(targetNode.label);
+
+    const graphSvg = container.querySelector(".network-graph-svg") as HTMLElement;
+    expect(graphSvg.style.width).toBe("100%");
+
+    fireEvent.click(screen.getByRole("button", { name: "2D 그래프 확대" }));
+    expect(graphSvg.style.width).toBe("115%");
+    expect(screen.getByText("115%")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "2D 그래프 줌 초기화" }));
+    expect(graphSvg.style.width).toBe("100%");
+  });
+
+  it("switches between 2D and 3D graph modes", async () => {
+    render(<NetworkExposureGraphViz graph={graphWith([targetNode])} />);
+
+    expect(await screen.findByText(targetNode.label)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "3D" }));
+
+    expect(await screen.findByText("3D graph nodes 1")).toBeInTheDocument();
   });
 });

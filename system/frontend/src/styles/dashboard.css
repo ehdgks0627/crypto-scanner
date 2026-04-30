@@ -42,6 +42,33 @@
   font-size: 11px;
 }
 
+.network-graph-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.network-graph-view-toggle,
+.network-graph-zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.network-graph-zoom-controls span {
+  min-width: 38px;
+  color: var(--text-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: center;
+}
+
 .network-graph-stats span {
   padding: 3px 7px;
   border: 1px solid var(--border);
@@ -71,6 +98,15 @@
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+.network-graph-stage--3d {
+  overflow: hidden;
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    var(--panel);
+  background-size: 28px 28px;
 }
 
 .network-graph-svg {

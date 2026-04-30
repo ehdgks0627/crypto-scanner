@@ -99,6 +99,10 @@
     align-items: start;
   }
 
+  .network-graph-header-actions {
+    justify-content: flex-start;
+  }
+
   .network-graph-stage {
     height: 380px;
   }

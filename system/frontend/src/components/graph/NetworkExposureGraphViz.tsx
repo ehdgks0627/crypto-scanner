@@ -1,11 +1,15 @@
-import { AlertTriangle, ExternalLink, FileKey, KeyRound, Network, Router, Server, ShieldAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import type { MouseEvent, ReactNode } from "react";
+import { AlertTriangle, Box, ExternalLink, FileKey, KeyRound, Network, RotateCcw, Router, Server, ShieldAlert, ZoomIn, ZoomOut } from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import type { CSSProperties, MouseEvent, ReactNode } from "react";
 
 import type { NetworkExposureGraph, NetworkExposureLinkKind, NetworkExposureNode, NetworkExposureNodeKind } from "../../domain/networkExposureGraph";
 import { buildNetworkExposureDot, parseGraphNodeAppUrl } from "../../domain/networkExposureGraphDot";
 import { formatDateTime, formatNumber } from "../../lib/format";
 import { Button } from "../ui/button";
+
+const NetworkExposureGraph3DView = lazy(() =>
+  import("./NetworkExposureGraph3DView").then((module) => ({ default: module.NetworkExposureGraph3DView }))
+);
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
   target: "Target",
@@ -21,6 +25,12 @@ const relationLabels: Record<NetworkExposureLinkKind, string> = {
   uses: "Endpoint uses a crypto asset",
   has_finding: "Asset has a risk finding"
 };
+
+type GraphViewMode = "2d" | "3d";
+
+const MIN_ZOOM = 0.7;
+const MAX_ZOOM = 1.6;
+const ZOOM_STEP = 0.15;
 
 export function NetworkExposureGraphViz({
   graph,
@@ -39,7 +49,9 @@ export function NetworkExposureGraphViz({
   onRetry?: () => void;
   onOpenNode?: (node: NetworkExposureNode) => void;
 }) {
+  const [viewMode, setViewMode] = useState<GraphViewMode>("2d");
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
+  const [zoom, setZoom] = useState(1);
   const [svg, setSvg] = useState("");
   const [renderError, setRenderError] = useState<unknown>();
   const [renderRevision, setRenderRevision] = useState(0);
@@ -102,31 +114,78 @@ export function NetworkExposureGraphViz({
     onRetry?.();
   }
 
+  function zoomBy(delta: number) {
+    setZoom((current) => clampZoom(current + delta));
+  }
+
+  const graphSvgStyle = {
+    width: `${Math.round(zoom * 100)}%`,
+    minWidth: `${Math.round(920 * zoom)}px`
+  } satisfies CSSProperties;
+
   return (
     <section className="network-graph-band" aria-labelledby="network-graph-title">
       <div className="network-graph-band__header">
         <div>
-          <span className="page-header__eyebrow">GRAPHVIZ EXPOSURE MAP</span>
+          <span className="page-header__eyebrow">NETWORK EXPOSURE MAP</span>
           <h2 id="network-graph-title">네트워크 암호 노출 현황</h2>
         </div>
-        <div className="network-graph-stats" aria-label="Network graph summary">
-          <span>Targets {formatNumber(graph.stats.targets)}</span>
-          <span>Endpoints {formatNumber(graph.stats.endpoints)}</span>
-          <span>Assets {formatNumber(graph.stats.assets)}</span>
-          <span>Findings {formatNumber(graph.stats.findings)}</span>
+        <div className="network-graph-header-actions">
+          <div className="network-graph-view-toggle" role="group" aria-label="Graph view mode">
+            <Button type="button" size="sm" variant={viewMode === "2d" ? "primary" : "secondary"} onClick={() => setViewMode("2d")}>
+              <Network size={14} />2D
+            </Button>
+            <Button type="button" size="sm" variant={viewMode === "3d" ? "primary" : "secondary"} onClick={() => setViewMode("3d")}>
+              <Box size={14} />3D
+            </Button>
+          </div>
+          {viewMode === "2d" ? (
+            <div className="network-graph-zoom-controls" role="group" aria-label="2D graph zoom controls">
+              <Button type="button" size="icon" variant="ghost" aria-label="2D 그래프 축소" disabled={zoom <= MIN_ZOOM} onClick={() => zoomBy(-ZOOM_STEP)}>
+                <ZoomOut size={15} />
+              </Button>
+              <span>{Math.round(zoom * 100)}%</span>
+              <Button type="button" size="icon" variant="ghost" aria-label="2D 그래프 확대" disabled={zoom >= MAX_ZOOM} onClick={() => zoomBy(ZOOM_STEP)}>
+                <ZoomIn size={15} />
+              </Button>
+              <Button type="button" size="icon" variant="ghost" aria-label="2D 그래프 줌 초기화" onClick={() => setZoom(1)}>
+                <RotateCcw size={15} />
+              </Button>
+            </div>
+          ) : null}
+          <div className="network-graph-stats" aria-label="Network graph summary">
+            <span>Targets {formatNumber(graph.stats.targets)}</span>
+            <span>Endpoints {formatNumber(graph.stats.endpoints)}</span>
+            <span>Assets {formatNumber(graph.stats.assets)}</span>
+            <span>Findings {formatNumber(graph.stats.findings)}</span>
+          </div>
         </div>
       </div>
 
       <div className="network-graph-layout">
-        <div className="network-graph-stage network-graph-stage--svg" onClick={handleGraphClick}>
-          {svg ? <div className="network-graph-svg" dangerouslySetInnerHTML={{ __html: svg }} /> : null}
-          {!hasGraph ? <GraphOverlay icon={<Network size={18} />} label="표시할 그래프 데이터가 없습니다" /> : null}
-          {hasGraph && !svg && !renderError ? <GraphOverlay label="Graphviz layout 생성 중" /> : null}
-          {isLoading ? <GraphOverlay label="네트워크 그래프 불러오는 중" /> : null}
-          {error ? <GraphErrorOverlay label="그래프 데이터를 불러오지 못했습니다" onRetry={retry} /> : null}
-          {!error && renderError ? <GraphErrorOverlay label="Graphviz 그래프를 렌더링하지 못했습니다" onRetry={retry} /> : null}
-          {isFetching && !isLoading ? <span className="network-graph-refresh">syncing</span> : null}
-        </div>
+        {viewMode === "2d" ? (
+          <div className="network-graph-stage network-graph-stage--svg" onClick={handleGraphClick}>
+            {svg ? <div className="network-graph-svg" style={graphSvgStyle} dangerouslySetInnerHTML={{ __html: svg }} /> : null}
+            {!hasGraph ? <GraphOverlay icon={<Network size={18} />} label="표시할 그래프 데이터가 없습니다" /> : null}
+            {hasGraph && !svg && !renderError ? <GraphOverlay label="Graphviz layout 생성 중" /> : null}
+            {isLoading ? <GraphOverlay label="네트워크 그래프 불러오는 중" /> : null}
+            {error ? <GraphErrorOverlay label="그래프 데이터를 불러오지 못했습니다" onRetry={retry} /> : null}
+            {!error && renderError ? <GraphErrorOverlay label="Graphviz 그래프를 렌더링하지 못했습니다" onRetry={retry} /> : null}
+            {isFetching && !isLoading ? <span className="network-graph-refresh">syncing</span> : null}
+          </div>
+        ) : (
+          <Suspense fallback={<GraphStageFallback label="3D 그래프 준비 중" />}>
+            <NetworkExposureGraph3DView
+              graph={graph}
+              isLoading={isLoading}
+              isFetching={isFetching}
+              error={error}
+              selectedNodeId={selectedNodeId}
+              onRetry={onRetry}
+              onSelectNode={setSelectedNodeId}
+            />
+          </Suspense>
+        )}
 
         <aside className="network-graph-inspector" aria-label="Selected graph node">
           <div>
@@ -213,6 +272,14 @@ function GraphOverlay({ label, icon }: { label: string; icon?: ReactNode }) {
   );
 }
 
+function GraphStageFallback({ label }: { label: string }) {
+  return (
+    <div className="network-graph-stage network-graph-stage--3d">
+      <GraphOverlay label={label} />
+    </div>
+  );
+}
+
 function GraphErrorOverlay({ label, onRetry }: { label: string; onRetry?: () => void }) {
   return (
     <div className="network-graph-overlay network-graph-overlay--error" role="alert">
@@ -229,4 +296,9 @@ function GraphErrorOverlay({ label, onRetry }: { label: string; onRetry?: () => 
 
 function nodeLabel(node: NetworkExposureNode) {
   return [kindLabels[node.kind], node.subtitle, node.riskTier].filter(Boolean).join(" · ");
+}
+
+function clampZoom(value: number) {
+  const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+  return Math.round(clamped * 100) / 100;
 }
