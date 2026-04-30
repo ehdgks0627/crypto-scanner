@@ -1,0 +1,206 @@
+name: CI/CD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: system/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: system/backend/pyproject.toml
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Django checks
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+
+      - name: Run backend tests
+        run: pytest
+
+  frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: system/frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: system/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Check generated API types
+        run: |
+          npm run gen:api-types
+          git diff --exit-code -- src/api/generated/types.ts
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+  deploy:
+    name: Deploy Production
+    runs-on: ubuntu-24.04
+    needs:
+      - backend
+      - frontend
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      APP_DIR: ${{ vars.APP_DIR || '/opt/crypto-scanner' }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      HEALTHCHECK_URL: ${{ vars.HEALTHCHECK_URL || 'https://pqc.sprout.kr/api/health/' }}
+      SSM_INSTANCE_ID: ${{ vars.SSM_INSTANCE_ID }}
+      SSM_RUN_AS_USER: ${{ vars.SSM_RUN_AS_USER || 'ubuntu' }}
+    steps:
+      - name: Validate deployment configuration
+        run: |
+          test -n "$APP_DIR"
+          test -n "$AWS_REGION"
+          test -n "$HEALTHCHECK_URL"
+          test -n "$SSM_INSTANCE_ID"
+          test -n "$SSM_RUN_AS_USER"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Send SSM deployment command
+        run: |
+          python - <<'PY' > ssm-parameters.json
+          import json
+          import os
+          import shlex
+
+          app_dir = os.environ["APP_DIR"]
+          deploy_sha = os.environ["GITHUB_SHA"]
+          healthcheck_url = os.environ["HEALTHCHECK_URL"]
+          run_as_user = os.environ["SSM_RUN_AS_USER"]
+
+          inner_script = "\n".join(
+              [
+                  "set -euo pipefail",
+                  f"cd {shlex.quote(app_dir)}",
+                  "git fetch --prune origin +refs/heads/main:refs/remotes/origin/main",
+                  f"git checkout --force {shlex.quote(deploy_sha)} -- scripts/deploy-production.sh",
+                  "chmod +x scripts/deploy-production.sh",
+                  (
+                      f"APP_DIR={shlex.quote(app_dir)} "
+                      f"DEPLOY_SHA={shlex.quote(deploy_sha)} "
+                      f"HEALTHCHECK_URL={shlex.quote(healthcheck_url)} "
+                      "bash scripts/deploy-production.sh"
+                  ),
+              ]
+          )
+
+          if run_as_user == "root":
+              command = f"bash -lc {shlex.quote(inner_script)}"
+          else:
+              command = f"sudo -Hu {shlex.quote(run_as_user)} bash -lc {shlex.quote(inner_script)}"
+
+          print(json.dumps({"commands": [command], "executionTimeout": ["1800"]}))
+          PY
+
+          COMMAND_ID="$(
+            aws ssm send-command \
+              --instance-ids "$SSM_INSTANCE_ID" \
+              --document-name "AWS-RunShellScript" \
+              --comment "Deploy crypto-scanner ${GITHUB_SHA}" \
+              --parameters file://ssm-parameters.json \
+              --query "Command.CommandId" \
+              --output text
+          )"
+
+          echo "SSM command id: $COMMAND_ID"
+          echo "SSM_COMMAND_ID=$COMMAND_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for deployment
+        run: |
+          STATUS="Pending"
+          for attempt in $(seq 1 360); do
+            STATUS="$(
+              aws ssm get-command-invocation \
+                --command-id "$SSM_COMMAND_ID" \
+                --instance-id "$SSM_INSTANCE_ID" \
+                --query "Status" \
+                --output text 2>/dev/null || true
+            )"
+
+            case "$STATUS" in
+              Success|Cancelled|TimedOut|Failed|Cancelling)
+                break
+                ;;
+            esac
+
+            echo "SSM status: ${STATUS:-Pending} ($attempt/360)"
+            sleep 5
+          done
+
+          aws ssm get-command-invocation \
+            --command-id "$SSM_COMMAND_ID" \
+            --instance-id "$SSM_INSTANCE_ID" \
+            --output json > ssm-invocation.json
+
+          python - <<'PY'
+          import json
+
+          invocation = json.load(open("ssm-invocation.json", encoding="utf-8"))
+          stdout = invocation.get("StandardOutputContent", "")
+          stderr = invocation.get("StandardErrorContent", "")
+          status = invocation.get("Status", "Unknown")
+
+          print(f"SSM status: {status}")
+          if stdout:
+              print("----- SSM stdout -----")
+              print(stdout)
+          if stderr:
+              print("----- SSM stderr -----")
+              print(stderr)
+          PY
+
+          STATUS="$(python - <<'PY'
+          import json
+          print(json.load(open("ssm-invocation.json", encoding="utf-8")).get("Status", "Unknown"))
+          PY
+          )"
+
+          test "$STATUS" = "Success"
