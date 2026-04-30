@@ -515,6 +515,32 @@
   flex-wrap: wrap;
 }
 
+.toolbar--asset-filters {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.toolbar--asset-filters .toolbar__filters {
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.toolbar--asset-filters .ui-button {
+  flex: 0 0 auto;
+}
+
+.asset-filter-search {
+  flex: 1 1 260px;
+  min-width: 180px;
+  width: auto;
+}
+
+.asset-filter-tier {
+  flex: 0 0 150px;
+  width: 150px;
+}
+
 .mono {
   font-family: var(--font-mono);
 }

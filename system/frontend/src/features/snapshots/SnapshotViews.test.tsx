@@ -68,6 +68,20 @@ describe("SnapshotsView", () => {
     expect(screen.queryByText("Serial")).not.toBeInTheDocument();
   });
 
+  it("keeps asset filters in the single-line toolbar layout", async () => {
+    useSnapshotSelectionStore.setState({ selectedSnapshotId: 2 });
+    vi.spyOn(services.snapshots, "list").mockResolvedValue({ items: snapshots, total: 2, offset: 0, limit: 100 });
+    vi.spyOn(services.snapshots, "get").mockResolvedValue(snapshots[0]);
+    vi.spyOn(services.snapshots, "assets").mockResolvedValue(assets);
+
+    renderWithApp(<SnapshotsView />);
+
+    const search = await screen.findByLabelText("Asset search");
+    expect(search.closest(".toolbar")).toHaveClass("toolbar--asset-filters");
+    expect(search).toHaveClass("asset-filter-search");
+    expect(screen.getByLabelText("Asset risk tier filter")).toHaveClass("asset-filter-tier");
+  });
+
   it("defaults to the latest snapshot when no global snapshot was selected", async () => {
     vi.spyOn(services.snapshots, "list").mockResolvedValue({ items: snapshots, total: 2, offset: 0, limit: 100 });
     vi.spyOn(services.snapshots, "get").mockResolvedValue(snapshots[0]);

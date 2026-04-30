@@ -116,10 +116,10 @@ function SnapshotAssetsView({ id, snapshotHint }: { id: number; snapshotHint?: S
       </div>
       <Card>
         <CardContent>
-          <div className="toolbar">
+          <div className="toolbar toolbar--asset-filters">
             <div className="toolbar__filters">
-              <Input aria-label="Asset search" value={q} onChange={(event) => setSearchParams({ ...(tier ? { tier } : {}), ...(event.target.value ? { q: event.target.value } : {}) })} placeholder="asset search" />
-              <Select aria-label="Asset risk tier filter" value={tier ?? ""} onChange={(event) => setSearchParams({ ...(event.target.value ? { tier: event.target.value } : {}), ...(q ? { q } : {}) })}>
+              <Input className="asset-filter-search" aria-label="Asset search" value={q} onChange={(event) => setSearchParams({ ...(tier ? { tier } : {}), ...(event.target.value ? { q: event.target.value } : {}) })} placeholder="asset search" />
+              <Select className="asset-filter-tier" aria-label="Asset risk tier filter" value={tier ?? ""} onChange={(event) => setSearchParams({ ...(event.target.value ? { tier: event.target.value } : {}), ...(q ? { q } : {}) })}>
                 <option value="">All tiers</option>
                 {riskTierOptions.map((item) => (
                   <option key={item} value={item}>
