@@ -7,7 +7,6 @@ import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
 import type { AssetType, Schema } from "../../api/types";
 import { RiskTierBadge } from "../../components/common/Badges";
-import { JsonPreview } from "../../components/common/JsonPreview";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { MigrationReportBuilder } from "../../domain/migrationReport";
@@ -18,7 +17,7 @@ import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/
 import { DataTable } from "../../components/ui/table";
 import { parseRiskTierParam, riskTierOptions } from "../../domain/filterOptions";
 import { downloadText } from "../../lib/download";
-import { formatScore } from "../../lib/format";
+import { formatNumber, formatScore } from "../../lib/format";
 
 type MigrationRow = Schema<"MigrationPlanItem">;
 
@@ -188,7 +187,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                 <div className="callout">영향도 분석 없이 선택 항목 기준 보고서를 다운로드할 수 있습니다.</div>
               </>
             ) : null}
-            {reportSelectionAvailable && impact.data ? <JsonPreview value={impact.data} /> : null}
+            {reportSelectionAvailable && impact.data ? <MigrationImpactSummary impact={impact.data} /> : null}
           </CardContent>
         </Card>
       </div>
@@ -257,6 +256,47 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
       ) : null}
     </Section>
   );
+}
+
+function MigrationImpactSummary({ impact }: { impact: Schema<"MigrationImpact"> }) {
+  const workloadRows = [
+    { label: "Selected assets", value: formatNumber(impact.selected_count) },
+    { label: "Certificate reissues", value: formatNumber(impact.cert_reissues) },
+    { label: "Config changes", value: formatNumber(impact.config_changes) },
+    { label: "Key regenerations", value: formatNumber(impact.key_regens) },
+    { label: "Estimated downtime", value: `${formatNumber(impact.estimated_downtime_min)} min` }
+  ];
+  const endpointRows = buildImpactEndpointRows(impact);
+
+  return (
+    <div className="section-stack">
+      <DataTable
+        items={workloadRows}
+        getRowKey={(item) => item.label}
+        columns={[
+          { key: "label", header: "Work item", render: (item) => item.label },
+          { key: "value", header: "Estimate", align: "right", render: (item) => item.value }
+        ]}
+      />
+      <DataTable
+        items={endpointRows}
+        getRowKey={(item, index) => `${item.host}:${item.service}:${index}`}
+        empty={<EmptyState title="영향 대상이 없습니다" />}
+        columns={[
+          { key: "host", header: "Host", render: (item) => item.host },
+          { key: "service", header: "Service", render: (item) => item.service }
+        ]}
+      />
+    </div>
+  );
+}
+
+function buildImpactEndpointRows(impact: Schema<"MigrationImpact">) {
+  const size = Math.max(impact.hosts.length, impact.services.length);
+  return Array.from({ length: size }, (_, index) => ({
+    host: impact.hosts[index] ?? "-",
+    service: impact.services[index] ?? "-"
+  }));
 }
 
 function AgilityBadge({ agility }: { agility: Schema<"MigrationAgility"> }) {

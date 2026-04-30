@@ -71,6 +71,11 @@ describe("MigrationPlanView", () => {
     await user.click(screen.getByRole("checkbox", { name: "cert-leaf-web-rsa2048 선택" }));
 
     expect(await screen.findByText("Crypto Agility Playbook")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Work item" })).toBeInTheDocument();
+    expect(screen.getByText("Certificate reissues")).toBeInTheDocument();
+    expect(screen.getByText("15 min")).toBeInTheDocument();
+    expect(screen.getByText("web.testbed.local:443")).toBeInTheDocument();
+    expect(screen.queryByText("selected_count")).not.toBeInTheDocument();
     expect(screen.getByText("runtime_capability_unknown")).toBeInTheDocument();
     expect(screen.getByText("Enable hybrid transition")).toBeInTheDocument();
     expect(screen.getByText("Keep the existing RSA path enabled.")).toBeInTheDocument();
