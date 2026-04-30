@@ -782,7 +782,6 @@ frontend/
 │   │   ├── risk/
 │   │   ├── migration/
 │   │   ├── agents/
-│   │   ├── cbom/
 │   │   └── settings/
 │   ├── pages/                         # route entry components
 │   ├── lib/
