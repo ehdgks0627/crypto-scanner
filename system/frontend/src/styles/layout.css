@@ -53,6 +53,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .app-header__actions .ui-button:not(.ui-button--icon) {
@@ -60,6 +61,43 @@
   border-radius: 999px;
   background: var(--fill-1);
   color: var(--text-soft);
+}
+
+.global-snapshot-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--fill-1);
+}
+
+.global-snapshot-selector__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.global-snapshot-selector__label svg {
+  color: var(--text-muted);
+  stroke-width: 1.8;
+}
+
+.global-snapshot-selector__select {
+  width: 190px;
+  min-height: 24px;
+  padding: 2px 22px 2px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 .health-dot {

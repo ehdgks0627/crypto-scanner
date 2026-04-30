@@ -7,7 +7,9 @@ import { queryKeys } from "../api/queryKeys";
 import { services } from "../api/services";
 import { Button } from "../components/ui/button";
 import { isActiveJobStatus, isTerminalJobStatus } from "../domain/jobStatus";
+import { GlobalSnapshotSelector } from "../features/snapshots/GlobalSnapshotSelector";
 import { useJobWatchStore } from "../stores/jobWatchStore";
+import { useSnapshotSelectionStore } from "../stores/snapshotSelectionStore";
 import { useUiStore } from "../stores/uiStore";
 import { getSnapshotSidebarState, type SnapshotSidebarState } from "./snapshotSidebar";
 
@@ -39,9 +41,11 @@ export function AppLayout() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useUiStore();
+  const setSelectedSnapshotId = useSnapshotSelectionStore((state) => state.setSelectedSnapshotId);
   const trackedJobIds = useJobWatchStore((state) => state.trackedJobIds);
   const untrackJob = useJobWatchStore((state) => state.untrackJob);
   const snapshotSidebarState = useMemo(() => getSnapshotSidebarState(location.pathname), [location.pathname]);
+  const routeSnapshotId = useMemo(() => getRouteSnapshotId(location.pathname), [location.pathname]);
   const health = useQuery({
     queryKey: queryKeys.health,
     queryFn: () => services.health.get(),
@@ -78,6 +82,12 @@ export function AppLayout() {
       refetchInterval: 3_000
     }))
   });
+
+  useEffect(() => {
+    if (routeSnapshotId) {
+      setSelectedSnapshotId(routeSnapshotId);
+    }
+  }, [routeSnapshotId, setSelectedSnapshotId]);
   const invalidateJobDerivedData = useCallback(
     (snapshotId?: number) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
@@ -141,6 +151,7 @@ export function AppLayout() {
           <span>PQC Risk Assessment</span>
         </button>
         <div className="app-header__actions">
+          <GlobalSnapshotSelector />
           <Button type="button" variant="ghost" onClick={() => navigate("/scans")} aria-label={`활성 Job: ${activeCount}`}>
             <RefreshCw size={15} />
             활성 Job: {activeCount}
@@ -207,7 +218,7 @@ function SidebarNavLink({ item, snapshotSidebarState }: { item: NavItem; snapsho
 
 function resolveNavPath(item: NavItem, snapshotSidebarState: SnapshotSidebarState) {
   if (item.key === "assets") {
-    return snapshotSidebarState.snapshotPath;
+    return "/snapshots";
   }
   return item.to;
 }
@@ -217,4 +228,13 @@ function isSpecialNavActive(item: NavItem, snapshotSidebarState: SnapshotSidebar
     return snapshotSidebarState.activeSection === "snapshot";
   }
   return null;
+}
+
+function getRouteSnapshotId(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments[0] !== "snapshots") {
+    return null;
+  }
+  const snapshotId = Number(segments[1]);
+  return Number.isSafeInteger(snapshotId) && snapshotId > 0 ? snapshotId : null;
 }

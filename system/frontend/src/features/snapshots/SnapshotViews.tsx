@@ -29,42 +29,34 @@ import {
   validateAssetContextPatchValues,
   type AssetContextEnabledFields
 } from "./assetContextPatch";
+import { useSelectedSnapshot } from "./useSelectedSnapshot";
 
 export function SnapshotsView() {
-  const navigate = useNavigate();
-  const snapshots = useQuery({
-    queryKey: queryKeys.snapshots.all,
-    queryFn: () => services.snapshots.list()
-  });
+  const { snapshots, selectedSnapshot, selectedSnapshotId } = useSelectedSnapshot();
 
-  return (
-    <Section>
-      <PageHeader title="식별 자산" description="스캔 결과로 식별된 암호자산 스냅샷을 조회합니다." />
-      {snapshots.isLoading ? <LoadingState /> : null}
-      {snapshots.isError ? <ErrorState error={snapshots.error} onRetry={() => void snapshots.refetch()} /> : null}
-      {snapshots.data ? (
-        <Card>
-          <CardContent>
-            <DataTable
-              items={snapshots.data.items}
-              getRowKey={(snapshot) => snapshot.id}
-              empty={<EmptyState title="식별 자산 스냅샷이 없습니다" description="스캔이 완료되면 이곳에 표시됩니다." />}
-              columns={[
-                { key: "id", header: "스냅샷", render: (snapshot) => <button className="link-button" onClick={() => navigate(`/snapshots/${snapshot.id}`)}>#{snapshot.id}</button> },
-                { key: "serial", header: "Serial", render: (snapshot) => <span className="mono">{snapshot.serial_number}</span> },
-                { key: "assets", header: "식별 자산", render: (snapshot) => formatNumber(snapshot.asset_count) },
-                { key: "critical", header: "Critical", render: (snapshot) => snapshot.summary.by_tier?.CRITICAL ?? 0 },
-                { key: "created", header: "Created", render: (snapshot) => formatDateTime(snapshot.created_at) }
-              ]}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
-    </Section>
-  );
+  if (snapshots.isLoading) {
+    return <LoadingState />;
+  }
+  if (snapshots.isError) {
+    return <ErrorState error={snapshots.error} onRetry={() => void snapshots.refetch()} />;
+  }
+  if (!selectedSnapshotId) {
+    return (
+      <Section>
+        <PageHeader title="식별 자산" description="헤더에서 선택한 Snapshot 기준으로 식별 자산을 조회합니다." />
+        <EmptyState title="식별 자산이 없습니다" description="스캔이 완료되면 최신 Snapshot의 자산 목록이 이곳에 표시됩니다." />
+      </Section>
+    );
+  }
+
+  return <SnapshotAssetsView id={selectedSnapshotId} snapshotHint={selectedSnapshot ?? undefined} />;
 }
 
 export function SnapshotDetailView({ id }: { id: number }) {
+  return <SnapshotAssetsView id={id} />;
+}
+
+function SnapshotAssetsView({ id, snapshotHint }: { id: number; snapshotHint?: Schema<"CbomSnapshot"> }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [exportingCbom, setExportingCbom] = useState(false);
@@ -72,7 +64,8 @@ export function SnapshotDetailView({ id }: { id: number }) {
   const q = searchParams.get("q") ?? "";
   const snapshot = useQuery({
     queryKey: queryKeys.snapshots.detail(id),
-    queryFn: () => services.snapshots.get(id)
+    queryFn: () => services.snapshots.get(id),
+    initialData: snapshotHint
   });
   const filters = useMemo(() => ({ tier: tier ? [tier] : undefined, q: q || undefined, sort: "-risk_score" }), [tier, q]);
   const assets = useQuery({
@@ -102,8 +95,8 @@ export function SnapshotDetailView({ id }: { id: number }) {
   return (
     <Section>
       <PageHeader
-        title={`식별 자산 #${snapshot.data.id}`}
-        description={formatDateTime(snapshot.data.created_at)}
+        title="식별 자산"
+        description={`Snapshot #${snapshot.data.id} · ${formatDateTime(snapshot.data.created_at)}`}
         actions={
           <>
             <Button type="button" disabled={exportingCbom} onClick={() => void exportCbom()}>

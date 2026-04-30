@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { queryKeys } from "../../api/queryKeys";
@@ -13,11 +13,11 @@ import { MetricCard } from "../../components/charts/MetricCard";
 import { NetworkExposureGraphViz } from "../../components/graph/NetworkExposureGraphViz";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
 import type { NetworkExposureNode } from "../../domain/networkExposureGraph";
 import { buildNetworkExposureGraph } from "../../domain/networkExposureGraph";
 import { formatDateTime, formatNumber } from "../../lib/format";
+import { useSelectedSnapshot } from "../snapshots/useSelectedSnapshot";
 
 function objectToChartData(value: Record<string, number> | undefined) {
   return Object.entries(value ?? {}).map(([name, count]) => ({ name, value: count }));
@@ -29,14 +29,10 @@ const GRAPH_TARGET_QUERY = { limit: 100 } as const;
 
 export function DashboardView() {
   const navigate = useNavigate();
-  const [snapshotId, setSnapshotId] = useState<number | undefined>();
-  const snapshots = useQuery({
-    queryKey: queryKeys.snapshots.all,
-    queryFn: () => services.snapshots.list()
-  });
+  const { selectedSnapshotId } = useSelectedSnapshot();
   const summary = useQuery({
-    queryKey: queryKeys.dashboard.summary(snapshotId),
-    queryFn: () => services.dashboard.summary(snapshotId),
+    queryKey: queryKeys.dashboard.summary(selectedSnapshotId ?? undefined),
+    queryFn: () => services.dashboard.summary(selectedSnapshotId ?? undefined),
     refetchInterval: GRAPH_REFRESH_MS
   });
   const graphSnapshotId = summary.data?.snapshot?.id;
@@ -84,7 +80,7 @@ export function DashboardView() {
       return;
     }
     if (node.kind === "finding" && graphSnapshotId) {
-      navigate(`/snapshots/${graphSnapshotId}?tier=${node.riskTier ?? ""}`);
+      navigate(`/snapshots?tier=${node.riskTier ?? ""}`);
     }
   }
 
@@ -126,28 +122,18 @@ export function DashboardView() {
         title="대시보드"
         eyebrow="DASHBOARD"
         actions={
-          <>
-            <Select aria-label="Dashboard snapshot selector" value={snapshotId ?? ""} onChange={(event) => setSnapshotId(event.target.value ? Number(event.target.value) : undefined)}>
-              <option value="">최신 스냅샷</option>
-              {(snapshots.data?.items ?? []).map((snapshot) => (
-                <option key={snapshot.id} value={snapshot.id}>
-                  #{snapshot.id} · {formatDateTime(snapshot.created_at)}
-                </option>
-              ))}
-            </Select>
-            <Button type="button" variant="primary" onClick={() => navigate("/scans/new")}>
-              <Plus size={15} />새 스캔
-            </Button>
-          </>
+          <Button type="button" variant="primary" onClick={() => navigate("/scans/new")}>
+            <Plus size={15} />새 스캔
+          </Button>
         }
       />
 
       <div className="content-grid content-grid--4">
-        <MetricCard label="자산수" value={formatNumber(dashboardSnapshot.asset_count)} onClick={() => navigate(`/snapshots/${dashboardSnapshot.id}`)} />
+        <MetricCard label="자산수" value={formatNumber(dashboardSnapshot.asset_count)} onClick={() => navigate("/snapshots")} />
         <MetricCard
           label="Critical"
           value={formatNumber(summary.data.by_tier.CRITICAL ?? 0)}
-          onClick={() => navigate(`/snapshots/${dashboardSnapshot.id}?tier=CRITICAL`)}
+          onClick={() => navigate("/snapshots?tier=CRITICAL")}
         />
         <MetricCard
           label="양자취약"

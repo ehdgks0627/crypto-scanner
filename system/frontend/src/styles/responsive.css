@@ -88,6 +88,20 @@
     font-size: 0;
   }
 
+  .global-snapshot-selector {
+    max-width: 176px;
+    padding: 2px 6px;
+  }
+
+  .global-snapshot-selector__label {
+    gap: 0;
+    font-size: 0;
+  }
+
+  .global-snapshot-selector__select {
+    width: 138px;
+  }
+
   .brand span {
     display: none;
   }

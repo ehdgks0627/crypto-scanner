@@ -1,14 +1,16 @@
-import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { services } from "../../api/services";
+import { useSnapshotSelectionStore } from "../../stores/snapshotSelectionStore";
 import { renderWithApp } from "../../test/test-utils";
 import { DashboardView } from "./DashboardView";
 
 describe("DashboardView", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    localStorage.clear();
+    useSnapshotSelectionStore.setState({ selectedSnapshotId: null });
   });
 
   it("renders onboarding empty state when no snapshot exists", async () => {
@@ -32,8 +34,8 @@ describe("DashboardView", () => {
     expect(screen.getByText("디스커버리 시작")).toBeInTheDocument();
   });
 
-  it("requests summary for the selected snapshot", async () => {
-    const user = userEvent.setup();
+  it("requests summary for the globally selected snapshot", async () => {
+    useSnapshotSelectionStore.setState({ selectedSnapshotId: 2 });
     const summarySpy = vi.spyOn(services.dashboard, "summary").mockImplementation(async (snapshotId) => ({
       snapshot: {
         id: snapshotId ?? 1,
@@ -111,11 +113,8 @@ describe("DashboardView", () => {
 
     renderWithApp(<DashboardView />);
 
-    await user.selectOptions(await screen.findByLabelText("Dashboard snapshot selector"), "2");
-
-    expect(summarySpy).toHaveBeenCalledWith(2);
-    expect((await screen.findAllByText(/^#2/)).length).toBeGreaterThan(0);
-    expect(screen.getByText("12")).toBeInTheDocument();
+    await waitFor(() => expect(summarySpy).toHaveBeenCalledWith(2));
+    expect(await screen.findByText("12")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
     expect(await screen.findByText("네트워크 암호 노출 현황")).toBeInTheDocument();
