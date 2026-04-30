@@ -286,6 +286,14 @@
   font-weight: 700;
 }
 
+.ui-table tbody tr.is-clickable {
+  cursor: pointer;
+}
+
+.ui-table tbody tr.is-clickable:not(.is-selected):hover {
+  background: var(--fill-1);
+}
+
 .ui-table tbody tr.is-selected {
   background: color-mix(in srgb, var(--fill-3) 42%, var(--panel));
   outline: 2px solid var(--border);

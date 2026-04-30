@@ -168,6 +168,7 @@ describe("SnapshotDiffView", () => {
     expect(getBomRefCell(currentRows[1]!)).toHaveTextContent("cert:added");
     expect(getBomRefCell(previousRows[2]!)).toHaveTextContent("cert:removed");
     expect(getBomRefCell(currentRows[2]!)).toHaveTextContent("-");
+    expect(previousRows[1]).toHaveClass("is-clickable");
     const comparisonHeading = screen.getByText("선택 자산 비교");
     expect(comparisonHeading).toBeInTheDocument();
     expect(comparisonHeading.compareDocumentPosition(screen.getByRole("button", { name: "cert:removed" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -178,8 +179,12 @@ describe("SnapshotDiffView", () => {
     expect(screen.getByRole("button", { name: "cert:removed" }).closest(".snapshot-diff-table-card")).not.toBeNull();
     expect(screen.getByRole("checkbox", { name: "전체보기" }).closest(".snapshot-diff-controls")).not.toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "cert:added" }));
+    await user.click(previousRows[1]!);
     expect(screen.getByText("Snapshot #2에만 존재합니다.")).toBeInTheDocument();
+    const [rowSelectedPreviousRows, rowSelectedCurrentRows] = getDiffRows();
+    expect(rowSelectedPreviousRows[1]).toHaveClass("is-selected");
+    expect(rowSelectedCurrentRows[1]).toHaveClass("is-selected");
+    await user.click(screen.getByRole("button", { name: "cert:added" }));
     expect(screen.getByRole("button", { name: "cert:added" }).closest("tr")).toHaveClass("is-selected");
 
     await user.click(screen.getByRole("checkbox", { name: "전체보기" }));

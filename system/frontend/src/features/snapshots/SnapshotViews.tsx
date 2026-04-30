@@ -597,6 +597,7 @@ function DiffAssetTable({
           items={rows}
           getRowKey={(row) => row.bom_ref}
           rowClassName={(row) => (row.bom_ref === selectedBomRef ? "is-selected" : undefined)}
+          onRowClick={(row) => onSelect(row.bom_ref)}
           empty={<EmptyState title="자산이 없습니다" />}
           columns={[
             { key: "status", header: "상태", render: (row) => <DiffSideStatus row={row} side={side} diffIndex={diffIndex} /> },
@@ -640,7 +641,10 @@ function DiffSideBomRef({
     <button
       className={row.bom_ref === selectedBomRef ? "link-button diff-select-button is-selected" : "link-button diff-select-button"}
       type="button"
-      onClick={() => onSelect(row.bom_ref)}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect(row.bom_ref);
+      }}
     >
       {row.bom_ref}
     </button>
