@@ -1,7 +1,9 @@
 @media (max-width: 1120px) {
   .dashboard-chart-grid,
   .dashboard-secondary-grid,
-  .network-graph-layout {
+  .network-graph-layout,
+  .snapshot-diff-grid,
+  .snapshot-diff-detail__assets {
     grid-template-columns: 1fr;
   }
 

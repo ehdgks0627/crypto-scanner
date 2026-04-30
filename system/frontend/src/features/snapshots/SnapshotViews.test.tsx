@@ -100,7 +100,7 @@ describe("SnapshotDiffView", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders snapshot differences as a comparison table instead of raw JSON", async () => {
+  it("renders snapshot differences as side-by-side selectable asset tables", async () => {
     const user = userEvent.setup();
     vi.spyOn(services.snapshots, "list").mockResolvedValue({ items: snapshots, total: 2, offset: 0, limit: 100 });
     vi.spyOn(services.snapshots, "diff").mockResolvedValue({
@@ -121,19 +121,49 @@ describe("SnapshotDiffView", () => {
       ],
       unchanged_count: 7
     });
+    vi.spyOn(services.snapshots, "assets").mockImplementation(async (snapshotId) => ({
+      items:
+        snapshotId === 1
+          ? [
+              makeAsset({ id: 10, snapshot_id: 1, bom_ref: "cert:removed", name: "old cert", summary: { algorithm: "RSA-2048", algorithm_family: "RSA" } }),
+              makeAsset({ id: 11, snapshot_id: 1, bom_ref: "cert:algo", name: "old name", summary: { algorithm: "RSA-2048", algorithm_family: "RSA" } })
+            ]
+          : [
+              makeAsset({ id: 20, snapshot_id: 2, bom_ref: "cert:added", name: "new cert", summary: { algorithm: "ML-KEM-768", algorithm_family: "ML-KEM" } }),
+              makeAsset({ id: 21, snapshot_id: 2, bom_ref: "cert:algo", name: "new name", summary: { algorithm: "ML-DSA-65", algorithm_family: "ML-DSA" } })
+            ],
+      total: 2,
+      offset: 0,
+      limit: 100
+    }));
 
     renderWithApp(<SnapshotDiffView id={2} />);
     await screen.findByRole("option", { name: /#1/ });
     await user.selectOptions(await screen.findByRole("combobox"), "1");
 
-    expect(await screen.findByText("변경 자산 비교")).toBeInTheDocument();
+    expect((await screen.findAllByText("Snapshot #1")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Snapshot #2").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("cert:added")).toBeInTheDocument();
-    expect(screen.getByText("Snapshot #2에만 있음")).toBeInTheDocument();
     expect(screen.getByText("cert:removed")).toBeInTheDocument();
-    expect(screen.getByText("Snapshot #1에만 있음")).toBeInTheDocument();
-    expect(screen.getByText("cert:algo")).toBeInTheDocument();
-    expect(screen.getByText("RSA-2048")).toBeInTheDocument();
-    expect(screen.getByText("ML-DSA-65")).toBeInTheDocument();
+    expect(screen.getAllByText("cert:algo").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("선택 자산 비교")).toBeInTheDocument();
+    expect(screen.getAllByText("RSA-2048").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("ML-DSA-65").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Raw Diff")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "cert:added" }));
+    expect(screen.getByText("Snapshot #2에만 존재합니다.")).toBeInTheDocument();
   });
 });
+
+function makeAsset(overrides: Partial<Schema<"AssetListItem">> & Pick<Schema<"AssetListItem">, "id" | "snapshot_id" | "bom_ref" | "name">) {
+  return {
+    asset_class: "crypto",
+    asset_type: "certificate",
+    target_id: null,
+    target_label: null,
+    summary: {},
+    risk: null,
+    ...overrides
+  } satisfies Schema<"AssetListItem">;
+}
