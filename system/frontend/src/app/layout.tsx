@@ -165,17 +165,17 @@ export function AppLayout() {
           })}
         </nav>
         <Link
-          to={snapshotSidebarState.migrationPath}
-          className={`sidebar-link-secondary${snapshotSidebarState.activeSection === "migration" ? " active" : ""}`}
-          aria-current={snapshotSidebarState.activeSection === "migration" ? "page" : undefined}
+          to="/migration"
+          className={`sidebar-link-secondary${location.pathname === "/migration" ? " active" : ""}`}
+          aria-current={location.pathname === "/migration" ? "page" : undefined}
         >
           <ListChecks size={16} />
           <span>마이그레이션</span>
         </Link>
         <Link
-          to={snapshotSidebarState.riskPath}
-          className={`sidebar-link-secondary${snapshotSidebarState.activeSection === "risk" ? " active" : ""}`}
-          aria-current={snapshotSidebarState.activeSection === "risk" ? "page" : undefined}
+          to="/risk"
+          className={`sidebar-link-secondary${location.pathname === "/risk" ? " active" : ""}`}
+          aria-current={location.pathname === "/risk" ? "page" : undefined}
         >
           <Workflow size={16} />
           <span>위험평가</span>

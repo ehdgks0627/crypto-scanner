@@ -23,6 +23,7 @@ const SnapshotMigrationPage = lazyRoute(() => import("../pages/SnapshotMigration
 const CbomPage = lazyRoute(() => import("../pages/CbomPage"), "CbomPage");
 const AgentsPage = lazyRoute(() => import("../pages/AgentsPage"), "AgentsPage");
 const SettingsPage = lazyRoute(() => import("../pages/SettingsPage"), "SettingsPage");
+const TodoPage = lazyRoute(() => import("../pages/TodoPage"), "TodoPage");
 
 function page(element: JSX.Element) {
   return <Suspense fallback={<LoadingState />}>{element}</Suspense>;
@@ -51,6 +52,8 @@ export const router = createBrowserRouter([
       { path: "cbom", element: page(<CbomPage />) },
       { path: "agents", element: page(<AgentsPage />) },
       { path: "settings", element: page(<SettingsPage />) },
+      { path: "migration", element: page(<TodoPage />) },
+      { path: "risk", element: page(<TodoPage />) },
       { path: "*", element: <Navigate to="/" replace /> }
     ]
   }
