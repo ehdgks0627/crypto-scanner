@@ -14,6 +14,7 @@ def default_context():
 
 class Target(models.Model):
     host = models.CharField(max_length=253)
+    display_name = models.CharField(max_length=120, null=True, blank=True)
     ip = models.GenericIPAddressField(null=True, blank=True)
     port = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(65535)])
     protocol_hint = models.CharField(max_length=16)

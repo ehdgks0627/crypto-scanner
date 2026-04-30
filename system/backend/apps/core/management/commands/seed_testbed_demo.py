@@ -133,6 +133,7 @@ class Command(BaseCommand):
                 port=fields["port"],
                 transport=fields["transport"],
                 defaults={
+                    "display_name": fields.get("display_name"),
                     "ip": fields["ip"],
                     "protocol_hint": fields["protocol_hint"],
                     "sni": fields["sni"],

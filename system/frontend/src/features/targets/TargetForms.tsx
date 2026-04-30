@@ -48,6 +48,10 @@ export function TargetForm({
             <Input required value={values.host} onChange={(event) => setValue("host", event.target.value)} placeholder="api.internal.local" />
           </Field>
           <Field>
+            <FieldLabel>Display Name</FieldLabel>
+            <Input value={values.display_name} onChange={(event) => setValue("display_name", event.target.value)} placeholder="Web Server #2" />
+          </Field>
+          <Field>
             <FieldLabel>IP</FieldLabel>
             <Input value={values.ip} onChange={(event) => setValue("ip", event.target.value)} placeholder="10.0.0.12" />
           </Field>
@@ -145,6 +149,7 @@ export function TargetForm({
 export function targetToFormValues(target: Schema<"Target">): Partial<TargetFormValues> {
   return {
     host: target.host,
+    display_name: target.display_name ?? "",
     ip: target.ip ?? "",
     port: String(target.port),
     protocol_hint: target.protocol_hint,

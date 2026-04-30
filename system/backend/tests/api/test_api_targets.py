@@ -18,6 +18,7 @@ def create_target(**overrides):
 
     values = {
         "host": "web.testbed.local",
+        "display_name": None,
         "ip": None,
         "port": 443,
         "protocol_hint": "TLS",
@@ -35,6 +36,7 @@ def assert_target_shape(target):
     assert {
         "id",
         "host",
+        "display_name",
         "ip",
         "port",
         "protocol_hint",
@@ -76,6 +78,7 @@ def test_api_tgt_002_create_target_returns_schema_with_default_context(client):
         "/api/targets",
         data={
             "host": "api.testbed.local",
+            "display_name": "API Gateway",
             "port": 8443,
             "protocol_hint": "TLS",
             "transport": "TCP",
@@ -87,6 +90,7 @@ def test_api_tgt_002_create_target_returns_schema_with_default_context(client):
     assert response.status_code == 201
     body = response.json()
     assert body["host"] == "api.testbed.local"
+    assert body["display_name"] == "API Gateway"
     assert body["port"] == 8443
     assert body["transport"] == "TCP"
     assert body["context"] == {
@@ -108,6 +112,7 @@ def test_api_tgt_003_get_target_detail(client):
     body = response.json()
     assert body["id"] == target.id
     assert body["host"] == "web.testbed.local"
+    assert body["display_name"] is None
     assert body["port"] == 443
     assert body["protocol_hint"] == "TLS"
     assert body["transport"] == "TCP"
@@ -201,6 +206,44 @@ def test_api_tgt_007_noop_patch_does_not_create_recompute_job(client):
     assert body["target"]["context"]["criticality"] == "high"
     assert body["recompute_job_id"] is None
     assert AsyncJob.objects.count() == 0
+
+
+def test_api_tgt_007b_display_name_patch_does_not_create_recompute_job(client):
+    from apps.jobs.models import AsyncJob
+
+    target = create_target(display_name=None)
+
+    response = client.patch(
+        f"/api/targets/{target.id}",
+        data={"display_name": "Web Server #2"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["target"]["display_name"] == "Web Server #2"
+    assert body["recompute_job_id"] is None
+    assert AsyncJob.objects.count() == 0
+
+
+def test_api_tgt_007c_display_name_is_trimmed_and_blank_becomes_null(client):
+    created = client.post(
+        "/api/targets",
+        data={"host": "name.testbed.local", "display_name": "  Named Target  ", "port": 443, "protocol_hint": "TLS"},
+        content_type="application/json",
+    )
+    target_id = created.json()["id"]
+
+    patched = client.patch(
+        f"/api/targets/{target_id}",
+        data={"display_name": "   "},
+        content_type="application/json",
+    )
+
+    assert created.status_code == 201
+    assert created.json()["display_name"] == "Named Target"
+    assert patched.status_code == 200
+    assert patched.json()["target"]["display_name"] is None
 
 
 def test_api_tgt_008_delete_target_soft_unlinks_assets(client):

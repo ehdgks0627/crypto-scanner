@@ -1,7 +1,13 @@
 @media (max-width: 1120px) {
   .dashboard-chart-grid,
-  .dashboard-secondary-grid {
+  .dashboard-secondary-grid,
+  .network-graph-layout {
     grid-template-columns: 1fr;
+  }
+
+  .network-graph-inspector {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
   }
 }
 
@@ -86,6 +92,19 @@
 
   .page-header {
     display: grid;
+  }
+
+  .network-graph-band__header {
+    display: grid;
+    align-items: start;
+  }
+
+  .network-graph-stage {
+    height: 380px;
+  }
+
+  .network-graph-inspector {
+    grid-template-columns: 1fr;
   }
 
   .form-grid,

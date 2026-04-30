@@ -686,6 +686,7 @@ export interface components {
         Target: {
             id: number;
             host: string;
+            display_name?: string | null;
             ip?: string | null;
             port: number;
             protocol_hint: components["schemas"]["ProtocolHint"];
@@ -702,6 +703,7 @@ export interface components {
         };
         TargetCreate: {
             host: string;
+            display_name?: string | null;
             /** Format: ip */
             ip?: string | null;
             port: number;
@@ -717,6 +719,7 @@ export interface components {
         };
         TargetPatch: {
             host?: string;
+            display_name?: string | null;
             /** Format: ip */
             ip?: string | null;
             port?: number;

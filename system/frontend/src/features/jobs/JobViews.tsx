@@ -17,7 +17,7 @@ import { Checkbox, Select } from "../../components/ui/form";
 import { Progress } from "../../components/ui/progress";
 import { DataTable } from "../../components/ui/table";
 import { canCancelJob, pageHasActiveJob } from "../../domain/jobStatus";
-import { JobProgressModel } from "../../domain/models";
+import { JobProgressModel, TargetModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import { ScanSelectionModel } from "./scanSelection";
@@ -174,7 +174,7 @@ export function ScanNewView() {
                     header: "",
                     render: (target) => (
                       <Checkbox
-                        aria-label={`${target.host} 스캔 대상 선택`}
+                        aria-label={`${new TargetModel(target).displayName()} 스캔 대상 선택`}
                         checked={targetIds.includes(target.id)}
                         onChange={(event) =>
                           setTargetIds((current) => (event.target.checked ? [...current, target.id] : current.filter((id) => id !== target.id)))
@@ -182,6 +182,7 @@ export function ScanNewView() {
                       />
                     )
                   },
+                  { key: "target", header: "Target", render: (target) => new TargetModel(target).displayName() },
                   { key: "host", header: "Host", render: (target) => target.host },
                   { key: "endpoint", header: "Endpoint", render: (target) => `${target.transport}/${target.port}` },
                   { key: "agent", header: "Agent", render: (target) => (target.agent_enabled ? "yes" : "no") }

@@ -55,3 +55,15 @@ export class SnapshotSummaryModel {
     return `#${this.snapshot.id} · ${new Date(this.snapshot.created_at).toLocaleString("ko-KR")}`;
   }
 }
+
+export class TargetModel {
+  constructor(private readonly target: Schema<"Target">) {}
+
+  displayName(): string {
+    return this.target.display_name || this.target.host;
+  }
+
+  endpointLabel(): string {
+    return `${this.target.host}:${this.target.port}`;
+  }
+}

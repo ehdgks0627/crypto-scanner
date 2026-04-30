@@ -3,6 +3,7 @@ import { compactObject } from "../../lib/utils";
 
 export type TargetFormValues = {
   host: string;
+  display_name: string;
   ip: string;
   port: string;
   protocol_hint: Schema<"ProtocolHint">;
@@ -21,6 +22,7 @@ export type TargetFormMode = "create" | "patch";
 
 export const defaultTargetFormValues: TargetFormValues = {
   host: "",
+  display_name: "",
   ip: "",
   port: "443",
   protocol_hint: "TLS",
@@ -39,6 +41,7 @@ export function buildTargetPayload(values: TargetFormValues, mode: TargetFormMod
   const context = buildContextPayload(values, mode);
   const base = {
     host: values.host,
+    display_name: nullableText(values.display_name, mode),
     ip: nullableText(values.ip, mode),
     port: Number(values.port),
     protocol_hint: values.protocol_hint,

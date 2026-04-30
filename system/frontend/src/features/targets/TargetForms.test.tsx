@@ -9,6 +9,7 @@ describe("TargetForm", () => {
     render(<TargetForm submitLabel="저장" isSubmitting={true} onSubmit={vi.fn()} />);
 
     expect(screen.getByLabelText("Host")).toBeDisabled();
+    expect(screen.getByLabelText("Display Name")).toBeDisabled();
     expect(screen.getByRole("button", { name: "저장 중" })).toBeDisabled();
   });
 

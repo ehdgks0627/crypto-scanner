@@ -13,6 +13,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { isTerminalJobStatus } from "../../domain/jobStatus";
+import { TargetModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import { TargetForm, targetToFormValues } from "./TargetForms";
@@ -71,12 +72,13 @@ export function TargetDetailView({ id }: { id: number }) {
   if (target.isError || !target.data) {
     return <ErrorState error={target.error} onRetry={() => void target.refetch()} />;
   }
+  const targetModel = new TargetModel(target.data);
 
   return (
     <Section>
       <PageHeader
-        title={target.data.host}
-        description={`${target.data.transport}/${target.data.port} · ${target.data.protocol_hint}`}
+        title={targetModel.displayName()}
+        description={`${target.data.transport} · ${targetModel.endpointLabel()} · ${target.data.protocol_hint}`}
         actions={
           <>
             <Button type="button" onClick={() => navigate(`/scans/new?target_id=${target.data.id}`)}>스캔 시작</Button>
@@ -114,6 +116,8 @@ export function TargetDetailView({ id }: { id: number }) {
           <CardContent>
             <dl className="detail-list">
               <div><dt>ID</dt><dd>#{target.data.id}</dd></div>
+              <div><dt>Host</dt><dd>{target.data.host}</dd></div>
+              <div><dt>Display Name</dt><dd>{target.data.display_name ?? "-"}</dd></div>
               <div><dt>IP</dt><dd>{target.data.ip ?? "-"}</dd></div>
               <div><dt>SNI</dt><dd>{target.data.sni ?? "-"}</dd></div>
               <div><dt>Agent</dt><dd><Badge tone={target.data.agent_enabled ? "green" : "neutral"}>{target.data.agent_enabled ? "enabled" : "disabled"}</Badge></dd></div>

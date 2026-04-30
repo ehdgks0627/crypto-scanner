@@ -10,15 +10,22 @@ import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { BarChartCard, DonutChartCard, TrendChartCard } from "../../components/charts/ChartCards";
 import { MetricCard } from "../../components/charts/MetricCard";
+import { NetworkExposureGraph3D } from "../../components/graph/NetworkExposureGraph3D";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
+import type { NetworkExposureNode } from "../../domain/networkExposureGraph";
+import { buildNetworkExposureGraph } from "../../domain/networkExposureGraph";
 import { formatDateTime, formatNumber } from "../../lib/format";
 
 function objectToChartData(value: Record<string, number> | undefined) {
   return Object.entries(value ?? {}).map(([name, count]) => ({ name, value: count }));
 }
+
+const GRAPH_REFRESH_MS = 15_000;
+const GRAPH_ASSET_QUERY = { limit: 100, sort: "-risk_score" } as const;
+const GRAPH_TARGET_QUERY = { limit: 100 } as const;
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -29,10 +36,23 @@ export function DashboardView() {
   });
   const summary = useQuery({
     queryKey: queryKeys.dashboard.summary(snapshotId),
-    queryFn: () => services.dashboard.summary(snapshotId)
+    queryFn: () => services.dashboard.summary(snapshotId),
+    refetchInterval: GRAPH_REFRESH_MS
+  });
+  const graphSnapshotId = summary.data?.snapshot?.id;
+  const graphAssets = useQuery({
+    queryKey: queryKeys.snapshots.assets(graphSnapshotId ?? 0, GRAPH_ASSET_QUERY),
+    queryFn: () => services.snapshots.assets(graphSnapshotId!, GRAPH_ASSET_QUERY),
+    enabled: Boolean(graphSnapshotId),
+    refetchInterval: GRAPH_REFRESH_MS
+  });
+  const graphTargets = useQuery({
+    queryKey: queryKeys.targets.list(GRAPH_TARGET_QUERY),
+    queryFn: () => services.targets.list(GRAPH_TARGET_QUERY),
+    enabled: Boolean(graphSnapshotId),
+    refetchInterval: GRAPH_REFRESH_MS * 2
   });
 
-  const selectedSnapshot = summary.data?.snapshot;
   const tierData = useMemo(() => objectToChartData(summary.data?.by_tier), [summary.data?.by_tier]);
   const assetTypeData = useMemo(() => objectToChartData(summary.data?.by_asset_type), [summary.data?.by_asset_type]);
   const algorithmData = useMemo(() => objectToChartData(summary.data?.by_algorithm_family), [summary.data?.by_algorithm_family]);
@@ -49,6 +69,24 @@ export function DashboardView() {
       })),
     [summary.data?.trend]
   );
+  const exposureGraph = useMemo(
+    () => buildNetworkExposureGraph(graphAssets.data?.items ?? [], graphTargets.data?.items ?? []),
+    [graphAssets.data?.items, graphTargets.data?.items]
+  );
+
+  function openGraphNode(node: NetworkExposureNode) {
+    if (node.kind === "asset" && node.refId) {
+      navigate(`/assets/${node.refId}`);
+      return;
+    }
+    if ((node.kind === "target" || node.kind === "endpoint") && node.refId) {
+      navigate(`/targets/${node.refId}`);
+      return;
+    }
+    if (node.kind === "finding" && graphSnapshotId) {
+      navigate(`/snapshots/${graphSnapshotId}?tier=${node.riskTier ?? ""}`);
+    }
+  }
 
   if (summary.isLoading) {
     return <LoadingState />;
@@ -123,6 +161,20 @@ export function DashboardView() {
           onClick={() => navigate("/agents")}
         />
       </div>
+
+      <NetworkExposureGraph3D
+        graph={exposureGraph}
+        isLoading={graphAssets.isLoading || graphTargets.isLoading}
+        isFetching={graphAssets.isFetching || graphTargets.isFetching || summary.isFetching}
+        error={graphAssets.error ?? graphTargets.error}
+        updatedAt={Math.max(graphAssets.dataUpdatedAt, graphTargets.dataUpdatedAt, summary.dataUpdatedAt)}
+        onRetry={() => {
+          void graphAssets.refetch();
+          void graphTargets.refetch();
+          void summary.refetch();
+        }}
+        onOpenNode={openGraphNode}
+      />
 
       <div className="dashboard-chart-grid">
         <DonutChartCard title="위험도 등급 분포" data={tierData} />

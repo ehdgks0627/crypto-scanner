@@ -15,6 +15,7 @@ import { Card, CardContent } from "../../components/ui/card";
 import { Dialog } from "../../components/ui/dialog";
 import { Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
+import { TargetModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
 import { TargetForm } from "./TargetForms";
 
@@ -90,7 +91,15 @@ export function TargetsView() {
               getRowKey={(target) => target.id}
               empty={<EmptyState title="타겟이 없습니다" description="디스커버리 결과를 승격하거나 직접 등록하세요." />}
               columns={[
-                { key: "host", header: "Host", render: (target) => <button className="link-button" onClick={() => navigate(`/targets/${target.id}`)}>{target.host}</button> },
+                {
+                  key: "target",
+                  header: "Target",
+                  render: (target) => {
+                    const model = new TargetModel(target);
+                    return <button className="link-button" onClick={() => navigate(`/targets/${target.id}`)}>{model.displayName()}</button>;
+                  }
+                },
+                { key: "host", header: "Host", render: (target) => target.host },
                 { key: "endpoint", header: "Endpoint", render: (target) => `${target.transport}/${target.port}` },
                 { key: "protocol", header: "Protocol", render: (target) => target.protocol_hint },
                 { key: "agent", header: "Agent", render: (target) => (target.agent_enabled ? "enabled" : "disabled") },
@@ -101,7 +110,7 @@ export function TargetsView() {
                   header: "",
                   align: "right",
                   render: (target) => (
-                    <Button type="button" size="icon" variant="ghost" onClick={() => setPendingDelete(target)} aria-label={`${target.host} 삭제`}>
+                    <Button type="button" size="icon" variant="ghost" onClick={() => setPendingDelete(target)} aria-label={`${new TargetModel(target).displayName()} 삭제`}>
                       <Trash2 size={15} />
                     </Button>
                   )
@@ -123,7 +132,7 @@ export function TargetsView() {
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         title="타겟 삭제"
-        description={pendingDelete ? `${pendingDelete.host}:${pendingDelete.port} 타겟을 삭제합니다. 실행 중인 작업이 참조 중이면 서버에서 거절될 수 있습니다.` : ""}
+        description={pendingDelete ? `${new TargetModel(pendingDelete).displayName()} (${pendingDelete.host}:${pendingDelete.port}) 타겟을 삭제합니다. 실행 중인 작업이 참조 중이면 서버에서 거절될 수 있습니다.` : ""}
         confirmLabel="삭제"
         pending={deleteTarget.isPending}
         onCancel={() => setPendingDelete(null)}

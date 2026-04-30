@@ -15,6 +15,7 @@ def create_target(**overrides):
 
     values = {
         "host": "web.testbed.local",
+        "display_name": None,
         "ip": None,
         "port": 443,
         "protocol_hint": "TLS",

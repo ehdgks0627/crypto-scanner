@@ -4,6 +4,7 @@
     "pk": 1,
     "fields": {
       "host": "web.testbed.local",
+      "display_name": "Web Server (RSA)",
       "ip": null,
       "port": 443,
       "protocol_hint": "TLS",
@@ -19,6 +20,7 @@
     "pk": 2,
     "fields": {
       "host": "web-ec.testbed.local",
+      "display_name": "Web Server (ECDSA SNI)",
       "ip": null,
       "port": 443,
       "protocol_hint": "TLS",
@@ -34,6 +36,7 @@
     "pk": 3,
     "fields": {
       "host": "pqc-tls.testbed.local",
+      "display_name": "PQC TLS Server",
       "ip": null,
       "port": 443,
       "protocol_hint": "TLS",
@@ -49,6 +52,7 @@
     "pk": 4,
     "fields": {
       "host": "ssh.testbed.local",
+      "display_name": "SSH Server",
       "ip": null,
       "port": 22,
       "protocol_hint": "SSH",
@@ -64,6 +68,7 @@
     "pk": 5,
     "fields": {
       "host": "mqtt.testbed.local",
+      "display_name": "MQTT Broker",
       "ip": null,
       "port": 8883,
       "protocol_hint": "TLS",
@@ -79,6 +84,7 @@
     "pk": 6,
     "fields": {
       "host": "ipsec.testbed.local",
+      "display_name": "IPsec Gateway (IKE)",
       "ip": null,
       "port": 500,
       "protocol_hint": "IKE",
@@ -94,6 +100,7 @@
     "pk": 7,
     "fields": {
       "host": "ipsec.testbed.local",
+      "display_name": "IPsec Gateway (NAT-T)",
       "ip": null,
       "port": 4500,
       "protocol_hint": "IKE",
@@ -109,6 +116,7 @@
     "pk": 8,
     "fields": {
       "host": "mail.testbed.local",
+      "display_name": "Mail Server (SMTP STARTTLS)",
       "ip": null,
       "port": 25,
       "protocol_hint": "SMTP",
@@ -124,6 +132,7 @@
     "pk": 9,
     "fields": {
       "host": "mail.testbed.local",
+      "display_name": "Mail Server (SMTPS)",
       "ip": null,
       "port": 465,
       "protocol_hint": "SMTP",
@@ -139,6 +148,7 @@
     "pk": 10,
     "fields": {
       "host": "mail.testbed.local",
+      "display_name": "Mail Server (Submission)",
       "ip": null,
       "port": 587,
       "protocol_hint": "SMTP",
@@ -154,6 +164,7 @@
     "pk": 11,
     "fields": {
       "host": "mail.testbed.local",
+      "display_name": "Mail Server (IMAPS)",
       "ip": null,
       "port": 993,
       "protocol_hint": "IMAP",
@@ -169,6 +180,7 @@
     "pk": 12,
     "fields": {
       "host": "mail.testbed.local",
+      "display_name": "Mail Server (POP3S)",
       "ip": null,
       "port": 995,
       "protocol_hint": "POP3",
@@ -184,6 +196,7 @@
     "pk": 13,
     "fields": {
       "host": "db.testbed.local",
+      "display_name": "Database Server",
       "ip": null,
       "port": 5432,
       "protocol_hint": "UNKNOWN",

@@ -3,6 +3,7 @@
     {
       "id": 1,
       "host": "web.testbed.local",
+      "display_name": "Web Server (RSA)",
       "ip": null,
       "port": 443,
       "protocol_hint": "TLS",

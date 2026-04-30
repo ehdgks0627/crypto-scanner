@@ -1634,6 +1634,10 @@ components:
         host:
           type: string
           maxLength: 253
+        display_name:
+          type: string
+          maxLength: 120
+          nullable: true
         ip:
           type: string
           nullable: true
@@ -1671,6 +1675,10 @@ components:
         host:
           type: string
           maxLength: 253
+        display_name:
+          type: string
+          maxLength: 120
+          nullable: true
         ip:
           type: string
           format: ip
@@ -1705,6 +1713,10 @@ components:
         host:
           type: string
           maxLength: 253
+        display_name:
+          type: string
+          maxLength: 120
+          nullable: true
         ip:
           type: string
           format: ip

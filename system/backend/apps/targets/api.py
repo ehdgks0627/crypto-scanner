@@ -28,6 +28,7 @@ class TargetContextPayload(StrictSchema):
 
 class TargetCreatePayload(StrictSchema):
     host: str = Field(max_length=253)
+    display_name: str | None = Field(default=None, max_length=120)
     ip: IPvAnyAddress | None = None
     port: int = Field(ge=1, le=65535)
     protocol_hint: Literal["TLS", "SSH", "IKE", "SMTP", "IMAP", "POP3", "UNKNOWN"]
@@ -40,6 +41,7 @@ class TargetCreatePayload(StrictSchema):
 
 class TargetPatchPayload(StrictSchema):
     host: str | None = Field(default=None, max_length=253)
+    display_name: str | None = Field(default=None, max_length=120)
     ip: IPvAnyAddress | None = None
     port: int | None = Field(default=None, ge=1, le=65535)
     protocol_hint: Literal["TLS", "SSH", "IKE", "SMTP", "IMAP", "POP3", "UNKNOWN"] | None = None
@@ -58,10 +60,18 @@ def _normalized_context(context: dict | None):
     return {**default_context(), **(context or {})}
 
 
+def _normalized_nullable_text(value: str | None):
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
 def _serialize_target(target: Target):
     return {
         "id": target.id,
         "host": target.host,
+        "display_name": target.display_name,
         "ip": target.ip,
         "port": target.port,
         "protocol_hint": target.protocol_hint,
@@ -121,6 +131,7 @@ def list_targets(
 @router.post("/targets")
 def create_target(request, payload: TargetCreatePayload):
     data = _schema_dict(payload)
+    data["display_name"] = _normalized_nullable_text(data.get("display_name"))
     context_payload = data.pop("context", None)
     data["context"] = _normalized_context(context_payload)
     try:
@@ -152,6 +163,8 @@ def patch_target(request, target_id: int, payload: TargetPatchPayload):
         return _not_found()
 
     data = _schema_dict(payload, exclude_unset=True)
+    if "display_name" in data:
+        data["display_name"] = _normalized_nullable_text(data["display_name"])
     context_patch = data.pop("context", None)
     context_changed = False
 

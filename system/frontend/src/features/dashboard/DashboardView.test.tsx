@@ -23,6 +23,8 @@ describe("DashboardView", () => {
       trend: []
     });
     vi.spyOn(services.snapshots, "list").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 20 });
+    vi.spyOn(services.snapshots, "assets").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+    vi.spyOn(services.targets, "list").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
 
     renderWithApp(<DashboardView />);
 
@@ -59,6 +61,53 @@ describe("DashboardView", () => {
       offset: 0,
       limit: 20
     });
+    vi.spyOn(services.snapshots, "assets").mockResolvedValue({
+      items: [
+        {
+          id: 100,
+          snapshot_id: 2,
+          bom_ref: "tls:web:leaf:rsa",
+          asset_class: "crypto",
+          asset_type: "certificate",
+          name: "web.testbed.local TLS leaf certificate",
+          target_id: 10,
+          target_label: "web.testbed.local:443",
+          summary: { algorithm: "RSA-2048", algorithm_family: "RSA" },
+          risk: { score: 82, tier: "HIGH" }
+        }
+      ],
+      total: 1,
+      offset: 0,
+      limit: 100
+    });
+    vi.spyOn(services.targets, "list").mockResolvedValue({
+      items: [
+        {
+          id: 10,
+          host: "web.testbed.local",
+          display_name: "Web Server (RSA)",
+          ip: "10.10.10.21",
+          port: 443,
+          protocol_hint: "TLS",
+          sni: null,
+          transport: "TCP",
+          agent_enabled: false,
+          agent_url: null,
+          context: {
+            sensitivity: null,
+            lifespan_years: null,
+            criticality: null,
+            exposure: null,
+            service_role: null
+          },
+          created_at: "2026-04-29T00:00:00Z",
+          updated_at: "2026-04-29T00:00:00Z"
+        }
+      ],
+      total: 1,
+      offset: 0,
+      limit: 100
+    });
 
     renderWithApp(<DashboardView />);
 
@@ -69,5 +118,6 @@ describe("DashboardView", () => {
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
+    expect(await screen.findByText("네트워크 암호 노출 현황")).toBeInTheDocument();
   });
 });

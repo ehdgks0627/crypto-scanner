@@ -29,6 +29,7 @@ erDiagram
     Target {
         int id PK
         string host
+        string display_name nullable
         string ip nullable
         int port
         string protocol_hint
@@ -208,6 +209,7 @@ erDiagram
 |---|---|---|---|
 | `id` | BigAutoField | PK | |
 | `host` | CharField(253) | not null | 호스트네임. FQDN 또는 IP 문자열 |
+| `display_name` | CharField(120) | null 가능 | UI/보고서용 사람이 읽는 이름. 스캔 정체성이나 unique key에는 사용하지 않음 |
 | `ip` | GenericIPAddressField | null 가능 | 해석된 IP. null이면 매 스캔 시 해석 |
 | `port` | IntegerField | not null | 포트 번호 |
 | `protocol_hint` | CharField(20) | not null | `TLS`/`SSH`/`IKE`/`SMTP`/`IMAP`/`POP3`/`UNKNOWN` |
