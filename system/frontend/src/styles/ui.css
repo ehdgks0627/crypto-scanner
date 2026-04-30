@@ -541,6 +541,38 @@
   width: 150px;
 }
 
+.diff-change-list {
+  display: grid;
+  gap: 5px;
+}
+
+.diff-change-list__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.diff-change-list__field {
+  min-width: 86px;
+  color: var(--text-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diff-change-list__value {
+  overflow: hidden;
+  max-width: 220px;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+}
+
+.diff-change-list__arrow {
+  color: var(--text-muted);
+}
+
 .mono {
   font-family: var(--font-mono);
 }

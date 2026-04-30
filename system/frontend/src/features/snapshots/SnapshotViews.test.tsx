@@ -1,11 +1,12 @@
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { services } from "../../api/services";
 import type { Schema } from "../../api/types";
 import { useSnapshotSelectionStore } from "../../stores/snapshotSelectionStore";
 import { renderWithApp } from "../../test/test-utils";
-import { SnapshotsView } from "./SnapshotViews";
+import { SnapshotDiffView, SnapshotsView } from "./SnapshotViews";
 
 const snapshots = [
   {
@@ -91,5 +92,48 @@ describe("SnapshotsView", () => {
 
     await waitFor(() => expect(assetsSpy).toHaveBeenCalledWith(2, expect.any(Object)));
     expect(await screen.findByText("web.testbed.local TLS leaf certificate")).toBeInTheDocument();
+  });
+});
+
+describe("SnapshotDiffView", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders snapshot differences as a comparison table instead of raw JSON", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(services.snapshots, "list").mockResolvedValue({ items: snapshots, total: 2, offset: 0, limit: 100 });
+    vi.spyOn(services.snapshots, "diff").mockResolvedValue({
+      snapshot_a: 1,
+      snapshot_b: 2,
+      added: [{ bom_ref: "cert:added", type: "certificate", name: "new cert" }],
+      removed: [{ bom_ref: "cert:removed", type: "certificate", name: "old cert" }],
+      modified: [
+        {
+          bom_ref: "cert:algo",
+          type: "certificate",
+          name: "same cert",
+          field_changes: {
+            algorithm: ["RSA-2048", "ML-DSA-65"],
+            name: ["old name", "new name"]
+          }
+        }
+      ],
+      unchanged_count: 7
+    });
+
+    renderWithApp(<SnapshotDiffView id={2} />);
+    await screen.findByRole("option", { name: /#1/ });
+    await user.selectOptions(await screen.findByRole("combobox"), "1");
+
+    expect(await screen.findByText("변경 자산 비교")).toBeInTheDocument();
+    expect(screen.getByText("cert:added")).toBeInTheDocument();
+    expect(screen.getByText("Snapshot #2에만 있음")).toBeInTheDocument();
+    expect(screen.getByText("cert:removed")).toBeInTheDocument();
+    expect(screen.getByText("Snapshot #1에만 있음")).toBeInTheDocument();
+    expect(screen.getByText("cert:algo")).toBeInTheDocument();
+    expect(screen.getByText("RSA-2048")).toBeInTheDocument();
+    expect(screen.getByText("ML-DSA-65")).toBeInTheDocument();
+    expect(screen.queryByText("Raw Diff")).not.toBeInTheDocument();
   });
 });

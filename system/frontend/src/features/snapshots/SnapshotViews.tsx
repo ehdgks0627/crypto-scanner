@@ -13,6 +13,7 @@ import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { MetricCard } from "../../components/charts/MetricCard";
 import { AssetGraph } from "../../components/graph/AssetGraph";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
@@ -445,17 +446,112 @@ export function SnapshotDiffView({ id }: { id: number }) {
       {diff.isLoading ? <LoadingState /> : null}
       {diff.isError ? <ErrorState error={diff.error} onRetry={() => void diff.refetch()} /> : null}
       {diff.data ? (
-        <div className="content-grid content-grid--4">
-          <MetricCard label="Added" value={diff.data.added.length} />
-          <MetricCard label="Removed" value={diff.data.removed.length} />
-          <MetricCard label="Modified" value={diff.data.modified.length} />
-          <MetricCard label="Unchanged" value={diff.data.unchanged_count} />
+        <div className="section-stack">
+          <div className="content-grid content-grid--4">
+            <MetricCard label="Added" value={diff.data.added.length} />
+            <MetricCard label="Removed" value={diff.data.removed.length} />
+            <MetricCard label="Modified" value={diff.data.modified.length} />
+            <MetricCard label="Unchanged" value={diff.data.unchanged_count} />
+          </div>
           <Card className="is-wide">
-            <CardHeader><CardTitle>Raw Diff</CardTitle></CardHeader>
-            <CardContent><JsonPreview value={diff.data} /></CardContent>
+            <CardHeader><CardTitle>변경 자산 비교</CardTitle></CardHeader>
+            <CardContent>
+              <DataTable
+                items={buildDiffRows(diff.data)}
+                getRowKey={(item, index) => `${item.status}:${item.bom_ref}:${index}`}
+                empty={<EmptyState title="변경된 자산이 없습니다" description="두 Snapshot의 자산 구성이 동일합니다." />}
+                columns={[
+                  { key: "status", header: "상태", render: (item) => <DiffStatusBadge status={item.status} /> },
+                  { key: "bom_ref", header: "BOM Ref", render: (item) => <span className="mono">{item.bom_ref}</span> },
+                  { key: "type", header: "Type", render: (item) => item.type },
+                  { key: "name", header: "Name", render: (item) => item.name },
+                  { key: "changes", header: "비교 내용", render: (item) => <DiffChangeSummary item={item} /> }
+                ]}
+              />
+            </CardContent>
           </Card>
         </div>
       ) : null}
     </Section>
   );
+}
+
+type DiffRowStatus = "added" | "removed" | "modified";
+
+type DiffRow = {
+  status: DiffRowStatus;
+  bom_ref: string;
+  type: string;
+  name: string;
+  snapshotA: number;
+  snapshotB: number;
+  field_changes?: Record<string, unknown[]>;
+};
+
+function buildDiffRows(diff: Schema<"CbomDiff">): DiffRow[] {
+  return [
+    ...diff.added.map((asset) => ({
+      status: "added" as const,
+      snapshotA: diff.snapshot_a,
+      snapshotB: diff.snapshot_b,
+      ...asset
+    })),
+    ...diff.removed.map((asset) => ({
+      status: "removed" as const,
+      snapshotA: diff.snapshot_a,
+      snapshotB: diff.snapshot_b,
+      ...asset
+    })),
+    ...diff.modified.map((asset) => ({
+      status: "modified" as const,
+      snapshotA: diff.snapshot_a,
+      snapshotB: diff.snapshot_b,
+      ...asset
+    }))
+  ];
+}
+
+function DiffStatusBadge({ status }: { status: DiffRowStatus }) {
+  if (status === "added") {
+    return <Badge tone="green">추가</Badge>;
+  }
+  if (status === "removed") {
+    return <Badge tone="red">삭제</Badge>;
+  }
+  return <Badge tone="blue">변경</Badge>;
+}
+
+function DiffChangeSummary({ item }: { item: DiffRow }) {
+  if (item.status === "added") {
+    return <span>Snapshot #{item.snapshotB}에만 있음</span>;
+  }
+  if (item.status === "removed") {
+    return <span>Snapshot #{item.snapshotA}에만 있음</span>;
+  }
+  const changes = Object.entries(item.field_changes ?? {});
+  if (!changes.length) {
+    return <span>-</span>;
+  }
+  return (
+    <div className="diff-change-list">
+      {changes.map(([field, values]) => (
+        <div key={field} className="diff-change-list__item">
+          <span className="diff-change-list__field">{field}</span>
+          <span className="diff-change-list__value">{formatDiffValue(values[0])}</span>
+          <span className="diff-change-list__arrow">→</span>
+          <span className="diff-change-list__value">{formatDiffValue(values[1])}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatDiffValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }
