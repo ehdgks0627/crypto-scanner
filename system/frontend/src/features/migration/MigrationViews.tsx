@@ -13,6 +13,7 @@ import { EmptyState, ErrorState, LoadingState, Section } from "../../components/
 import { MigrationReportBuilder } from "../../domain/migrationReport";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
 import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
 import { parseRiskTierParam, riskTierOptions } from "../../domain/filterOptions";
@@ -164,7 +165,9 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                   { key: "asset", header: "Asset", render: (item) => item.asset_name ?? item.current?.algorithm ?? "-" },
                   { key: "current", header: "Current", render: (item) => item.current.algorithm ?? "-" },
                   { key: "strategy", header: "Strategy", render: (item) => item.recommendation.strategy },
+                  { key: "phase", header: "Phase", render: (item) => item.recommendation.phase },
                   { key: "target", header: "Target", render: (item) => item.recommendation.target_algorithm },
+                  { key: "agility", header: "Agility", render: (item) => <AgilityBadge agility={item.agility} /> },
                   { key: "score", header: "Score", render: (item) => formatScore(item.risk_score) },
                   { key: "tier", header: "Tier", render: (item) => <RiskTierBadge tier={item.tier} /> }
                 ]}
@@ -202,6 +205,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                 { key: "asset", header: "Asset", render: (item) => item.asset_name },
                 { key: "risk", header: "Risk", render: (item) => `${formatScore(item.risk_score)} / ${item.tier}` },
                 { key: "recommendation", header: "Recommendation", render: (item) => `${item.recommendation.strategy} -> ${item.recommendation.target_algorithm}` },
+                { key: "agility", header: "Agility", render: (item) => `${item.agility.score} / ${item.agility.level}` },
                 { key: "rationale", header: "Rationale", render: (item) => item.recommendation.rationale },
                 {
                   key: "remove",
@@ -218,6 +222,44 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
           </CardContent>
         </Card>
       ) : null}
+      {selectedItems.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Crypto Agility Playbook</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="migration-playbook-list">
+              {selectedItems.map((item) => (
+                <div key={item.asset_id} className="migration-playbook-item">
+                  <div className="migration-playbook-item__header">
+                    <strong>{item.asset_name}</strong>
+                    <AgilityBadge agility={item.agility} />
+                  </div>
+                  <dl className="detail-list">
+                    <div><dt>Blockers</dt><dd>{item.agility.blockers.length ? item.agility.blockers.join(", ") : "-"}</dd></div>
+                    <div><dt>Rollback</dt><dd>{item.recommendation.rollback}</dd></div>
+                    <div><dt>Validation</dt><dd>{item.recommendation.validation.join(", ")}</dd></div>
+                  </dl>
+                  <ol className="migration-playbook-steps">
+                    {item.playbook.map((step) => (
+                      <li key={`${item.asset_id}-${step.order}`}>
+                        <span className="mono">{step.kind}</span>
+                        <strong>{step.title}</strong>
+                        <span>{step.action}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
     </Section>
   );
+}
+
+function AgilityBadge({ agility }: { agility: Schema<"MigrationAgility"> }) {
+  const tone = agility.level === "HIGH" ? "green" : agility.level === "MEDIUM" ? "yellow" : "red";
+  return <Badge tone={tone}>{agility.score} · {agility.level}</Badge>;
 }

@@ -13,6 +13,7 @@ COPY pyproject.toml ./
 COPY manage.py ./
 COPY apps ./apps
 COPY pqc_ras ./pqc_ras
+COPY migration_engine ./migration_engine
 COPY risk_engine ./risk_engine
 COPY fixtures ./fixtures
 COPY entrypoint.sh /usr/local/bin/crypto-scanner-backend

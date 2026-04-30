@@ -1083,10 +1083,18 @@ export interface components {
             key_size_bits?: number | null;
             quantum_vulnerable?: boolean;
         };
+        /** @enum {string} */
+        MigrationRecommendationPhase: "hybrid_first" | "replace_now" | "monitor";
         MigrationRecommendation: {
             /** @enum {string} */
             strategy: "replace" | "hybrid" | "no_change";
             target_algorithm: string;
+            target_algorithm_set: string[];
+            final_algorithm_set: string[];
+            phase: components["schemas"]["MigrationRecommendationPhase"];
+            blockers: string[];
+            rollback: string;
+            validation: string[];
             rationale: string;
             confidence: number;
         };
@@ -1094,6 +1102,20 @@ export interface components {
             strategy: string;
             target_algorithm: string;
             trade_off: string;
+        };
+        MigrationAgility: {
+            score: number;
+            /** @enum {string} */
+            level: "HIGH" | "MEDIUM" | "LOW";
+            blockers: string[];
+            enablers: string[];
+        };
+        MigrationPlaybookStep: {
+            order: number;
+            kind: string;
+            title: string;
+            action: string;
+            validation: string;
         };
         MigrationPlanItem: {
             asset_id: number;
@@ -1104,6 +1126,8 @@ export interface components {
             alternatives: components["schemas"]["MigrationAlternative"][];
             risk_score: number;
             tier: components["schemas"]["RiskTier"];
+            agility: components["schemas"]["MigrationAgility"];
+            playbook: components["schemas"]["MigrationPlaybookStep"][];
         };
         MigrationPlanPage: components["schemas"]["PageBase"] & {
             items: components["schemas"]["MigrationPlanItem"][];

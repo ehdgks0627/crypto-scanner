@@ -220,12 +220,24 @@ function resolveNavPath(item: NavItem, snapshotSidebarState: SnapshotSidebarStat
   if (item.key === "assets") {
     return "/snapshots";
   }
+  if (item.key === "risk") {
+    return snapshotSidebarState.riskPath;
+  }
+  if (item.key === "migration") {
+    return snapshotSidebarState.migrationPath;
+  }
   return item.to;
 }
 
 function isSpecialNavActive(item: NavItem, snapshotSidebarState: SnapshotSidebarState) {
   if (item.key === "assets") {
     return snapshotSidebarState.activeSection === "snapshot";
+  }
+  if (item.key === "risk") {
+    return snapshotSidebarState.activeSection === "risk";
+  }
+  if (item.key === "migration") {
+    return snapshotSidebarState.activeSection === "migration";
   }
   return null;
 }

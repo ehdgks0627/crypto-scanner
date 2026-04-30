@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { Schema } from "../api/types";
 import { MigrationReportBuilder } from "./migrationReport";
 
 describe("MigrationReportBuilder", () => {
@@ -7,7 +8,7 @@ describe("MigrationReportBuilder", () => {
     const report = new MigrationReportBuilder(
       56,
       [
-        {
+        makeMigrationItem({
           asset_id: 9001,
           asset_name: "cert-leaf-web-rsa2048",
           asset_type: "certificate",
@@ -15,13 +16,21 @@ describe("MigrationReportBuilder", () => {
           recommendation: {
             strategy: "hybrid",
             target_algorithm: "ML-DSA-65 + ECDSA-P256",
+            target_algorithm_set: ["ML-DSA-65", "ECDSA-P256"],
+            final_algorithm_set: ["ML-DSA-65"],
+            phase: "hybrid_first",
+            blockers: ["runtime_capability_unknown"],
+            rollback: "Keep the existing RSA path enabled.",
+            validation: ["rescan_crypto_inventory"],
             rationale: "Public TLS certificate should migrate before long-lived exposure increases.",
             confidence: 0.82
           },
           alternatives: [{ strategy: "replace", target_algorithm: "ML-DSA-65", trade_off: "requires client compatibility review" }],
           risk_score: 91,
-          tier: "CRITICAL"
-        }
+          tier: "CRITICAL",
+          agility: { score: 45, level: "MEDIUM", blockers: ["runtime_capability_unknown"], enablers: ["config_policy"] },
+          playbook: [{ order: 1, kind: "enable_hybrid", title: "Enable hybrid transition", action: "Deploy hybrid certificate.", validation: "Rescan." }]
+        })
       ],
       {
         selected_count: 1,
@@ -41,6 +50,8 @@ describe("MigrationReportBuilder", () => {
     expect(report).toContain("### 1. cert-leaf-web-rsa2048");
     expect(report).toContain("- Current: RSA/2048bit (quantum-vulnerable)");
     expect(report).toContain("- Recommendation: hybrid -> ML-DSA-65 + ECDSA-P256");
+    expect(report).toContain("- Agility: 45/100 (MEDIUM)");
+    expect(report).toContain("- Playbook: 1. Enable hybrid transition: Deploy hybrid certificate.");
     expect(report).toContain("replace -> ML-DSA-65");
   });
 
@@ -55,7 +66,7 @@ describe("MigrationReportBuilder", () => {
     const report = new MigrationReportBuilder(
       7,
       [
-        {
+        makeMigrationItem({
           asset_id: 3,
           asset_name: "safe-protocol",
           asset_type: "protocol",
@@ -63,13 +74,21 @@ describe("MigrationReportBuilder", () => {
           recommendation: {
             strategy: "no_change",
             target_algorithm: "ML-KEM",
+            target_algorithm_set: ["ML-KEM"],
+            final_algorithm_set: ["ML-KEM"],
+            phase: "monitor",
+            blockers: [],
+            rollback: "No rollout is required.",
+            validation: ["periodic_rescan"],
             rationale: "Already PQC ready.",
             confidence: 0.9
           },
           alternatives: [],
           risk_score: 12,
-          tier: "LOW"
-        }
+          tier: "LOW",
+          agility: { score: 85, level: "HIGH", blockers: [], enablers: ["automated_rotation"] },
+          playbook: [{ order: 1, kind: "monitor", title: "Monitor cryptographic posture", action: "Rescan periodically.", validation: "Confirm unchanged." }]
+        })
       ],
       undefined,
       new Date("2026-04-29T00:00:00Z")
@@ -79,3 +98,7 @@ describe("MigrationReportBuilder", () => {
     expect(report).toContain("- Alternatives: -");
   });
 });
+
+function makeMigrationItem(overrides: Schema<"MigrationPlanItem">) {
+  return overrides;
+}

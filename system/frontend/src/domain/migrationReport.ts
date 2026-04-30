@@ -63,9 +63,16 @@ export class MigrationReportBuilder {
       `- Risk: ${formatScore(item.risk_score)} (${item.tier})`,
       `- Current: ${this.currentAlgorithm(item)}`,
       `- Recommendation: ${item.recommendation.strategy} -> ${item.recommendation.target_algorithm}`,
+      `- Phase: ${item.recommendation.phase}`,
+      `- Final algorithm set: ${item.recommendation.final_algorithm_set.join(", ")}`,
+      `- Agility: ${item.agility.score}/100 (${item.agility.level})`,
+      `- Blockers: ${item.agility.blockers.length ? item.agility.blockers.join(", ") : "-"}`,
+      `- Validation: ${item.recommendation.validation.length ? item.recommendation.validation.join(", ") : "-"}`,
+      `- Rollback: ${item.recommendation.rollback}`,
       `- Rationale: ${item.recommendation.rationale}`,
       `- Confidence: ${Math.round(item.recommendation.confidence * 100)}%`,
       `- Alternatives: ${this.alternatives(item)}`,
+      `- Playbook: ${this.playbook(item)}`,
       ""
     ]);
   }
@@ -83,5 +90,13 @@ export class MigrationReportBuilder {
     }
 
     return item.alternatives.map((alternative) => `${alternative.strategy} -> ${alternative.target_algorithm} (${alternative.trade_off})`).join("; ");
+  }
+
+  private playbook(item: MigrationPlanItem): string {
+    if (item.playbook.length === 0) {
+      return "-";
+    }
+
+    return item.playbook.map((step) => `${step.order}. ${step.title}: ${step.action}`).join("; ");
   }
 }

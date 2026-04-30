@@ -12,6 +12,12 @@
       "recommendation": {
         "strategy": "hybrid",
         "target_algorithm": "RSA-2048 + ML-DSA-65 (hybrid certificate)",
+        "target_algorithm_set": ["RSA-2048", "ML-DSA-65"],
+        "final_algorithm_set": ["ML-DSA-65"],
+        "phase": "hybrid_first",
+        "blockers": ["runtime_capability_unknown", "validation_probe_missing"],
+        "rollback": "Keep the existing RSA-2048 path enabled until hybrid compatibility is verified.",
+        "validation": ["rescan_crypto_inventory", "verify_client_compatibility", "validate_certificate_chain"],
         "rationale": "Long-lived data and high criticality justify a hybrid transition profile.",
         "confidence": 0.7
       },
@@ -23,7 +29,29 @@
         }
       ],
       "risk_score": 84,
-      "tier": "CRITICAL"
+      "tier": "CRITICAL",
+      "agility": {
+        "score": 36,
+        "level": "LOW",
+        "blockers": ["runtime_capability_unknown", "validation_probe_missing"],
+        "enablers": ["inventory_fresh"]
+      },
+      "playbook": [
+        {
+          "order": 1,
+          "kind": "remove_blockers",
+          "title": "Resolve agility blockers",
+          "action": "Address blockers before rollout: runtime_capability_unknown, validation_probe_missing.",
+          "validation": "Repeat discovery and confirm capabilities are known."
+        },
+        {
+          "order": 2,
+          "kind": "enable_hybrid",
+          "title": "Enable hybrid transition",
+          "action": "Deploy RSA-2048 + ML-DSA-65 while retaining the classical fallback.",
+          "validation": "rescan_crypto_inventory; verify_client_compatibility; validate_certificate_chain"
+        }
+      ]
     }
   ],
   "total": 23,

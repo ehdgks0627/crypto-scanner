@@ -2631,15 +2631,49 @@ components:
         quantum_vulnerable:
           type: boolean
 
+    MigrationRecommendationPhase:
+      type: string
+      enum: [hybrid_first, replace_now, monitor]
+
     MigrationRecommendation:
       type: object
-      required: [strategy, target_algorithm, rationale, confidence]
+      required:
+        - strategy
+        - target_algorithm
+        - target_algorithm_set
+        - final_algorithm_set
+        - phase
+        - blockers
+        - rollback
+        - validation
+        - rationale
+        - confidence
       properties:
         strategy:
           type: string
           enum: [replace, hybrid, no_change]
         target_algorithm:
           type: string
+        target_algorithm_set:
+          type: array
+          items:
+            type: string
+        final_algorithm_set:
+          type: array
+          items:
+            type: string
+        phase:
+          $ref: '#/components/schemas/MigrationRecommendationPhase'
+        blockers:
+          type: array
+          items:
+            type: string
+        rollback:
+          type: string
+        validation:
+          type: array
+          items:
+            type: string
         rationale:
           type: string
         confidence:
@@ -2658,6 +2692,42 @@ components:
         trade_off:
           type: string
 
+    MigrationAgility:
+      type: object
+      required: [score, level, blockers, enablers]
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        level:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        blockers:
+          type: array
+          items:
+            type: string
+        enablers:
+          type: array
+          items:
+            type: string
+
+    MigrationPlaybookStep:
+      type: object
+      required: [order, kind, title, action, validation]
+      properties:
+        order:
+          type: integer
+          minimum: 1
+        kind:
+          type: string
+        title:
+          type: string
+        action:
+          type: string
+        validation:
+          type: string
+
     MigrationPlanItem:
       type: object
       required:
@@ -2669,6 +2739,8 @@ components:
         - alternatives
         - risk_score
         - tier
+        - agility
+        - playbook
       properties:
         asset_id:
           type: integer
@@ -2690,6 +2762,12 @@ components:
           maximum: 100
         tier:
           $ref: '#/components/schemas/RiskTier'
+        agility:
+          $ref: '#/components/schemas/MigrationAgility'
+        playbook:
+          type: array
+          items:
+            $ref: '#/components/schemas/MigrationPlaybookStep'
 
     MigrationPlanPage:
       allOf:

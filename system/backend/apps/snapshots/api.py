@@ -13,6 +13,7 @@ from apps.risk import services as risk_services
 from apps.risk.models import RiskScore
 from apps.snapshots.cbom import build_cbom_document
 from apps.snapshots.models import CbomSnapshot
+from migration_engine import recommend_migration
 
 
 router = Router(tags=["Snapshots"])
@@ -221,7 +222,7 @@ def list_snapshot_risks(
         )
 
     selected_tiers = tiers[0].split(",") if tiers and tiers[0] else []
-    queryset = RiskScore.objects.filter(snapshot_id=snapshot_id).select_related("asset").order_by("-score")
+    queryset = RiskScore.objects.filter(snapshot_id=snapshot_id).select_related("asset", "asset__target").order_by("-score")
     if selected_tiers:
         queryset = queryset.filter(tier__in=selected_tiers)
     if min_score is not None:
@@ -301,39 +302,35 @@ def get_migration_plan(
     total = queryset.count()
     items = []
     for risk_score in queryset[offset : offset + limit]:
-        strategy = "no_change" if not risk_score.asset.algorithm.startswith("RSA") else "hybrid"
+        asset = risk_score.asset
+        context = risk_score.factors.get("context", {}) if isinstance(risk_score.factors, dict) else {}
         items.append(
-            {
-                "asset_id": risk_score.asset_id,
-                "asset_name": risk_score.asset.name,
-                "asset_type": risk_score.asset.asset_type,
-                "current": {
-                    "algorithm": risk_score.asset.algorithm,
-                    "key_size_bits": None,
-                    "quantum_vulnerable": risk_score.asset.algorithm_family in {"RSA", "ECDSA", "ECDH", "DH"},
-                },
-                "recommendation": {
-                    "strategy": strategy,
-                    "target_algorithm": "RSA-2048 + ML-DSA-65" if strategy == "hybrid" else risk_score.asset.algorithm,
-                    "rationale": "RSA-family assets should migrate with a hybrid PQC transition."
-                    if strategy == "hybrid"
-                    else "No immediate PQC migration is required for this asset.",
-                    "confidence": 0.8,
-                },
-                "alternatives": [
-                    {
-                        "strategy": "replace",
-                        "target_algorithm": "ML-DSA-65",
-                        "trade_off": "Removes classical dependency but requires compatibility validation.",
-                    }
-                ]
-                if strategy == "hybrid"
-                else [],
-                "risk_score": round(risk_score.score),
-                "tier": risk_score.tier,
-            }
+            recommend_migration(
+                asset_id=risk_score.asset_id,
+                asset_name=asset.name,
+                asset_type=asset.asset_type,
+                algorithm=asset.algorithm,
+                algorithm_family=asset.algorithm_family,
+                risk_score=round(risk_score.score),
+                tier=risk_score.tier,
+                context=context,
+                capabilities=_migration_capabilities(asset),
+            )
         )
     return page_envelope(items, offset=offset, limit=limit, total=total)
+
+
+def _migration_capabilities(asset):
+    capabilities = {"inventory_fresh"}
+    if asset.target:
+        capabilities.add("owner_known")
+        if asset.target.agent_enabled:
+            capabilities.update({"config_policy", "rescan_validation"})
+        if asset.target.context and asset.target.context.get("service_role"):
+            capabilities.add("canary_supported")
+    if asset.asset_type in {"certificate", "key"}:
+        capabilities.add("rollback_supported")
+    return sorted(capabilities)
 
 
 @router.get("/snapshots/{snapshot_id}/migration-plan/impact")

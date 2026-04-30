@@ -246,7 +246,20 @@ def test_api_mig_001_migration_plan_returns_recommendation_page(client):
     item = response.json()["items"][0]
     assert {"asset_id", "asset_name", "asset_type", "current", "recommendation", "alternatives", "risk_score", "tier"} <= set(item)
     assert item["recommendation"]["strategy"] in {"replace", "hybrid", "no_change"}
-    assert {"strategy", "target_algorithm", "rationale", "confidence"} <= set(item["recommendation"])
+    assert {
+        "strategy",
+        "target_algorithm",
+        "target_algorithm_set",
+        "final_algorithm_set",
+        "phase",
+        "blockers",
+        "rollback",
+        "validation",
+        "rationale",
+        "confidence",
+    } <= set(item["recommendation"])
+    assert {"score", "level", "blockers", "enablers"} <= set(item["agility"])
+    assert item["playbook"]
 
 
 def test_api_mig_004_migration_plan_applies_contract_filters_and_pagination(client):
@@ -298,10 +311,13 @@ def test_api_mig_006_migration_plan_marks_rsa_hybrid_and_safe_no_change(client):
     assert response.status_code == 200
     by_asset = {item["asset_id"]: item for item in response.json()["items"]}
     assert by_asset[rsa_asset.id]["recommendation"]["strategy"] == "hybrid"
+    assert by_asset[rsa_asset.id]["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
+    assert by_asset[rsa_asset.id]["recommendation"]["phase"] == "hybrid_first"
     assert by_asset[rsa_asset.id]["current"]["quantum_vulnerable"] is True
     assert by_asset[rsa_asset.id]["risk_score"] == 95
     assert by_asset[pqc_asset.id]["recommendation"]["strategy"] == "no_change"
     assert by_asset[pqc_asset.id]["current"]["quantum_vulnerable"] is False
+    assert by_asset[pqc_asset.id]["recommendation"]["phase"] == "monitor"
 
 
 def test_api_mig_007_migration_plan_rejects_non_integer_asset_ids(client):
