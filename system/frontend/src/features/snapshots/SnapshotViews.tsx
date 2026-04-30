@@ -419,6 +419,7 @@ export function SnapshotDiffView({ id }: { id: number }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const otherId = searchParams.get("other") ? Number(searchParams.get("other")) : undefined;
   const [selectedBomRef, setSelectedBomRef] = useState<string | null>(null);
+  const [showAllAssets, setShowAllAssets] = useState(false);
   const snapshots = useQuery({ queryKey: queryKeys.snapshots.all, queryFn: () => services.snapshots.list() });
   const diff = useQuery({
     queryKey: queryKeys.snapshots.diff(id, otherId),
@@ -451,11 +452,16 @@ export function SnapshotDiffView({ id }: { id: number }) {
       setSelectedBomRef(null);
       return;
     }
-    if (selectedBomRef && (previousAssetByBomRef.has(selectedBomRef) || currentAssetByBomRef.has(selectedBomRef))) {
+    const selectedStatus = selectedBomRef ? getPairedDiffStatus(selectedBomRef, diffIndex) : null;
+    if (
+      selectedBomRef &&
+      (previousAssetByBomRef.has(selectedBomRef) || currentAssetByBomRef.has(selectedBomRef)) &&
+      (showAllAssets || selectedStatus !== "unchanged")
+    ) {
       return;
     }
-    setSelectedBomRef(getDefaultDiffSelection(diff.data, previousAssetItems, currentAssetItems));
-  }, [currentAssetByBomRef, currentAssetItems, diff.data, otherId, previousAssetByBomRef, previousAssetItems, selectedBomRef]);
+    setSelectedBomRef(getDefaultDiffSelection(diff.data, showAllAssets, previousAssetItems, currentAssetItems));
+  }, [currentAssetByBomRef, currentAssetItems, diff.data, diffIndex, otherId, previousAssetByBomRef, previousAssetItems, selectedBomRef, showAllAssets]);
 
   return (
     <Section>
@@ -495,20 +501,31 @@ export function SnapshotDiffView({ id }: { id: number }) {
             <MetricCard label="Modified" value={diff.data.modified.length} />
             <MetricCard label="Unchanged" value={diff.data.unchanged_count} />
           </div>
+          <Card>
+            <CardContent>
+              <label className="inline-actions">
+                <Checkbox checked={showAllAssets} onChange={(event) => setShowAllAssets(event.target.checked)} aria-label="전체보기" />
+                <span>전체보기</span>
+              </label>
+            </CardContent>
+          </Card>
           <div className="snapshot-diff-grid">
             <DiffAssetTable
               title={`Snapshot #${diff.data.snapshot_a}`}
               side="previous"
               assets={previousAssetItems}
               diffIndex={diffIndex}
+              showAllAssets={showAllAssets}
               selectedBomRef={selectedBomRef}
               onSelect={setSelectedBomRef}
             />
             <DiffAssetTable
               title={`Snapshot #${diff.data.snapshot_b}`}
+              latest
               side="current"
               assets={currentAssetItems}
               diffIndex={diffIndex}
+              showAllAssets={showAllAssets}
               selectedBomRef={selectedBomRef}
               onSelect={setSelectedBomRef}
             />
@@ -521,6 +538,7 @@ export function SnapshotDiffView({ id }: { id: number }) {
             currentAsset={selectedCurrentAsset}
             modifiedAsset={selectedModifiedAsset}
             status={selectedBomRef ? getPairedDiffStatus(selectedBomRef, diffIndex) : "unchanged"}
+            currentIsLatest
           />
         </div>
       ) : null}
@@ -542,25 +560,37 @@ type DiffIndex = {
 
 function DiffAssetTable({
   title,
+  latest = false,
   side,
   assets,
   diffIndex,
+  showAllAssets,
   selectedBomRef,
   onSelect
 }: {
   title: string;
+  latest?: boolean;
   side: DiffSide;
   assets: DiffAsset[];
   diffIndex: DiffIndex;
+  showAllAssets: boolean;
   selectedBomRef: string | null;
   onSelect: (bomRef: string) => void;
 }) {
+  const visibleAssets = showAllAssets ? assets : assets.filter((asset) => getSideDiffStatus(asset.bom_ref, side, diffIndex) !== "unchanged");
   return (
     <Card>
-      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>
+          <span className="snapshot-diff-title">
+            {title}
+            {latest ? <Badge tone="purple">최신</Badge> : null}
+          </span>
+        </CardTitle>
+      </CardHeader>
       <CardContent>
         <DataTable
-          items={assets}
+          items={visibleAssets}
           getRowKey={(asset) => asset.bom_ref}
           empty={<EmptyState title="자산이 없습니다" />}
           columns={[
@@ -594,7 +624,8 @@ function SelectedAssetComparison({
   previousAsset,
   currentAsset,
   modifiedAsset,
-  status
+  status,
+  currentIsLatest = false
 }: {
   snapshotA: number;
   snapshotB: number;
@@ -603,6 +634,7 @@ function SelectedAssetComparison({
   currentAsset: DiffAsset | null;
   modifiedAsset: Schema<"CbomDiffModifiedAsset"> | null;
   status: DiffAssetStatus;
+  currentIsLatest?: boolean;
 }) {
   return (
     <Card>
@@ -619,7 +651,7 @@ function SelectedAssetComparison({
             </div>
             <div className="snapshot-diff-detail__assets">
               <DiffAssetSummary title={`Snapshot #${snapshotA}`} asset={previousAsset} emptyLabel="이전 Snapshot에 없음" />
-              <DiffAssetSummary title={`Snapshot #${snapshotB}`} asset={currentAsset} emptyLabel="현재 Snapshot에 없음" />
+              <DiffAssetSummary title={`Snapshot #${snapshotB}`} latest={currentIsLatest} asset={currentAsset} emptyLabel="현재 Snapshot에 없음" />
             </div>
             <div className="snapshot-diff-detail__changes">
               <h3>변경 필드</h3>
@@ -632,10 +664,15 @@ function SelectedAssetComparison({
   );
 }
 
-function DiffAssetSummary({ title, asset, emptyLabel }: { title: string; asset: DiffAsset | null; emptyLabel: string }) {
+function DiffAssetSummary({ title, latest = false, asset, emptyLabel }: { title: string; latest?: boolean; asset: DiffAsset | null; emptyLabel: string }) {
   return (
     <div className="snapshot-diff-asset-summary">
-      <h3>{title}</h3>
+      <h3>
+        <span className="snapshot-diff-title">
+          {title}
+          {latest ? <Badge tone="purple">최신</Badge> : null}
+        </span>
+      </h3>
       {asset ? (
         <dl className="detail-list">
           <div><dt>Name</dt><dd>{asset.name}</dd></div>
@@ -745,13 +782,12 @@ function getPairedDiffStatus(bomRef: string, diffIndex: DiffIndex): DiffAssetSta
   return "unchanged";
 }
 
-function getDefaultDiffSelection(diff: Schema<"CbomDiff">, previousAssets: DiffAsset[], currentAssets: DiffAsset[]) {
+function getDefaultDiffSelection(diff: Schema<"CbomDiff">, showAllAssets: boolean, previousAssets: DiffAsset[], currentAssets: DiffAsset[]) {
   return (
     diff.modified[0]?.bom_ref ??
     diff.added[0]?.bom_ref ??
     diff.removed[0]?.bom_ref ??
-    currentAssets[0]?.bom_ref ??
-    previousAssets[0]?.bom_ref ??
+    (showAllAssets ? currentAssets[0]?.bom_ref ?? previousAssets[0]?.bom_ref : null) ??
     null
   );
 }

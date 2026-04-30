@@ -126,11 +126,13 @@ describe("SnapshotDiffView", () => {
         snapshotId === 1
           ? [
               makeAsset({ id: 10, snapshot_id: 1, bom_ref: "cert:removed", name: "old cert", summary: { algorithm: "RSA-2048", algorithm_family: "RSA" } }),
-              makeAsset({ id: 11, snapshot_id: 1, bom_ref: "cert:algo", name: "old name", summary: { algorithm: "RSA-2048", algorithm_family: "RSA" } })
+              makeAsset({ id: 11, snapshot_id: 1, bom_ref: "cert:algo", name: "old name", summary: { algorithm: "RSA-2048", algorithm_family: "RSA" } }),
+              makeAsset({ id: 12, snapshot_id: 1, bom_ref: "cert:same", name: "same cert", summary: { algorithm: "ECDSA", algorithm_family: "ECDSA" } })
             ]
           : [
               makeAsset({ id: 20, snapshot_id: 2, bom_ref: "cert:added", name: "new cert", summary: { algorithm: "ML-KEM-768", algorithm_family: "ML-KEM" } }),
-              makeAsset({ id: 21, snapshot_id: 2, bom_ref: "cert:algo", name: "new name", summary: { algorithm: "ML-DSA-65", algorithm_family: "ML-DSA" } })
+              makeAsset({ id: 21, snapshot_id: 2, bom_ref: "cert:algo", name: "new name", summary: { algorithm: "ML-DSA-65", algorithm_family: "ML-DSA" } }),
+              makeAsset({ id: 22, snapshot_id: 2, bom_ref: "cert:same", name: "same cert", summary: { algorithm: "ECDSA", algorithm_family: "ECDSA" } })
             ],
       total: 2,
       offset: 0,
@@ -143,9 +145,11 @@ describe("SnapshotDiffView", () => {
 
     expect((await screen.findAllByText("Snapshot #1")).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Snapshot #2").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("최신").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("cert:added")).toBeInTheDocument();
     expect(screen.getByText("cert:removed")).toBeInTheDocument();
     expect(screen.getAllByText("cert:algo").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("cert:same")).not.toBeInTheDocument();
     expect(screen.getByText("선택 자산 비교")).toBeInTheDocument();
     expect(screen.getAllByText("RSA-2048").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("ML-DSA-65").length).toBeGreaterThanOrEqual(1);
@@ -153,6 +157,9 @@ describe("SnapshotDiffView", () => {
 
     await user.click(screen.getByRole("button", { name: "cert:added" }));
     expect(screen.getByText("Snapshot #2에만 존재합니다.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "전체보기" }));
+    expect(screen.getAllByText("cert:same").length).toBeGreaterThanOrEqual(2);
   });
 });
 

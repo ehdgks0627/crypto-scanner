@@ -580,6 +580,13 @@
   align-items: start;
 }
 
+.snapshot-diff-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 .diff-select-button {
   max-width: 220px;
   overflow: hidden;
