@@ -150,11 +150,14 @@ describe("SnapshotDiffView", () => {
     expect(screen.getByText("cert:removed")).toBeInTheDocument();
     expect(screen.getAllByText("cert:algo").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("cert:same")).not.toBeInTheDocument();
-    expect(screen.getByText("선택 자산 비교")).toBeInTheDocument();
+    const comparisonHeading = screen.getByText("선택 자산 비교");
+    expect(comparisonHeading).toBeInTheDocument();
+    expect(comparisonHeading.compareDocumentPosition(screen.getByRole("button", { name: "cert:removed" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getAllByText("RSA-2048").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("ML-DSA-65").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Raw Diff")).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "cert:algo" })[0].closest("tr")).toHaveClass("is-selected");
+    expect(screen.getByRole("button", { name: "cert:removed" }).closest(".snapshot-diff-table-card")).not.toBeNull();
     expect(screen.getByRole("checkbox", { name: "전체보기" }).closest(".snapshot-diff-controls")).not.toBeNull();
 
     await user.click(screen.getByRole("button", { name: "cert:added" }));

@@ -618,10 +618,23 @@
 .snapshot-diff-grid > .ui-card > .ui-card__content {
   display: flex;
   min-width: 0;
+  align-items: stretch;
 }
 
 .snapshot-diff-grid .ui-table-wrap {
   flex: 1 1 auto;
+  align-self: stretch;
+}
+
+.snapshot-diff-table-card .ui-table th:first-child,
+.snapshot-diff-table-card .ui-table td:first-child {
+  width: 82px;
+  min-width: 82px;
+}
+
+.snapshot-diff-table-card .ui-table td:first-child .ui-badge {
+  justify-content: center;
+  min-width: 42px;
 }
 
 .snapshot-diff-title {

@@ -507,6 +507,16 @@ export function SnapshotDiffView({ id }: { id: number }) {
             <MetricCard label="Modified" value={diff.data.modified.length} />
             <MetricCard label="Unchanged" value={diff.data.unchanged_count} />
           </div>
+          <SelectedAssetComparison
+            snapshotA={diff.data.snapshot_a}
+            snapshotB={diff.data.snapshot_b}
+            selectedBomRef={selectedBomRef}
+            previousAsset={selectedPreviousAsset}
+            currentAsset={selectedCurrentAsset}
+            modifiedAsset={selectedModifiedAsset}
+            status={selectedBomRef ? getPairedDiffStatus(selectedBomRef, diffIndex) : "unchanged"}
+            currentIsLatest
+          />
           <div className="snapshot-diff-grid">
             <DiffAssetTable
               title={`Snapshot #${diff.data.snapshot_a}`}
@@ -528,16 +538,6 @@ export function SnapshotDiffView({ id }: { id: number }) {
               onSelect={setSelectedBomRef}
             />
           </div>
-          <SelectedAssetComparison
-            snapshotA={diff.data.snapshot_a}
-            snapshotB={diff.data.snapshot_b}
-            selectedBomRef={selectedBomRef}
-            previousAsset={selectedPreviousAsset}
-            currentAsset={selectedCurrentAsset}
-            modifiedAsset={selectedModifiedAsset}
-            status={selectedBomRef ? getPairedDiffStatus(selectedBomRef, diffIndex) : "unchanged"}
-            currentIsLatest
-          />
         </div>
       ) : null}
     </Section>
@@ -577,7 +577,7 @@ function DiffAssetTable({
 }) {
   const visibleAssets = showAllAssets ? assets : assets.filter((asset) => getSideDiffStatus(asset.bom_ref, side, diffIndex) !== "unchanged");
   return (
-    <Card>
+    <Card className="snapshot-diff-table-card">
       <CardHeader>
         <CardTitle>
           <span className="snapshot-diff-title">
