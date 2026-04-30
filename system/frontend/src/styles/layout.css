@@ -1,14 +1,14 @@
 .app-shell {
-  min-height: calc(100vh - 64px);
-  width: min(1230px, calc(100% - 48px));
-  margin: 32px auto 80px;
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
   grid-template-rows: 58px minmax(0, 1fr);
   overflow: hidden;
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 0;
+  border-radius: 0;
 }
 
 .app-header {
