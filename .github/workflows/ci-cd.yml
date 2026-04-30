@@ -86,7 +86,7 @@ jobs:
     env:
       APP_DIR: ${{ vars.APP_DIR || '/opt/crypto-scanner' }}
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
-      HEALTHCHECK_URL: ${{ vars.HEALTHCHECK_URL || 'https://pqc.sprout.kr/api/health/' }}
+      HEALTHCHECK_URL: ${{ vars.HEALTHCHECK_URL || 'https://pqc.sprout.kr/api/health' }}
       SSM_INSTANCE_ID: ${{ vars.SSM_INSTANCE_ID }}
       SSM_RUN_AS_USER: ${{ vars.SSM_RUN_AS_USER || 'ubuntu' }}
     steps:

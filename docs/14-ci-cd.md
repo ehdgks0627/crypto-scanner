@@ -29,7 +29,7 @@ Start it in `tmux`:
 
 ```bash
 tmux new-session -d -s crypto-scanner-deploy \
-  'cd /opt/crypto-scanner && APP_DIR=/opt/crypto-scanner HEALTHCHECK_URL=https://pqc.sprout.kr/api/health/ POLL_SECONDS=60 bash scripts/deploy-watch.sh'
+  'cd /opt/crypto-scanner && APP_DIR=/opt/crypto-scanner HEALTHCHECK_URL=https://pqc.sprout.kr/api/health POLL_SECONDS=60 bash scripts/deploy-watch.sh'
 ```
 
 Inspect it:
@@ -71,7 +71,7 @@ Repository or environment variables:
 | `AWS_REGION` | `ap-northeast-2` | AWS region for EC2 and SSM |
 | `SSM_INSTANCE_ID` | `i-0123456789abcdef0` | EC2 instance managed by SSM |
 | `APP_DIR` | `/opt/crypto-scanner` | Git checkout on the EC2 instance |
-| `HEALTHCHECK_URL` | `https://pqc.sprout.kr/api/health/` | Post-deploy health check URL |
+| `HEALTHCHECK_URL` | `https://pqc.sprout.kr/api/health` | Post-deploy health check URL |
 | `SSM_RUN_AS_USER` | `ubuntu` | Linux user that owns the app checkout |
 
 Repository or environment secret:
@@ -175,6 +175,6 @@ Manual dry run from EC2:
 ```bash
 cd /opt/crypto-scanner
 DEPLOY_SHA="$(git rev-parse origin/main)" \
-HEALTHCHECK_URL="https://pqc.sprout.kr/api/health/" \
+HEALTHCHECK_URL="https://pqc.sprout.kr/api/health" \
 bash scripts/deploy-production.sh
 ```
