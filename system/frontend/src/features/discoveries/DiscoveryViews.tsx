@@ -53,11 +53,11 @@ export function DiscoveriesView() {
   return (
     <Section>
       <PageHeader
-        title="디스커버리"
-        description="CIDR 기반으로 엔드포인트를 찾고 타겟으로 승격합니다."
+        title="CIDR 디스커버리"
+        description="CIDR 기반으로 후보 엔드포인트를 찾고 스캔 대상으로 승인합니다."
         actions={
           <Button type="button" variant="primary" onClick={() => navigate("/discoveries/new")}>
-            <Plus size={15} />새 디스커버리
+            <Plus size={15} />CIDR 추가
           </Button>
         }
       />
@@ -152,7 +152,7 @@ export function DiscoveryNewView() {
 
   return (
     <Section>
-      <PageHeader title="디스커버리 시작" description="CIDR 대역에서 스캔 후보 엔드포인트를 찾습니다." />
+      <PageHeader title="CIDR 디스커버리 시작" description="CIDR 대역에서 스캔 후보 엔드포인트를 찾습니다." />
       <Card>
         <CardContent>
           <form
@@ -222,13 +222,13 @@ export function DiscoveryDetailView({ id }: { id: number }) {
   const promote = useMutation({
     mutationFn: () => services.discoveries.promote(id, promotionPayload),
     onSuccess: async (result) => {
-      toast.success(`${result.promoted.length}개 엔드포인트를 타겟으로 승격했습니다.`);
+      toast.success(`${result.promoted.length}개 엔드포인트를 스캔 대상으로 승인했습니다.`);
       setSelected([]);
       await queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.endpoints(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.targets.all });
       navigate("/targets");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "승격 실패")
+    onError: (error) => toast.error(error instanceof Error ? error.message : "스캔 대상 승인 실패")
   });
   const discoveryJobId = discovery.data?.job_id;
   const discoveryJob = useQuery({
@@ -294,7 +294,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
               <XCircle size={15} />취소
             </Button>
             <Button type="button" variant="primary" disabled={selected.length === 0 || promote.isPending} onClick={() => setConfirmPromoteOpen(true)}>
-              선택 승격
+              스캔 대상으로 승인
             </Button>
           </>
         }
@@ -310,9 +310,9 @@ export function DiscoveryDetailView({ id }: { id: number }) {
       />
       <ConfirmDialog
         open={confirmPromoteOpen}
-        title="Endpoint 승격"
-        description={`선택한 endpoint ${selected.length}개를 Target으로 등록합니다.`}
-        confirmLabel="승격"
+        title="스캔 대상 승인"
+        description={`선택한 endpoint ${selected.length}개를 스캔 대상으로 추가합니다.`}
+        confirmLabel="승인"
         confirmVariant="primary"
         pending={promote.isPending}
         onCancel={() => setConfirmPromoteOpen(false)}
@@ -338,10 +338,10 @@ export function DiscoveryDetailView({ id }: { id: number }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Promote</CardTitle>
+            <CardTitle>스캔 대상 승인</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="muted">승격할 endpoint를 명시적으로 선택하세요. 선택하지 않은 endpoint는 Target으로 등록하지 않습니다.</p>
+            <p className="muted">승인할 endpoint를 명시적으로 선택하세요. 선택하지 않은 endpoint는 스캔 대상으로 추가하지 않습니다.</p>
             <div className="inline-actions">
               <Button type="button" onClick={() => setSelected(promotableIds)} disabled={promotableIds.length === 0}>
                 전체 선택
@@ -370,7 +370,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
                   header: "",
                   render: (endpoint) => (
                     <Checkbox
-                      aria-label={`${endpoint.suggested_host ?? endpoint.ip}:${endpoint.port} 승격 선택`}
+                      aria-label={`${endpoint.suggested_host ?? endpoint.ip}:${endpoint.port} 스캔 대상 승인 선택`}
                       checked={selected.includes(endpoint.id)}
                       disabled={endpoint.promoted}
                       onChange={(event) =>
@@ -385,7 +385,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
                 { key: "port", header: "Port", render: (endpoint) => endpoint.port },
                 { key: "protocol", header: "Protocol", render: (endpoint) => endpoint.suggested_protocol_hint ?? endpoint.detected_protocol ?? "-" },
                 { key: "promoted", header: "Promoted", render: (endpoint) => (endpoint.promoted ? "yes" : "no") },
-                { key: "target", header: "Target", render: (endpoint) => endpoint.target_id ? `#${endpoint.target_id}` : "-" }
+                { key: "target", header: "스캔 대상", render: (endpoint) => endpoint.target_id ? `#${endpoint.target_id}` : "-" }
               ]}
             />
           ) : null}

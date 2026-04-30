@@ -12,14 +12,14 @@ const NetworkExposureGraph3DView = lazy(() =>
 );
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
-  target: "Target",
+  target: "Scan Target",
   endpoint: "Endpoint",
   asset: "Crypto Asset",
   finding: "Finding"
 };
 
 const relationLabels: Record<NetworkExposureLinkKind, string> = {
-  exposes: "Target exposes an endpoint",
+  exposes: "Scan target exposes an endpoint",
   presents: "Endpoint presents crypto material",
   supports: "Endpoint supports a protocol/algorithm",
   uses: "Endpoint uses a crypto asset",
@@ -154,7 +154,7 @@ export function NetworkExposureGraphViz({
             </div>
           ) : null}
           <div className="network-graph-stats" aria-label="Network graph summary">
-            <span>Targets {formatNumber(graph.stats.targets)}</span>
+            <span>Scan targets {formatNumber(graph.stats.targets)}</span>
             <span>Endpoints {formatNumber(graph.stats.endpoints)}</span>
             <span>Assets {formatNumber(graph.stats.assets)}</span>
             <span>Findings {formatNumber(graph.stats.findings)}</span>
@@ -229,7 +229,7 @@ export function NetworkExposureGraphViz({
 function GraphLegend() {
   return (
     <div className="network-graph-legend" aria-label="Graph node legend">
-      <span><Server size={14} />Target node</span>
+      <span><Server size={14} />Scan target</span>
       <span><Router size={14} />Endpoint node</span>
       <span><FileKey size={14} />Certificate asset</span>
       <span><KeyRound size={14} />Key/algorithm asset</span>

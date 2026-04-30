@@ -76,7 +76,7 @@ export function DashboardView() {
 
   function openGraphNode(node: NetworkExposureNode) {
     if (node.kind === "asset" && node.refId) {
-      navigate(`/assets/${node.refId}`);
+      navigate(graphSnapshotId ? `/snapshots/${graphSnapshotId}/assets/${node.refId}` : "/snapshots");
       return;
     }
     if ((node.kind === "target" || node.kind === "endpoint") && node.refId) {
@@ -102,14 +102,14 @@ export function DashboardView() {
         <PageHeader title="대시보드" description="전체 PQC 위험 현황을 한 화면에서 확인합니다." />
         <EmptyState
           title="아직 스냅샷이 없습니다"
-          description="타겟을 등록하거나 네트워크 디스커버리를 시작한 뒤 스캔을 실행하면 대시보드가 채워집니다."
+          description="CIDR 디스커버리로 후보 엔드포인트를 찾거나 스캔 대상을 수동으로 추가한 뒤 스캔을 실행하면 대시보드가 채워집니다."
           action={
             <div className="inline-actions">
               <Button type="button" variant="primary" onClick={() => navigate("/discoveries/new")}>
                 디스커버리 시작
               </Button>
               <Button type="button" onClick={() => navigate("/targets")}>
-                타겟 등록
+                스캔 대상 추가
               </Button>
             </div>
           }
@@ -186,7 +186,7 @@ export function DashboardView() {
       <div className="dashboard-secondary-grid">
         <Card>
           <CardHeader>
-            <CardTitle>최근 Scan Jobs</CardTitle>
+            <CardTitle>최근 스캔 실행</CardTitle>
           </CardHeader>
           <CardContent>
             <DataTable

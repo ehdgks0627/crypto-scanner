@@ -57,11 +57,11 @@ export function TargetDetailView({ id }: { id: number }) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.snapshots.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.risk.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.migration.all });
-      toast.success("Target context recompute 완료");
+      toast.success("스캔 대상 컨텍스트 재계산 완료");
       setRecomputeJobId(null);
     }
     if (recomputeJob.data?.status && isTerminalJobStatus(recomputeJob.data.status) && recomputeJob.data.status !== "COMPLETED") {
-      toast.error(recomputeJob.data.status === "CANCELLED" ? "Target context recompute 취소됨" : "Target context recompute 실패");
+      toast.error(recomputeJob.data.status === "CANCELLED" ? "스캔 대상 컨텍스트 재계산 취소됨" : "스캔 대상 컨텍스트 재계산 실패");
       setRecomputeJobId(null);
     }
   }, [queryClient, recomputeJob.data?.status]);
@@ -92,7 +92,7 @@ export function TargetDetailView({ id }: { id: number }) {
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>타겟 수정</CardTitle>
+            <CardTitle>스캔 대상 수정</CardTitle>
           </CardHeader>
           <CardContent>
             <TargetForm

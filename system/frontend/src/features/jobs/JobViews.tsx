@@ -61,8 +61,8 @@ export function JobsView() {
   return (
     <Section>
       <PageHeader
-        title="Scan Jobs"
-        description="스캔 작업 생성, 진행 상태, 로그를 관리합니다."
+        title="스캔 실행"
+        description="스캔 실행 생성, 진행 상태, 로그를 관리합니다."
         actions={
           <Button type="button" variant="primary" onClick={() => navigate("/scans/new")}>
             <Play size={15} />새 스캔
@@ -92,7 +92,7 @@ export function JobsView() {
             <DataTable
               items={jobs.data.items}
               getRowKey={(job) => job.id}
-              empty={<EmptyState title="스캔 작업이 없습니다" />}
+              empty={<EmptyState title="스캔 실행 이력이 없습니다" />}
               columns={[
                 { key: "id", header: "Job", render: (job) => <button className="link-button" onClick={() => navigate(`/scans/${job.id}`)}>#{job.id}</button> },
                 { key: "kind", header: "Kind", render: (job) => job.kind },
@@ -152,17 +152,17 @@ export function ScanNewView() {
 
   return (
     <Section>
-      <PageHeader title="Scan Job 시작" description="타겟과 스캐너를 선택해 새 스캔을 실행합니다." />
+      <PageHeader title="스캔 실행 시작" description="스캔 대상과 스캐너를 선택해 새 스캔을 실행합니다." />
       <div className="split-pane">
         <Card>
           <CardHeader>
-            <CardTitle>Targets</CardTitle>
+            <CardTitle>스캔 대상</CardTitle>
           </CardHeader>
           <CardContent>
             {targets.isLoading ? <LoadingState /> : null}
             {targets.isError ? <ErrorState error={targets.error} onRetry={() => void targets.refetch()} /> : null}
             {missingPreselectedIds.length > 0 ? (
-              <div className="callout state-view--error">선택한 target #{missingPreselectedIds.join(", #")}를 찾을 수 없습니다.</div>
+              <div className="callout state-view--error">선택한 스캔 대상 #{missingPreselectedIds.join(", #")}를 찾을 수 없습니다.</div>
             ) : null}
             {targets.data ? (
               <DataTable
@@ -182,7 +182,7 @@ export function ScanNewView() {
                       />
                     )
                   },
-                  { key: "target", header: "Target", render: (target) => new TargetModel(target).displayName() },
+                  { key: "target", header: "스캔 대상", render: (target) => new TargetModel(target).displayName() },
                   { key: "host", header: "Host", render: (target) => target.host },
                   { key: "endpoint", header: "Endpoint", render: (target) => `${target.transport}/${target.port}` },
                   { key: "agent", header: "Agent", render: (target) => (target.agent_enabled ? "yes" : "no") }
@@ -372,7 +372,7 @@ export function JobDetailView({ id }: { id: number }) {
               getRowKey={(log) => log.id}
               empty={<EmptyState title="로그가 없습니다" />}
               columns={[
-                { key: "target", header: "Target", render: (log) => log.target_label },
+                { key: "target", header: "스캔 대상", render: (log) => log.target_label },
                 { key: "scanner", header: "Scanner", render: (log) => log.scanner_kind },
                 { key: "status", header: "Status", render: (log) => <StatusBadge status={log.status} /> },
                 { key: "findings", header: "Findings", render: (log) => log.findings_count },

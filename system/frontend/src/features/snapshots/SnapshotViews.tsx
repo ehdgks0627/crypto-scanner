@@ -39,7 +39,7 @@ export function SnapshotsView() {
 
   return (
     <Section>
-      <PageHeader title="CBOM Snapshots" description="스캔 결과로 생성된 CBOM 스냅샷을 조회합니다." />
+      <PageHeader title="식별 자산" description="스캔 결과로 식별된 암호자산 스냅샷을 조회합니다." />
       {snapshots.isLoading ? <LoadingState /> : null}
       {snapshots.isError ? <ErrorState error={snapshots.error} onRetry={() => void snapshots.refetch()} /> : null}
       {snapshots.data ? (
@@ -48,11 +48,11 @@ export function SnapshotsView() {
             <DataTable
               items={snapshots.data.items}
               getRowKey={(snapshot) => snapshot.id}
-              empty={<EmptyState title="스냅샷이 없습니다" description="스캔이 완료되면 이곳에 표시됩니다." />}
+              empty={<EmptyState title="식별 자산 스냅샷이 없습니다" description="스캔이 완료되면 이곳에 표시됩니다." />}
               columns={[
-                { key: "id", header: "Snapshot", render: (snapshot) => <button className="link-button" onClick={() => navigate(`/snapshots/${snapshot.id}`)}>#{snapshot.id}</button> },
+                { key: "id", header: "스냅샷", render: (snapshot) => <button className="link-button" onClick={() => navigate(`/snapshots/${snapshot.id}`)}>#{snapshot.id}</button> },
                 { key: "serial", header: "Serial", render: (snapshot) => <span className="mono">{snapshot.serial_number}</span> },
-                { key: "assets", header: "Assets", render: (snapshot) => formatNumber(snapshot.asset_count) },
+                { key: "assets", header: "식별 자산", render: (snapshot) => formatNumber(snapshot.asset_count) },
                 { key: "critical", header: "Critical", render: (snapshot) => snapshot.summary.by_tier?.CRITICAL ?? 0 },
                 { key: "created", header: "Created", render: (snapshot) => formatDateTime(snapshot.created_at) }
               ]}
@@ -89,7 +89,7 @@ export function SnapshotDetailView({ id }: { id: number }) {
   return (
     <Section>
       <PageHeader
-        title={`Snapshot #${snapshot.data.id}`}
+        title={`식별 자산 #${snapshot.data.id}`}
         description={formatDateTime(snapshot.data.created_at)}
         actions={
           <>
@@ -100,7 +100,7 @@ export function SnapshotDetailView({ id }: { id: number }) {
         }
       />
       <div className="content-grid content-grid--4">
-        <MetricCard label="Assets" value={snapshot.data.asset_count} />
+        <MetricCard label="식별 자산" value={snapshot.data.asset_count} />
         <MetricCard label="Critical" value={snapshot.data.summary.by_tier?.CRITICAL ?? 0} />
         <MetricCard label="High" value={snapshot.data.summary.by_tier?.HIGH ?? 0} />
         <MetricCard label="Validation Errors" value={snapshot.data.validation_errors.length} />
@@ -125,7 +125,7 @@ export function SnapshotDetailView({ id }: { id: number }) {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Asset Inventory</CardTitle>
+          <CardTitle>식별 자산 목록</CardTitle>
         </CardHeader>
         <CardContent>
           {assets.isLoading ? <LoadingState /> : null}
@@ -134,12 +134,12 @@ export function SnapshotDetailView({ id }: { id: number }) {
             <DataTable
               items={assets.data.items}
               getRowKey={(asset) => asset.id}
-              empty={<EmptyState title="자산이 없습니다" />}
+              empty={<EmptyState title="식별 자산이 없습니다" />}
               columns={[
                 { key: "name", header: "Name", render: (asset) => <button className="link-button" onClick={() => navigate(`/snapshots/${id}/assets/${asset.id}`)}>{asset.name}</button> },
                 { key: "class", header: "Class", render: (asset) => asset.asset_class },
                 { key: "type", header: "Type", render: (asset) => asset.asset_type },
-                { key: "target", header: "Target", render: (asset) => asset.target_label ?? (asset.target_id ? `#${asset.target_id}` : "-") },
+                { key: "target", header: "스캔 대상", render: (asset) => asset.target_label ?? (asset.target_id ? `#${asset.target_id}` : "-") },
                 { key: "score", header: "Score", render: (asset) => formatScore(asset.risk?.score) },
                 { key: "tier", header: "Tier", render: (asset) => <RiskTierBadge tier={asset.risk?.tier} /> }
               ]}
@@ -240,7 +240,7 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
             <dl className="detail-list">
               <div><dt>ID</dt><dd>#{asset.data.id}</dd></div>
               <div><dt>BOM Ref</dt><dd className="mono">{asset.data.bom_ref ?? "-"}</dd></div>
-              <div><dt>Target</dt><dd>{asset.data.target?.host ?? "-"}</dd></div>
+              <div><dt>스캔 대상</dt><dd>{asset.data.target?.host ?? "-"}</dd></div>
               <div><dt>Risk</dt><dd>{asset.data.risk ? <RiskTierBadge tier={asset.data.risk.tier} /> : "-"}</dd></div>
             </dl>
           </CardContent>
@@ -463,14 +463,14 @@ export function CbomExportView() {
   return (
     <Section>
       <PageHeader
-        title="CBOM Export"
-        description="CycloneDX CBOM JSON을 확인하고 내려받을 수 있습니다."
+        title="CBOM"
+        description="식별 자산 스냅샷의 CycloneDX CBOM JSON을 조회하고 내려받습니다."
         actions={<Button type="button" disabled={!cbom.data} onClick={() => cbom.data && downloadJson(`cbom-${snapshotId}.json`, cbom.data)}><Download size={15} />JSON 다운로드</Button>}
       />
       <Card>
         <CardContent>
           <Field>
-            <FieldLabel>Snapshot</FieldLabel>
+            <FieldLabel>스냅샷</FieldLabel>
             <Select value={snapshotId ?? ""} onChange={(event) => setSnapshotId(event.target.value ? Number(event.target.value) : undefined)}>
               <option value="">스냅샷 선택</option>
               {(snapshots.data?.items ?? []).map((snapshot) => (

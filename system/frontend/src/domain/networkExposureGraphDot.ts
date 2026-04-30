@@ -2,7 +2,7 @@ import type { RiskTier } from "../api/types";
 import type { NetworkExposureGraph, NetworkExposureLink, NetworkExposureLinkKind, NetworkExposureNode, NetworkExposureNodeKind } from "./networkExposureGraph";
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
-  target: "Target",
+  target: "Scan target",
   endpoint: "Endpoint",
   asset: "Crypto asset",
   finding: "Finding"

@@ -34,31 +34,31 @@ export function TargetsView() {
   const createTarget = useMutation({
     mutationFn: (payload: Schema<"TargetCreate">) => services.targets.create(payload),
     onSuccess: async (target) => {
-      toast.success("타겟을 등록했습니다.");
+      toast.success("스캔 대상을 추가했습니다.");
       setCreateOpen(false);
       await queryClient.invalidateQueries({ queryKey: queryKeys.targets.all });
       navigate(`/targets/${target.id}`);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "타겟 등록 실패")
+    onError: (error) => toast.error(error instanceof Error ? error.message : "스캔 대상 추가 실패")
   });
   const deleteTarget = useMutation({
     mutationFn: (id: number) => services.targets.delete(id),
     onSuccess: async () => {
-      toast.success("타겟을 삭제했습니다.");
+      toast.success("스캔 대상을 삭제했습니다.");
       setPendingDelete(null);
       await queryClient.invalidateQueries({ queryKey: queryKeys.targets.all });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "타겟 삭제 실패")
+    onError: (error) => toast.error(error instanceof Error ? error.message : "스캔 대상 삭제 실패")
   });
 
   return (
     <Section>
       <PageHeader
-        title="타겟"
-        description="스캔 대상 호스트와 운영 컨텍스트를 관리합니다."
+        title="스캔 대상"
+        description="디스커버리 결과를 승인하거나 알려진 host:port를 수동으로 추가해 스캔 범위를 관리합니다."
         actions={
           <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
-            <Plus size={15} />타겟 등록
+            <Plus size={15} />수동 대상 추가
           </Button>
         }
       />
@@ -89,11 +89,11 @@ export function TargetsView() {
             <DataTable
               items={targets.data.items}
               getRowKey={(target) => target.id}
-              empty={<EmptyState title="타겟이 없습니다" description="디스커버리 결과를 승격하거나 직접 등록하세요." />}
+              empty={<EmptyState title="스캔 대상이 없습니다" description="CIDR 디스커버리 결과를 스캔 대상으로 승인하거나 수동으로 추가하세요." />}
               columns={[
                 {
                   key: "target",
-                  header: "Target",
+                  header: "스캔 대상",
                   render: (target) => {
                     const model = new TargetModel(target);
                     return <button className="link-button" onClick={() => navigate(`/targets/${target.id}`)}>{model.displayName()}</button>;
@@ -121,9 +121,9 @@ export function TargetsView() {
         </Card>
       ) : null}
 
-      <Dialog open={createOpen} title="타겟 등록" closeDisabled={createTarget.isPending} onClose={() => !createTarget.isPending && setCreateOpen(false)}>
+      <Dialog open={createOpen} title="수동 스캔 대상 추가" closeDisabled={createTarget.isPending} onClose={() => !createTarget.isPending && setCreateOpen(false)}>
         <TargetForm
-          submitLabel="등록"
+          submitLabel="추가"
           isSubmitting={createTarget.isPending}
           onCancel={() => !createTarget.isPending && setCreateOpen(false)}
           onSubmit={(payload) => createTarget.mutate(payload as Schema<"TargetCreate">)}
@@ -131,8 +131,8 @@ export function TargetsView() {
       </Dialog>
       <ConfirmDialog
         open={Boolean(pendingDelete)}
-        title="타겟 삭제"
-        description={pendingDelete ? `${new TargetModel(pendingDelete).displayName()} (${pendingDelete.host}:${pendingDelete.port}) 타겟을 삭제합니다. 실행 중인 작업이 참조 중이면 서버에서 거절될 수 있습니다.` : ""}
+        title="스캔 대상 삭제"
+        description={pendingDelete ? `${new TargetModel(pendingDelete).displayName()} (${pendingDelete.host}:${pendingDelete.port}) 스캔 대상을 삭제합니다. 실행 중인 작업이 참조 중이면 서버에서 거절될 수 있습니다.` : ""}
         confirmLabel="삭제"
         pending={deleteTarget.isPending}
         onCancel={() => setPendingDelete(null)}

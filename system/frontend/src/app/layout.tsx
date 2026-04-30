@@ -9,17 +9,30 @@ import { Button } from "../components/ui/button";
 import { isActiveJobStatus, isTerminalJobStatus } from "../domain/jobStatus";
 import { useJobWatchStore } from "../stores/jobWatchStore";
 import { useUiStore } from "../stores/uiStore";
-import { getSnapshotSidebarState } from "./snapshotSidebar";
+import { getSnapshotSidebarState, type SnapshotSidebarState } from "./snapshotSidebar";
 
-const navItems = [
-  { to: "/", label: "대시보드", icon: Gauge },
-  { to: "/targets", label: "타겟", icon: Target },
-  { to: "/discoveries", label: "디스커버리", icon: Radar },
-  { to: "/scans", label: "스캔", icon: Activity },
-  { to: "/snapshots", label: "스냅샷", icon: Database },
-  { to: "/cbom", label: "CBOM", icon: Server },
-  { to: "/agents", label: "에이전트", icon: Bot },
-  { to: "/settings", label: "설정", icon: Settings }
+type NavItem = {
+  key: "dashboard" | "assets" | "cbom" | "risk" | "migration" | "discoveries" | "targets" | "scans" | "agents" | "settings";
+  to: string;
+  label: string;
+  icon: typeof Gauge;
+  end?: boolean;
+};
+
+const reportNavItems: NavItem[] = [
+  { key: "dashboard", to: "/", label: "대시보드", icon: Gauge, end: true },
+  { key: "assets", to: "/snapshots", label: "식별 자산", icon: Database },
+  { key: "cbom", to: "/cbom", label: "CBOM", icon: Server },
+  { key: "risk", to: "/risk", label: "위험평가", icon: Workflow },
+  { key: "migration", to: "/migration", label: "마이그레이션", icon: ListChecks }
+];
+
+const operationNavItems: NavItem[] = [
+  { key: "discoveries", to: "/discoveries", label: "CIDR 디스커버리", icon: Radar },
+  { key: "targets", to: "/targets", label: "스캔 대상", icon: Target },
+  { key: "scans", to: "/scans", label: "스캔 실행", icon: Activity },
+  { key: "agents", to: "/agents", label: "에이전트", icon: Bot },
+  { key: "settings", to: "/settings", label: "설정", icon: Settings }
 ];
 
 export function AppLayout() {
@@ -140,50 +153,69 @@ export function AppLayout() {
         </div>
       </header>
       <aside className="app-sidebar">
-        <nav>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            if (item.to === "/snapshots") {
-              return (
-                <Link
-                  key={item.to}
-                  to={snapshotSidebarState.snapshotPath}
-                  className={snapshotSidebarState.activeSection === "snapshot" ? "active" : undefined}
-                  aria-current={snapshotSidebarState.activeSection === "snapshot" ? "page" : undefined}
-                >
-                  <Icon size={16} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            }
-            return (
-              <NavLink key={item.to} to={item.to} end={item.to === "/"}>
-                <Icon size={16} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
+        <nav aria-label="Primary navigation">
+          <SidebarSection title="보고 / 조회" items={reportNavItems} snapshotSidebarState={snapshotSidebarState} />
+          <SidebarSection title="운영 / 설정" items={operationNavItems} snapshotSidebarState={snapshotSidebarState} />
         </nav>
-        <Link
-          to="/migration"
-          className={`sidebar-link-secondary${location.pathname === "/migration" ? " active" : ""}`}
-          aria-current={location.pathname === "/migration" ? "page" : undefined}
-        >
-          <ListChecks size={16} />
-          <span>마이그레이션</span>
-        </Link>
-        <Link
-          to="/risk"
-          className={`sidebar-link-secondary${location.pathname === "/risk" ? " active" : ""}`}
-          aria-current={location.pathname === "/risk" ? "page" : undefined}
-        >
-          <Workflow size={16} />
-          <span>위험평가</span>
-        </Link>
       </aside>
       <main className="app-main">
         <Outlet />
       </main>
     </div>
   );
+}
+
+function SidebarSection({
+  title,
+  items,
+  snapshotSidebarState
+}: {
+  title: string;
+  items: NavItem[];
+  snapshotSidebarState: SnapshotSidebarState;
+}) {
+  return (
+    <div className="sidebar-nav-section">
+      <span className="sidebar-nav-section__label">{title}</span>
+      {items.map((item) => (
+        <SidebarNavLink key={item.key} item={item} snapshotSidebarState={snapshotSidebarState} />
+      ))}
+    </div>
+  );
+}
+
+function SidebarNavLink({ item, snapshotSidebarState }: { item: NavItem; snapshotSidebarState: SnapshotSidebarState }) {
+  const Icon = item.icon;
+  const resolvedPath = resolveNavPath(item, snapshotSidebarState);
+  const active = isSpecialNavActive(item, snapshotSidebarState);
+
+  if (active !== null) {
+    return (
+      <Link to={resolvedPath} className={active ? "active" : undefined} aria-current={active ? "page" : undefined}>
+        <Icon size={16} />
+        <span>{item.label}</span>
+      </Link>
+    );
+  }
+
+  return (
+    <NavLink to={resolvedPath} end={item.end}>
+      <Icon size={16} />
+      <span>{item.label}</span>
+    </NavLink>
+  );
+}
+
+function resolveNavPath(item: NavItem, snapshotSidebarState: SnapshotSidebarState) {
+  if (item.key === "assets") {
+    return snapshotSidebarState.snapshotPath;
+  }
+  return item.to;
+}
+
+function isSpecialNavActive(item: NavItem, snapshotSidebarState: SnapshotSidebarState) {
+  if (item.key === "assets") {
+    return snapshotSidebarState.activeSection === "snapshot";
+  }
+  return null;
 }

@@ -10,7 +10,7 @@ import { Button } from "../ui/button";
 const graphRendererConfig = { preserveDrawingBuffer: true, antialias: true } as const;
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
-  target: "Target",
+  target: "Scan Target",
   endpoint: "Endpoint",
   asset: "Crypto Asset",
   finding: "Finding"
