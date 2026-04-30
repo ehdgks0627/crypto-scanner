@@ -109,6 +109,23 @@
   background-size: 28px 28px;
 }
 
+.network-graph-reagraph {
+  position: absolute;
+  inset: 0;
+}
+
+.network-graph-canvas-controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
 .network-graph-svg {
   display: grid;
   place-items: center;

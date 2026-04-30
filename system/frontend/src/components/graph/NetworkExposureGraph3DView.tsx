@@ -1,13 +1,11 @@
-import { AlertTriangle, Network } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Network, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { ForceGraphMethods } from "react-force-graph-3d";
-import * as THREE from "three";
+import { GraphCanvas, Svg, lightTheme } from "reagraph";
+import type { GraphCanvasRef, GraphEdge, GraphNode, InternalGraphNode, NodeRendererProps, Theme } from "reagraph";
 
 import type { NetworkExposureGraph, NetworkExposureLink, NetworkExposureNode, NetworkExposureNodeKind } from "../../domain/networkExposureGraph";
 import { Button } from "../ui/button";
-
-const ForceGraph3D = lazy(() => import("react-force-graph-3d"));
 
 const graphRendererConfig = { preserveDrawingBuffer: true, antialias: true } as const;
 
@@ -18,10 +16,61 @@ const kindLabels: Record<NetworkExposureNodeKind, string> = {
   finding: "Finding"
 };
 
-type RenderNode = NetworkExposureNode & {
-  x?: number;
-  y?: number;
-  z?: number;
+const reagraphTheme: Theme = {
+  ...lightTheme,
+  canvas: {
+    ...lightTheme.canvas,
+    background: "#ffffff",
+    fog: null
+  },
+  node: {
+    ...lightTheme.node,
+    fill: "#4b8ca8",
+    activeFill: "#111111",
+    opacity: 0.92,
+    selectedOpacity: 1,
+    inactiveOpacity: 0.24,
+    label: {
+      ...lightTheme.node.label,
+      color: "#171717",
+      activeColor: "#000000",
+      stroke: "#ffffff"
+    },
+    subLabel: {
+      ...lightTheme.node.subLabel,
+      color: "#5c5c5c",
+      activeColor: "#222222",
+      stroke: "#ffffff"
+    }
+  },
+  ring: {
+    ...lightTheme.ring,
+    fill: "#111111",
+    activeFill: "#111111"
+  },
+  edge: {
+    ...lightTheme.edge,
+    fill: "#8a8a8a",
+    activeFill: "#111111",
+    opacity: 0.68,
+    selectedOpacity: 1,
+    inactiveOpacity: 0.18,
+    label: {
+      ...lightTheme.edge.label,
+      color: "#565656",
+      activeColor: "#111111",
+      fontSize: 9
+    }
+  },
+  arrow: {
+    ...lightTheme.arrow,
+    fill: "#8a8a8a",
+    activeFill: "#111111"
+  },
+  lasso: {
+    background: "rgba(75, 140, 168, 0.12)",
+    border: "#4b8ca8"
+  }
 };
 
 export function NetworkExposureGraph3DView({
@@ -39,55 +88,69 @@ export function NetworkExposureGraph3DView({
   error?: unknown;
   selectedNodeId?: string;
   onRetry?: () => void;
-  onSelectNode: (nodeId: string) => void;
+  onSelectNode: (nodeId: string | undefined) => void;
 }) {
-  const graphRef = useRef<ForceGraphMethods>();
-  const [stageRef, size] = useElementSize<HTMLDivElement>();
+  const graphRef = useRef<GraphCanvasRef | null>(null);
   const canUseWebGl = useWebGlAvailability();
-  const background = useGraphBackground();
+  const theme = useGraphTheme();
   const hasGraph = graph.nodes.length > 0;
-  const graphData = useMemo(() => ({ nodes: graph.nodes, links: graph.links }), [graph.links, graph.nodes]);
+  const nodes = useMemo(() => graph.nodes.map(toReagraphNode), [graph.nodes]);
+  const edges = useMemo(() => graph.links.map(toReagraphEdge), [graph.links]);
+  const selections = selectedNodeId ? [selectedNodeId] : [];
+
+  useEffect(() => {
+    if (!hasGraph || !canUseWebGl) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => graphRef.current?.fitNodesInView(), 300);
+    return () => window.clearTimeout(timer);
+  }, [canUseWebGl, hasGraph, nodes, edges]);
+
+  useEffect(() => {
+    if (!selectedNodeId) {
+      return;
+    }
+    graphRef.current?.fitNodesInView([selectedNodeId]);
+  }, [selectedNodeId]);
 
   return (
-    <div className="network-graph-stage network-graph-stage--3d" ref={stageRef}>
+    <div className="network-graph-stage network-graph-stage--3d">
       {hasGraph && canUseWebGl ? (
-        <Suspense fallback={<GraphOverlay label="3D 그래프 준비 중" />}>
-          <ForceGraph3D
-            ref={graphRef}
-            graphData={graphData}
-            width={Math.max(size.width, 320)}
-            height={Math.max(size.height, 360)}
-            backgroundColor={background}
-            rendererConfig={graphRendererConfig}
-            showNavInfo={false}
-            nodeId="id"
-            nodeRelSize={5}
-            nodeVal={(node: unknown) => (node as NetworkExposureNode).val}
-            nodeColor={(node: unknown) => (node as NetworkExposureNode).color}
-            nodeLabel={(node: unknown) => nodeLabel(node as NetworkExposureNode)}
-            nodeThreeObject={(node: unknown) => createNodeObject(node as NetworkExposureNode, (node as NetworkExposureNode).id === selectedNodeId)}
-            linkLabel={(link: unknown) => linkLabel(link as NetworkExposureLink)}
-            linkColor={(link: unknown) => (link as NetworkExposureLink).color}
-            linkWidth={(link: unknown) => (link as NetworkExposureLink).width}
-            linkOpacity={0.72}
-            linkDirectionalArrowLength={4.5}
-            linkDirectionalArrowRelPos={0.84}
-            linkDirectionalParticles={(link: unknown) => ((link as NetworkExposureLink).kind === "exposes" ? 3 : 1)}
-            linkDirectionalParticleSpeed={0.004}
-            linkDirectionalParticleWidth={2}
-            cooldownTicks={140}
-            d3VelocityDecay={0.32}
-            dagMode="radialout"
-            dagLevelDistance={115}
-            enableNodeDrag
-            onEngineStop={() => graphRef.current?.zoomToFit(500, 28)}
-            onNodeClick={(node) => {
-              const selected = node as RenderNode;
-              onSelectNode(selected.id);
-              focusNode(graphRef.current, selected);
-            }}
-          />
-        </Suspense>
+        <>
+          <div className="network-graph-reagraph">
+            <GraphCanvas
+              ref={graphRef}
+              nodes={nodes}
+              edges={edges}
+              layoutType="forceDirected3d"
+              sizingType="default"
+              labelType="all"
+              edgeLabelPosition="inline"
+              edgeArrowPosition="end"
+              edgeInterpolation="curved"
+              selections={selections}
+              actives={selections}
+              defaultNodeSize={11}
+              minNodeSize={8}
+              maxNodeSize={23}
+              draggable
+              animated
+              glOptions={graphRendererConfig}
+              theme={theme}
+              renderNode={GraphNodeIcon}
+              onCanvasClick={() => onSelectNode(undefined)}
+              onNodeClick={(node) => {
+                onSelectNode(node.id);
+                graphRef.current?.fitNodesInView([node.id]);
+              }}
+            />
+          </div>
+          <div className="network-graph-canvas-controls">
+            <Button type="button" size="icon" variant="ghost" aria-label="3D 그래프 보기 초기화" onClick={() => graphRef.current?.fitNodesInView()}>
+              <RotateCcw size={15} />
+            </Button>
+          </div>
+        </>
       ) : null}
 
       {!hasGraph ? <GraphOverlay icon={<Network size={18} />} label="표시할 그래프 데이터가 없습니다" /> : null}
@@ -99,104 +162,54 @@ export function NetworkExposureGraph3DView({
   );
 }
 
-function createNodeObject(node: NetworkExposureNode, selected: boolean) {
-  const group = new THREE.Group();
-  const size = Math.max(5, Math.min(15, node.val * 0.9));
-  const geometry = geometryForNode(node.kind, size);
-  const mesh = new THREE.Mesh(
-    geometry,
-    new THREE.MeshLambertMaterial({
-      color: node.color,
-      emissive: selected ? new THREE.Color(node.color) : new THREE.Color("#000000"),
-      emissiveIntensity: selected ? 0.35 : 0,
-      transparent: true,
-      opacity: selected ? 1 : 0.9
-    })
-  );
-  group.add(mesh);
-  group.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: selected ? "#ffffff" : "#1a1a1a", transparent: true, opacity: selected ? 0.9 : 0.42 })));
-
-  const label = createTextSprite(node.label, node.riskTier ?? kindLabels[node.kind], selected);
-  label.position.y = size + 8;
-  group.add(label);
-  return group;
+function toReagraphNode(node: NetworkExposureNode): GraphNode {
+  return {
+    id: node.id,
+    label: node.label,
+    subLabel: nodeSubLabel(node),
+    size: Math.max(8, Math.min(23, node.val * 1.25)),
+    fill: node.color,
+    labelVisible: true,
+    cluster: node.kind,
+    icon: nodeIconUri(node.kind, node.color),
+    data: {
+      kind: node.kind,
+      riskTier: node.riskTier,
+      assetCount: node.assetCount
+    }
+  };
 }
 
-function geometryForNode(kind: NetworkExposureNodeKind, size: number) {
-  if (kind === "target") {
-    return new THREE.BoxGeometry(size * 1.45, size * 0.86, size * 0.86);
-  }
-  if (kind === "endpoint") {
-    return new THREE.CylinderGeometry(size * 0.62, size * 0.62, size * 1.15, 18);
-  }
-  if (kind === "finding") {
-    return new THREE.OctahedronGeometry(size * 0.92);
-  }
-  return new THREE.IcosahedronGeometry(size * 0.82, 0);
+function toReagraphEdge(link: NetworkExposureLink): GraphEdge {
+  return {
+    id: link.id,
+    source: link.source,
+    target: link.target,
+    label: relationLabel(link.label),
+    size: Math.max(1, link.width),
+    fill: link.color,
+    data: {
+      kind: link.kind
+    }
+  };
 }
 
-function createTextSprite(label: string, meta: string, selected: boolean) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 384;
-  canvas.height = 128;
-  const context = canvas.getContext("2d");
-  if (context) {
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = selected ? "rgba(255,255,255,0.96)" : "rgba(255,255,255,0.86)";
-    context.strokeStyle = selected ? "rgba(15,15,15,0.72)" : "rgba(15,15,15,0.42)";
-    context.lineWidth = selected ? 5 : 3;
-    roundRect(context, 12, 18, 360, 88, 8);
-    context.fill();
-    context.stroke();
-    context.fillStyle = "#141414";
-    context.font = "700 22px Inter, sans-serif";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(truncate(label, 28), 192, 50);
-    context.fillStyle = "#555555";
-    context.font = "600 16px Inter, sans-serif";
-    context.fillText(truncate(meta, 24), 192, 78);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
-  sprite.scale.set(42, 14, 1);
-  return sprite;
+function GraphNodeIcon(props: NodeRendererProps) {
+  const icon = props.node.icon ?? nodeIconUri(nodeKindFor(props.node), String(props.color));
+  return <Svg {...props} image={icon} />;
 }
 
-function roundRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-  context.beginPath();
-  context.moveTo(x + radius, y);
-  context.lineTo(x + width - radius, y);
-  context.quadraticCurveTo(x + width, y, x + width, y + radius);
-  context.lineTo(x + width, y + height - radius);
-  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  context.lineTo(x + radius, y + height);
-  context.quadraticCurveTo(x, y + height, x, y + height - radius);
-  context.lineTo(x, y + radius);
-  context.quadraticCurveTo(x, y, x + radius, y);
-  context.closePath();
+function nodeKindFor(node: InternalGraphNode): NetworkExposureNodeKind {
+  const kind = node.data?.kind;
+  return kind === "target" || kind === "endpoint" || kind === "asset" || kind === "finding" ? kind : "asset";
 }
 
-function nodeLabel(node: NetworkExposureNode) {
-  return [kindLabels[node.kind], node.label, node.subtitle, node.riskTier].filter(Boolean).join(" · ");
+function nodeSubLabel(node: NetworkExposureNode) {
+  return [kindLabels[node.kind], node.subtitle, node.riskTier].filter(Boolean).join(" · ");
 }
 
-function linkLabel(link: NetworkExposureLink) {
-  return link.label.replace("_", " ");
-}
-
-function focusNode(graph: ForceGraphMethods | undefined, node: RenderNode) {
-  if (!graph) {
-    return;
-  }
-  const x = node.x ?? 0;
-  const y = node.y ?? 0;
-  const z = node.z ?? 0;
-  const distance = 120;
-  const length = Math.hypot(x, y, z) || 1;
-  const ratio = 1 + distance / length;
-  graph.cameraPosition({ x: x * ratio, y: y * ratio, z: z * ratio }, { x, y, z }, 650);
+function relationLabel(label: string) {
+  return label.replace("_", " ");
 }
 
 function GraphOverlay({ label, icon }: { label: string; icon?: ReactNode }) {
@@ -222,27 +235,6 @@ function GraphErrorOverlay({ onRetry }: { onRetry?: () => void }) {
   );
 }
 
-function useElementSize<T extends HTMLElement>() {
-  const ref = useRef<T | null>(null);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) {
-      return undefined;
-    }
-    const updateSize = () => {
-      setSize({ width: element.clientWidth, height: element.clientHeight });
-    };
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  return [ref, size] as const;
-}
-
 function useWebGlAvailability() {
   const [supported, setSupported] = useState(false);
 
@@ -253,6 +245,90 @@ function useWebGlAvailability() {
   return supported;
 }
 
+function useGraphTheme() {
+  const [theme, setTheme] = useState(reagraphTheme);
+
+  useEffect(() => {
+    const updateTheme = () => {
+      const styles = window.getComputedStyle(document.documentElement);
+      const panel = readCssColor(styles, "--panel", "#ffffff");
+      const text = readCssColor(styles, "--text", "#171717");
+      const textSoft = readCssColor(styles, "--text-soft", "#565656");
+      const border = readCssColor(styles, "--border", "#d2d2d2");
+      const primary = readCssColor(styles, "--primary", "#111111");
+
+      setTheme({
+        ...reagraphTheme,
+        canvas: {
+          ...reagraphTheme.canvas,
+          background: panel
+        },
+        node: {
+          ...reagraphTheme.node,
+          activeFill: primary,
+          label: {
+            ...reagraphTheme.node.label,
+            color: text,
+            activeColor: primary,
+            stroke: panel
+          },
+          subLabel: {
+            ...reagraphTheme.node.subLabel,
+            color: textSoft,
+            activeColor: text,
+            stroke: panel
+          }
+        },
+        ring: {
+          ...reagraphTheme.ring,
+          fill: primary,
+          activeFill: primary
+        },
+        edge: {
+          ...reagraphTheme.edge,
+          activeFill: primary,
+          label: {
+            ...reagraphTheme.edge.label,
+            color: textSoft,
+            activeColor: text
+          }
+        },
+        arrow: {
+          ...reagraphTheme.arrow,
+          activeFill: primary
+        },
+        lasso: {
+          background: colorWithAlpha(border, 0.16),
+          border
+        }
+      });
+    };
+
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
+
+  return theme;
+}
+
+function readCssColor(styles: CSSStyleDeclaration, variable: string, fallback: string) {
+  return styles.getPropertyValue(variable).trim() || fallback;
+}
+
+function colorWithAlpha(color: string, alpha: number) {
+  const hexMatch = color.match(/^#([0-9a-f]{6})$/i);
+  if (!hexMatch) {
+    return color;
+  }
+  const value = hexMatch[1];
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
 function isWebGlSupported() {
   if (typeof window === "undefined" || typeof document === "undefined" || typeof WebGLRenderingContext === "undefined") {
     return false;
@@ -261,21 +337,20 @@ function isWebGlSupported() {
   return Boolean(canvas.getContext("webgl") || canvas.getContext("experimental-webgl"));
 }
 
-function useGraphBackground() {
-  const [background, setBackground] = useState("#101114");
-
-  useEffect(() => {
-    const styles = window.getComputedStyle(document.documentElement);
-    const panel = styles.getPropertyValue("--panel").trim();
-    setBackground(panel || "#101114");
-  }, []);
-
-  return background;
+function nodeIconUri(kind: NetworkExposureNodeKind, color: string) {
+  const stroke = normalizeHexColor(color);
+  const svgByKind: Record<NetworkExposureNodeKind, string> = {
+    target: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><rect x="7" y="8" width="50" height="32" rx="5" fill="#ffffff" stroke="${stroke}" stroke-width="4"/><path d="M15 18h18M15 29h26" stroke="#171717" stroke-width="3" stroke-linecap="round"/><circle cx="48" cy="18" r="3" fill="${stroke}"/><circle cx="48" cy="30" r="3" fill="${stroke}"/></svg>`,
+    endpoint: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><rect x="10" y="11" width="44" height="26" rx="13" fill="#ffffff" stroke="${stroke}" stroke-width="4"/><path d="M18 24h28M25 17l-7 7 7 7M39 17l7 7-7 7" fill="none" stroke="#171717" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    asset: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><path d="M25 23a10 10 0 1 1 6 9l-5 5h-6v-6h-6v-6h8z" fill="#ffffff" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><circle cx="39" cy="19" r="3" fill="#171717"/></svg>`,
+    finding: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><path d="M32 5 59 43H5z" fill="#ffffff" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><path d="M32 18v11" stroke="#171717" stroke-width="4" stroke-linecap="round"/><circle cx="32" cy="36" r="2.8" fill="#171717"/></svg>`
+  };
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgByKind[kind])}`;
 }
 
-function truncate(value: string, maxLength: number) {
-  if (value.length <= maxLength) {
-    return value;
+function normalizeHexColor(color: string) {
+  if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(color)) {
+    return color;
   }
-  return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
+  return "#4b8ca8";
 }
