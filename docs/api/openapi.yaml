@@ -2389,7 +2389,6 @@ components:
         - name
         - crypto_properties
         - properties
-        - natural_key
         - discovered_at
         - effective_context
         - context_override
@@ -2415,8 +2414,6 @@ components:
         properties:
           type: object
           additionalProperties: true
-        natural_key:
-          type: string
         discovered_at:
           type: string
           format: date-time

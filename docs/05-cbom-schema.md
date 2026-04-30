@@ -450,8 +450,9 @@ CycloneDX `dependencies` 배열로 자산 간 관계를 표현한다.
 
 ### 5.9.1 저장 정책
 
-- DB(`cbom_snapshot` 테이블)에는 메타데이터만: `id`, `scan_job_id`, `created_at`, `asset_count`, `file_path`, `serial_number`
-- CBOM JSON 원본은 `/var/cbom/<snapshot_id>.json`에 저장 (D-03 보강: 큰 JSON은 파일로)
+- DB(`cbom_snapshot` 테이블)에는 스냅샷 메타데이터만 저장한다: `id`, `scan_job_id`, `created_at`, `serial_number`, `summary`, `validation_errors`
+- CBOM `components[]`는 `Asset` row와 1:1로 대응한다. `Asset.bom_ref`가 `components[].bom-ref`이다.
+- CBOM JSON은 별도 원본으로 저장하지 않고 export 시 `CbomSnapshot` + `Asset` + `AssetDependency`에서 결정적으로 조립한다.
 - 스냅샷은 영구 보관 (사용자 수동 삭제 전까지)
 
 ### 5.9.2 Diff 계산 (17b)

@@ -210,9 +210,8 @@ sequenceDiagram
         A-->>W: AgentScanResult
         W->>DB: ScanRunLog 기록
     end
-    W->>W: 결과 정규화 → Asset/Edge 생성
-    W->>DB: Asset bulk insert + Edge bulk insert
-    W->>W: CBOM JSON 생성 → /var/cbom/<id>.json
+    W->>W: 결과 정규화 → Asset(CBOM component)/AssetDependency 생성
+    W->>DB: Asset bulk insert + AssetDependency bulk insert
     W->>DB: CbomSnapshot 메타 저장
     W->>W: RiskScore 계산 (자산별)
     W->>DB: RiskScore bulk insert

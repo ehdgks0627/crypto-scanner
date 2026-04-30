@@ -3,6 +3,7 @@ import pytest
 from tests.api.factories import (
     TARGET_CONTEXT,
     create_asset,
+    create_asset_dependency,
     create_risk_score,
     create_snapshot,
     create_target,
@@ -58,28 +59,40 @@ def test_api_snp_005_snapshot_scan_job_id_can_be_null_for_imported_snapshots(cli
 
 
 def test_api_snp_003_export_snapshot_returns_cbom_download(client):
-    cbom = {"bomFormat": "CycloneDX", "components": [{"name": "web certificate"}]}
-    snapshot = create_snapshot(serial_number="snap-56", cbom_json=cbom)
+    snapshot = create_snapshot(serial_number="snap-56")
+    cert = create_asset(snapshot=snapshot, bom_ref="cert:web", name="web certificate", algorithm="RSA-2048", algorithm_family="RSA")
+    algorithm = create_asset(snapshot=snapshot, bom_ref="alg:rsa", name="RSA-2048", asset_type="algorithm", algorithm="RSA-2048", algorithm_family="RSA")
+    create_risk_score(cert, score=95.0, tier="CRITICAL")
+    create_asset_dependency(cert, algorithm, semantic="signature_algorithm")
 
     response = client.get(f"/api/snapshots/{snapshot.id}/export")
 
     assert response.status_code == 200
     assert "attachment" in response.headers["Content-Disposition"]
-    assert f"snapshot-{snapshot.id}.json" in response.headers["Content-Disposition"]
-    assert response.json() == cbom
+    assert f"cbom-{snapshot.id}.json" in response.headers["Content-Disposition"]
+    body = response.json()
+    assert body["bomFormat"] == "CycloneDX"
+    assert body["specVersion"] == "1.6"
+    assert body["serialNumber"] == "snap-56"
+    assert body["metadata"]["properties"][0] == {"name": "internal:snapshot_id", "value": str(snapshot.id)}
+    component = next(item for item in body["components"] if item["bom-ref"] == "cert:web")
+    assert component["type"] == "crypto-asset"
+    assert component["cryptoProperties"] == {"assetType": "certificate", "algorithm": "RSA-2048", "algorithmFamily": "RSA"}
+    assert {"name": "risk.tier", "value": "CRITICAL"} in component["properties"]
+    assert body["dependencies"] == [{"ref": "cert:web", "dependsOn": ["alg:rsa"]}]
 
 
 def test_api_snp_004_diff_snapshots_returns_summary(client):
     snapshot_a = create_snapshot(serial_number="snap-55")
     snapshot_b = create_snapshot(serial_number="snap-56")
-    create_asset(snapshot=snapshot_a, natural_key="cert:unchanged", name="same")
-    create_asset(snapshot=snapshot_a, natural_key="cert:removed", name="old")
-    create_asset(snapshot=snapshot_b, natural_key="cert:unchanged", name="same")
-    create_asset(snapshot=snapshot_b, natural_key="cert:added", name="new")
-    create_asset(snapshot=snapshot_b, natural_key="cert:modified", name="changed")
-    create_asset(snapshot=snapshot_a, natural_key="cert:modified", name="before")
-    create_asset(snapshot=snapshot_a, natural_key="cert:algo", name="same", algorithm="RSA-2048", algorithm_family="RSA")
-    create_asset(snapshot=snapshot_b, natural_key="cert:algo", name="same", algorithm="ML-DSA-65", algorithm_family="ML-DSA")
+    create_asset(snapshot=snapshot_a, bom_ref="cert:unchanged", name="same")
+    create_asset(snapshot=snapshot_a, bom_ref="cert:removed", name="old")
+    create_asset(snapshot=snapshot_b, bom_ref="cert:unchanged", name="same")
+    create_asset(snapshot=snapshot_b, bom_ref="cert:added", name="new")
+    create_asset(snapshot=snapshot_b, bom_ref="cert:modified", name="changed")
+    create_asset(snapshot=snapshot_a, bom_ref="cert:modified", name="before")
+    create_asset(snapshot=snapshot_a, bom_ref="cert:algo", name="same", algorithm="RSA-2048", algorithm_family="RSA")
+    create_asset(snapshot=snapshot_b, bom_ref="cert:algo", name="same", algorithm="ML-DSA-65", algorithm_family="ML-DSA")
 
     response = client.get(f"/api/snapshots/{snapshot_b.id}/diff?other={snapshot_a.id}")
 
@@ -115,7 +128,7 @@ def test_api_ast_001_list_assets_with_filters_and_risk(client):
     assert item["asset_type"] == "certificate"
     assert item["risk"]["tier"] == "CRITICAL"
     assert item["snapshot_id"] == snapshot.id
-    assert item["bom_ref"] == cert.natural_key
+    assert item["bom_ref"] == cert.bom_ref
     assert item["target_label"]
     assert item["summary"]["algorithm"] == cert.algorithm
     assert {"offset", "limit"} <= set(body)
@@ -124,8 +137,8 @@ def test_api_ast_001_list_assets_with_filters_and_risk(client):
 def test_api_ast_001b_list_assets_applies_contract_filters(client):
     snapshot = create_snapshot()
     target = create_target(host="search.testbed.local")
-    match = create_asset(snapshot=snapshot, target=target, asset_class="crypto", asset_type="certificate", name="Searchable Cert", natural_key="asset:match")
-    miss = create_asset(snapshot=snapshot, asset_class="crypto", asset_type="key", name="Other Key", natural_key="asset:miss", algorithm_family="ML-DSA")
+    match = create_asset(snapshot=snapshot, target=target, asset_class="crypto", asset_type="certificate", name="Searchable Cert", bom_ref="asset:match")
+    miss = create_asset(snapshot=snapshot, asset_class="crypto", asset_type="key", name="Other Key", bom_ref="asset:miss", algorithm_family="ML-DSA")
     create_risk_score(match, score=88.0, tier="HIGH")
     create_risk_score(miss, score=20.0, tier="LOW")
 
@@ -146,9 +159,9 @@ def test_api_ast_002_get_asset_detail_with_context_sources(client):
 
     target = create_target(context={**TARGET_CONTEXT, "criticality": "medium"})
     old_snapshot = create_snapshot(serial_number="old-risk")
-    old_asset = create_asset(snapshot=old_snapshot, target=target, natural_key="asset:history")
+    old_asset = create_asset(snapshot=old_snapshot, target=target, bom_ref="asset:history")
     create_risk_score(old_asset, score=72.0, tier="HIGH")
-    asset = create_asset(target=target, natural_key="asset:history")
+    asset = create_asset(target=target, bom_ref="asset:history")
     create_risk_score(asset, score=91.0, tier="CRITICAL", factors={"A": 0.9, "D": 0.8, "E": 0.7, "L": 0.6, "C": 0.5})
     AssetContextOverride.objects.create(asset=asset, sensitivity="critical", criticality=None)
 
@@ -162,14 +175,35 @@ def test_api_ast_002_get_asset_detail_with_context_sources(client):
     assert body["context_sources"]["sensitivity"] == "asset_override"
     assert body["context_sources"]["criticality"] == "target"
     assert body["snapshot_id"] == asset.snapshot_id
-    assert body["bom_ref"] == asset.natural_key
+    assert body["bom_ref"] == asset.bom_ref
     assert body["target"]["port"] == target.port
     assert body["crypto_properties"]["algorithm"] == asset.algorithm
-    assert body["properties"]["natural_key"] == asset.natural_key
+    assert body["properties"]["bom_ref"] == asset.bom_ref
     assert body["risk"]["score"] == 91
     assert body["risk"]["factor_a"] == 0.9
     assert body["dependencies"] == {"dependsOn": [], "dependedBy": []}
     assert [item["snapshot_id"] for item in body["history"]] == [old_snapshot.id, asset.snapshot_id]
+
+
+def test_api_ast_002b_asset_dependencies_are_cbom_component_edges(client):
+    snapshot = create_snapshot()
+    certificate = create_asset(snapshot=snapshot, bom_ref="cert:web", name="web certificate")
+    key = create_asset(snapshot=snapshot, bom_ref="key:web", name="web public key", asset_type="key")
+    create_asset_dependency(certificate, key, semantic="embeds_key")
+
+    certificate_response = client.get(f"/api/assets/{certificate.id}")
+    key_response = client.get(f"/api/assets/{key.id}")
+
+    assert certificate_response.status_code == 200
+    assert key_response.status_code == 200
+    assert certificate_response.json()["dependencies"] == {
+        "dependsOn": [{"id": key.id, "bom_ref": "key:web", "name": "web public key", "semantic": "embeds_key"}],
+        "dependedBy": [],
+    }
+    assert key_response.json()["dependencies"] == {
+        "dependsOn": [],
+        "dependedBy": [{"id": certificate.id, "bom_ref": "cert:web", "name": "web certificate", "semantic": "embeds_key"}],
+    }
 
 
 def test_api_ast_003_context_patch_distinguishes_omit_and_null(client):
@@ -302,14 +336,14 @@ def test_api_ast_006_qualitative_request_uses_asset_context_and_risk(client):
     rsa_asset = create_asset(
         target=target_a,
         name="customer API certificate",
-        natural_key="qualitative:rsa",
+        bom_ref="qualitative:rsa",
         algorithm="RSA-2048",
         algorithm_family="RSA",
     )
     pqc_asset = create_asset(
         target=target_b,
         name="archive signing key",
-        natural_key="qualitative:pqc",
+        bom_ref="qualitative:pqc",
         algorithm="ML-DSA-65",
         algorithm_family="ML-DSA",
     )

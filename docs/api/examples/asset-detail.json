@@ -23,7 +23,6 @@
     "internal:chain_position": "leaf",
     "internal:source_scanner": "network"
   },
-  "natural_key": "x509:ab12cd34",
   "discovered_at": "2026-04-25T10:04:30Z",
   "target": {
     "id": 1,

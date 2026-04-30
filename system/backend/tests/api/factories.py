@@ -70,7 +70,6 @@ def create_snapshot(**overrides):
         "serial_number": "urn:uuid:test-snapshot",
         "summary": {},
         "validation_errors": [],
-        "cbom_json": {"bomFormat": "CycloneDX", "specVersion": "1.6"},
     }
     values.update(overrides)
     return CbomSnapshot.objects.create(**values)
@@ -89,12 +88,26 @@ def create_asset(snapshot=None, target=None, **overrides):
         "name": "web certificate",
         "asset_class": "crypto",
         "asset_type": "certificate",
-        "natural_key": f"certificate:{timezone.now().timestamp()}",
+        "bom_ref": f"certificate:{timezone.now().timestamp()}",
         "algorithm": "RSA-2048",
         "algorithm_family": "RSA",
     }
     values.update(overrides)
     return Asset.objects.create(**values)
+
+
+def create_asset_dependency(source_asset, target_asset, **overrides):
+    from apps.assets.models import AssetDependency
+
+    values = {
+        "snapshot": source_asset.snapshot,
+        "source_asset": source_asset,
+        "target_asset": target_asset,
+        "relation_type": "dependsOn",
+        "semantic": "depends_on",
+    }
+    values.update(overrides)
+    return AssetDependency.objects.create(**values)
 
 
 def create_risk_score(asset, **overrides):

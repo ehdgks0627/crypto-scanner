@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.agents.models import Agent
-from apps.assets.models import Asset, AssetContextOverride, QualitativeAssessment
+from apps.assets.models import Asset, AssetContextOverride, AssetDependency, QualitativeAssessment
 from apps.discoveries.models import DiscoveredEndpoint, Discovery
 from apps.jobs.models import AsyncJob, ScanJob, ScanRunLog
 from apps.risk.models import RiskScore, RiskWeights
@@ -26,7 +26,7 @@ class DemoAsset:
     target_key: tuple[str, int, str]
     name: str
     asset_type: str
-    natural_key: str
+    bom_ref: str
     algorithm: str
     algorithm_family: str
     score: float
@@ -63,7 +63,7 @@ LATEST_ASSETS = [
 
 BASELINE_ASSETS = [
     asset for asset in LATEST_ASSETS
-    if asset.natural_key not in {"tls:pqc:leaf:mldsa", "tls:pqc:kem:mlkem", "postgres:client:tls-policy", "postgres:jks:app:rsa"}
+    if asset.bom_ref not in {"tls:pqc:leaf:mldsa", "tls:pqc:kem:mlkem", "postgres:client:tls-policy", "postgres:jks:app:rsa"}
 ]
 
 DISCOVERY_ENDPOINTS = [
@@ -82,6 +82,14 @@ DISCOVERY_ENDPOINTS = [
     ("172.20.60.10", 5432, "TCP", "PostgreSQL TLS", "UNKNOWN", True, ("db.testbed.local", 5432, "TCP")),
     ("172.20.60.11", 8443, "TCP", "TLS", "TLS", False, None),
     ("172.20.70.20", 2222, "TCP", "SSH", "SSH", False, None),
+]
+
+DEMO_DEPENDENCIES = [
+    ("tls:web:leaf:rsa", "tls:web:intermediate:rsa", "certificate_chain"),
+    ("tls:web:cipher-suite", "tls:web:leaf:rsa", "uses_certificate"),
+    ("tls:web:cipher-suite", "tls:web:intermediate:rsa", "uses_certificate"),
+    ("postgres:client:tls-policy", "postgres:tls:leaf:rsa", "protects_connection"),
+    ("postgres:jks:app:rsa", "postgres:tls:leaf:rsa", "stores_key_material"),
 ]
 
 
@@ -217,9 +225,9 @@ class Command(BaseCommand):
             serial_number=serial,
             summary=self._snapshot_summary(assets),
             validation_errors=[],
-            cbom_json=self._cbom_json(serial, assets),
         )
         self._timestamp(snapshot, created_at=created_at, updated_at=created_at + timedelta(minutes=2))
+        created_assets = {}
         for asset_data in assets:
             asset = Asset.objects.create(
                 snapshot=snapshot,
@@ -227,10 +235,11 @@ class Command(BaseCommand):
                 name=asset_data.name,
                 asset_class="crypto",
                 asset_type=asset_data.asset_type,
-                natural_key=asset_data.natural_key,
+                bom_ref=asset_data.bom_ref,
                 algorithm=asset_data.algorithm,
                 algorithm_family=asset_data.algorithm_family,
             )
+            created_assets[asset_data.bom_ref] = asset
             RiskScore.objects.create(
                 snapshot=snapshot,
                 asset=asset,
@@ -240,7 +249,7 @@ class Command(BaseCommand):
             )
             if asset_data.tier in {"CRITICAL", "HIGH"}:
                 self._seed_qualitative(asset)
-            if asset_data.natural_key == "postgres:client:tls-policy":
+            if asset_data.bom_ref == "postgres:client:tls-policy":
                 AssetContextOverride.objects.create(
                     asset=asset,
                     sensitivity="critical",
@@ -250,7 +259,18 @@ class Command(BaseCommand):
                     service_role="PostgreSQL client TLS policy exception",
                     override_keys=["sensitivity", "lifespan_years", "criticality", "exposure", "service_role"],
                 )
+        self._seed_dependencies(snapshot, created_assets)
         return snapshot
+
+    def _seed_dependencies(self, snapshot, assets):
+        for source_ref, target_ref, semantic in DEMO_DEPENDENCIES:
+            if source_ref in assets and target_ref in assets:
+                AssetDependency.objects.create(
+                    snapshot=snapshot,
+                    source_asset=assets[source_ref],
+                    target_asset=assets[target_ref],
+                    semantic=semantic,
+                )
 
     def _seed_qualitative(self, asset):
         QualitativeAssessment.objects.create(
@@ -393,34 +413,6 @@ class Command(BaseCommand):
             "by_tier": by_tier,
             "by_asset_type": by_asset_type,
             "by_algorithm_family": by_algorithm_family,
-        }
-
-    def _cbom_json(self, serial, assets):
-        return {
-            "bomFormat": "CycloneDX",
-            "specVersion": "1.6",
-            "serialNumber": f"urn:uuid:{serial}",
-            "metadata": {
-                "component": {"type": "application", "name": "crypto-scanner-testbed"},
-                "properties": [{"name": "scenario", "value": SCENARIO}],
-            },
-            "components": [
-                {
-                    "type": "cryptographic-asset",
-                    "bom-ref": asset.natural_key,
-                    "name": asset.name,
-                    "cryptoProperties": {
-                        "algorithm": asset.algorithm,
-                        "algorithmFamily": asset.algorithm_family,
-                        "assetType": asset.asset_type,
-                    },
-                    "properties": [
-                        {"name": "risk.tier", "value": asset.tier},
-                        {"name": "risk.score", "value": str(round(asset.score))},
-                    ],
-                }
-                for asset in assets
-            ],
         }
 
     def _timestamp(self, instance, *, created_at=None, updated_at=None):

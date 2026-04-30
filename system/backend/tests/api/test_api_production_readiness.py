@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.api.factories import create_target
+from tests.api.factories import create_asset, create_snapshot, create_target
 
 
 pytestmark = pytest.mark.django_db
@@ -117,12 +117,26 @@ def test_pr_agt_001_agent_token_uses_password_hasher(client, settings):
     assert client.post(f"/api/agents/{agent.id}/heartbeat", headers={"Authorization": f"Bearer {token}"}).status_code == 200
 
 
-def test_pr_db_002_duplicate_target_natural_key_is_rejected():
+def test_pr_db_002_duplicate_target_endpoint_is_rejected():
     from django.db import IntegrityError
 
     create_target(host="unique.testbed.local", port=443, transport="TCP")
     with pytest.raises(IntegrityError):
         create_target(host="unique.testbed.local", port=443, transport="TCP")
+
+
+def test_pr_db_003_duplicate_asset_bom_ref_is_rejected_per_snapshot():
+    from django.db import IntegrityError
+    from django.db import transaction
+
+    snapshot = create_snapshot()
+    create_asset(snapshot=snapshot, bom_ref="cert:unique")
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            create_asset(snapshot=snapshot, bom_ref="cert:unique")
+
+    other_snapshot = create_snapshot(serial_number="urn:uuid:other")
+    assert create_asset(snapshot=other_snapshot, bom_ref="cert:unique").id
 
 
 def test_pr_job_004_scan_job_enqueue_creates_durable_task(client):

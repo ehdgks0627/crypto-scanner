@@ -55,8 +55,8 @@ def test_api_rsk_002b_empty_tier_filter_returns_empty_page(client):
 
 def test_api_rsk_002c_list_snapshot_risks_applies_max_score_sort_and_missing_snapshot(client):
     snapshot = create_snapshot()
-    low = create_asset(snapshot=snapshot, name="low-risk", natural_key="risk:low")
-    high = create_asset(snapshot=snapshot, name="high-risk", natural_key="risk:high")
+    low = create_asset(snapshot=snapshot, name="low-risk", bom_ref="risk:low")
+    high = create_asset(snapshot=snapshot, name="high-risk", bom_ref="risk:high")
     create_risk_score(low, score=20.0, tier="LOW")
     create_risk_score(high, score=80.0, tier="HIGH")
 
@@ -187,7 +187,7 @@ def test_api_rsk_009_top_risks_returns_limited_page(client):
     snapshot = create_snapshot()
     scores = [95.0, 80.0, 70.0]
     for score in scores:
-        asset = create_asset(snapshot=snapshot, name=f"asset-{score}", natural_key=f"asset:{score}")
+        asset = create_asset(snapshot=snapshot, name=f"asset-{score}", bom_ref=f"asset:{score}")
         create_risk_score(asset, score=score, tier="HIGH")
 
     response = client.get(f"/api/snapshots/{snapshot.id}/risks/top?n=2")
@@ -253,9 +253,9 @@ def test_api_mig_004_migration_plan_applies_contract_filters_and_pagination(clie
     snapshot = create_snapshot()
     target_a = create_target(host="a.testbed.local")
     target_b = create_target(host="b.testbed.local")
-    asset_a = create_asset(snapshot=snapshot, target=target_a, asset_type="certificate", natural_key="mig:a")
-    asset_b = create_asset(snapshot=snapshot, target=target_b, asset_type="key", natural_key="mig:b")
-    asset_c = create_asset(snapshot=snapshot, target=target_a, asset_type="certificate", natural_key="mig:c")
+    asset_a = create_asset(snapshot=snapshot, target=target_a, asset_type="certificate", bom_ref="mig:a")
+    asset_b = create_asset(snapshot=snapshot, target=target_b, asset_type="key", bom_ref="mig:b")
+    asset_c = create_asset(snapshot=snapshot, target=target_a, asset_type="certificate", bom_ref="mig:c")
     create_risk_score(asset_a, score=95.0, tier="CRITICAL")
     create_risk_score(asset_b, score=80.0, tier="HIGH")
     create_risk_score(asset_c, score=30.0, tier="LOW")
@@ -288,8 +288,8 @@ def test_api_mig_005_migration_plan_validates_score_and_missing_snapshot(client)
 
 def test_api_mig_006_migration_plan_marks_rsa_hybrid_and_safe_no_change(client):
     snapshot = create_snapshot()
-    rsa_asset = create_asset(snapshot=snapshot, algorithm="RSA-2048", algorithm_family="RSA", natural_key="mig:rsa")
-    pqc_asset = create_asset(snapshot=snapshot, algorithm="ML-DSA-65", algorithm_family="ML-DSA", natural_key="mig:pqc")
+    rsa_asset = create_asset(snapshot=snapshot, algorithm="RSA-2048", algorithm_family="RSA", bom_ref="mig:rsa")
+    pqc_asset = create_asset(snapshot=snapshot, algorithm="ML-DSA-65", algorithm_family="ML-DSA", bom_ref="mig:pqc")
     create_risk_score(rsa_asset, score=95.4, tier="CRITICAL")
     create_risk_score(pqc_asset, score=42.2, tier="MEDIUM")
 
@@ -316,9 +316,9 @@ def test_api_mig_007_migration_plan_rejects_non_integer_asset_ids(client):
 def test_api_mig_002_migration_impact_calculates_selected_assets_only(client):
     snapshot = create_snapshot()
     target = create_target(host="impact.testbed.local")
-    asset_a = create_asset(snapshot=snapshot, target=target, natural_key="asset:a")
-    asset_b = create_asset(snapshot=snapshot, target=target, natural_key="asset:b")
-    create_asset(natural_key="asset:other")
+    asset_a = create_asset(snapshot=snapshot, target=target, bom_ref="asset:a")
+    asset_b = create_asset(snapshot=snapshot, target=target, bom_ref="asset:b")
+    create_asset(bom_ref="asset:other")
 
     response = client.get(
         f"/api/snapshots/{snapshot.id}/migration-plan/impact?asset_ids={asset_a.id},{asset_b.id}"

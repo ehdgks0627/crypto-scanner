@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileJson, Save } from "lucide-react";
+import { Download, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -17,8 +17,6 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
-import { Tabs } from "../../components/ui/tabs";
-import { CbomDocumentModel, type CbomComponentRow, type CbomDependencyRow, type CbomPropertyRow } from "../../domain/cbomDocument";
 import { parseRiskTierParam, riskTierOptions } from "../../domain/filterOptions";
 import { isTerminalJobStatus } from "../../domain/jobStatus";
 import { formatDateTime, formatNumber, formatScore } from "../../lib/format";
@@ -69,6 +67,7 @@ export function SnapshotsView() {
 export function SnapshotDetailView({ id }: { id: number }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [exportingCbom, setExportingCbom] = useState(false);
   const tier = parseRiskTierParam(searchParams.get("tier"));
   const q = searchParams.get("q") ?? "";
   const snapshot = useQuery({
@@ -80,6 +79,18 @@ export function SnapshotDetailView({ id }: { id: number }) {
     queryKey: queryKeys.snapshots.assets(id, filters),
     queryFn: () => services.snapshots.assets(id, filters)
   });
+
+  async function exportCbom() {
+    setExportingCbom(true);
+    try {
+      const document = await services.snapshots.export(id);
+      downloadJson(`cbom-${id}.json`, document);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "CBOM JSON 다운로드 실패");
+    } finally {
+      setExportingCbom(false);
+    }
+  }
 
   if (snapshot.isLoading) {
     return <LoadingState />;
@@ -95,6 +106,9 @@ export function SnapshotDetailView({ id }: { id: number }) {
         description={formatDateTime(snapshot.data.created_at)}
         actions={
           <>
+            <Button type="button" disabled={exportingCbom} onClick={() => void exportCbom()}>
+              <Download size={15} />CBOM JSON
+            </Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/diff`)}>Diff</Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/risk`)}>Risk</Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/migration`)}>Migration</Button>
@@ -450,154 +464,5 @@ export function SnapshotDiffView({ id }: { id: number }) {
         </div>
       ) : null}
     </Section>
-  );
-}
-
-export function CbomExportView() {
-  const [snapshotId, setSnapshotId] = useState<number | undefined>();
-  const [viewMode, setViewMode] = useState<"table" | "json">("table");
-  const snapshots = useQuery({ queryKey: queryKeys.snapshots.all, queryFn: () => services.snapshots.list() });
-  const cbom = useQuery({
-    queryKey: snapshotId ? queryKeys.snapshots.export(snapshotId) : ["snapshots", "export", "none"],
-    queryFn: () => services.snapshots.export(snapshotId!),
-    enabled: Boolean(snapshotId)
-  });
-  const cbomModel = useMemo(() => new CbomDocumentModel(cbom.data), [cbom.data]);
-
-  return (
-    <Section>
-      <PageHeader
-        title="CBOM"
-        description="식별 자산 스냅샷의 CycloneDX CBOM JSON을 조회하고 내려받습니다."
-        actions={<Button type="button" disabled={!cbom.data} onClick={() => cbom.data && downloadJson(`cbom-${snapshotId}.json`, cbom.data)}><Download size={15} />JSON 다운로드</Button>}
-      />
-      <Card>
-        <CardContent>
-          <Field>
-            <FieldLabel>스냅샷</FieldLabel>
-            <Select value={snapshotId ?? ""} onChange={(event) => setSnapshotId(event.target.value ? Number(event.target.value) : undefined)}>
-              <option value="">스냅샷 선택</option>
-              {(snapshots.data?.items ?? []).map((snapshot) => (
-                <option key={snapshot.id} value={snapshot.id}>#{snapshot.id} · {formatDateTime(snapshot.created_at)}</option>
-              ))}
-            </Select>
-          </Field>
-        </CardContent>
-      </Card>
-      {cbom.isLoading ? <LoadingState /> : null}
-      {cbom.data ? (
-        <>
-          <Card>
-            <CardHeader><CardTitle><FileJson size={16} /> CBOM 구조</CardTitle></CardHeader>
-            <CardContent>
-              <Tabs
-                value={viewMode}
-                onChange={(value) => setViewMode(value === "json" ? "json" : "table")}
-                items={[
-                  { value: "table", label: "테이블" },
-                  { value: "json", label: "JSON" }
-                ]}
-              />
-            </CardContent>
-          </Card>
-          {viewMode === "table" ? (
-            <CbomTableView model={cbomModel} />
-          ) : (
-            <Card>
-              <CardHeader><CardTitle>CBOM JSON</CardTitle></CardHeader>
-              <CardContent><JsonPreview value={cbom.data} /></CardContent>
-            </Card>
-          )}
-        </>
-      ) : null}
-      {!cbom.isLoading && !cbom.data ? <EmptyState title="스냅샷을 선택하세요" /> : null}
-    </Section>
-  );
-}
-
-function CbomTableView({ model }: { model: CbomDocumentModel }) {
-  const summary = model.summary();
-  const metadataProperties = model.metadataProperties();
-  const componentRows = model.componentRows();
-  const dependencyRows = model.dependencyRows();
-
-  return (
-    <div className="section-stack">
-      <div className="content-grid content-grid--4">
-        <MetricCard label="Format" value={summary.bomFormat} meta={`spec ${summary.specVersion}`} />
-        <MetricCard label="Components" value={formatNumber(summary.componentCount)} />
-        <MetricCard label="Dependencies" value={formatNumber(summary.dependencyCount)} />
-        <MetricCard label="Metadata" value={formatNumber(summary.metadataPropertyCount)} meta={summary.toolName} />
-      </div>
-
-      <Card>
-        <CardHeader><CardTitle>문서 메타데이터</CardTitle></CardHeader>
-        <CardContent>
-          <dl className="detail-list">
-            <div><dt>Serial</dt><dd className="mono">{summary.serialNumber}</dd></div>
-            <div><dt>Version</dt><dd>{summary.version}</dd></div>
-            <div><dt>Timestamp</dt><dd>{summary.timestamp}</dd></div>
-            <div><dt>Tool</dt><dd>{summary.toolName}</dd></div>
-          </dl>
-        </CardContent>
-      </Card>
-
-      {metadataProperties.length > 0 ? <CbomPropertiesTable properties={metadataProperties} /> : null}
-
-      <Card>
-        <CardHeader><CardTitle>Components</CardTitle></CardHeader>
-        <CardContent>
-          <DataTable<CbomComponentRow>
-            items={componentRows}
-            getRowKey={(component, index) => `${component.bomRef}-${index}`}
-            empty={<EmptyState title="CBOM components가 없습니다" />}
-            columns={[
-              { key: "bomRef", header: "bom-ref", render: (component) => <span className="mono">{component.bomRef}</span> },
-              { key: "name", header: "Name", render: (component) => component.name },
-              { key: "type", header: "Type", render: (component) => component.type },
-              { key: "assetType", header: "Asset Type", render: (component) => component.assetType },
-              { key: "algorithm", header: "Algorithm", render: (component) => component.algorithm },
-              { key: "family", header: "Family", render: (component) => component.algorithmFamily },
-              { key: "quantum", header: "Quantum", render: (component) => component.quantumVulnerable },
-              { key: "risk", header: "Risk", render: (component) => `${component.riskTier} / ${component.riskScore}` }
-            ]}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Dependencies</CardTitle></CardHeader>
-        <CardContent>
-          <DataTable<CbomDependencyRow>
-            items={dependencyRows}
-            getRowKey={(dependency, index) => `${dependency.ref}-${index}`}
-            empty={<EmptyState title="CBOM dependencies가 없습니다" />}
-            columns={[
-              { key: "ref", header: "Ref", render: (dependency) => <span className="mono">{dependency.ref}</span> },
-              { key: "count", header: "Depends On", render: (dependency) => formatNumber(dependency.dependsOn.length), align: "right" },
-              { key: "dependsOn", header: "Refs", render: (dependency) => dependency.dependsOn.join(", ") || "-" }
-            ]}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function CbomPropertiesTable({ properties }: { properties: CbomPropertyRow[] }) {
-  return (
-    <Card>
-      <CardHeader><CardTitle>Metadata Properties</CardTitle></CardHeader>
-      <CardContent>
-        <DataTable<CbomPropertyRow>
-          items={properties}
-          getRowKey={(property, index) => `${property.name}-${index}`}
-          columns={[
-            { key: "name", header: "Name", render: (property) => <span className="mono">{property.name}</span> },
-            { key: "value", header: "Value", render: (property) => property.value }
-          ]}
-        />
-      </CardContent>
-    </Card>
   );
 }

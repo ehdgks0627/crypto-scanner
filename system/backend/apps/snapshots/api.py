@@ -11,6 +11,7 @@ from apps.core.schemas import StrictSchema
 from apps.jobs import services as job_services
 from apps.risk import services as risk_services
 from apps.risk.models import RiskScore
+from apps.snapshots.cbom import build_cbom_document
 from apps.snapshots.models import CbomSnapshot
 
 
@@ -70,9 +71,9 @@ def export_snapshot(request, snapshot_id: int):
     except CbomSnapshot.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
     return JsonResponse(
-        snapshot.cbom_json,
+        build_cbom_document(snapshot),
         content_type="application/vnd.cyclonedx+json",
-        headers={"Content-Disposition": f'attachment; filename="snapshot-{snapshot.id}.json"'},
+        headers={"Content-Disposition": f'attachment; filename="cbom-{snapshot.id}.json"'},
     )
 
 
@@ -84,8 +85,8 @@ def diff_snapshots(request, snapshot_id: int, other: int):
     except CbomSnapshot.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
 
-    assets_a = {asset.natural_key: asset for asset in snapshot_a.assets.all()}
-    assets_b = {asset.natural_key: asset for asset in snapshot_b.assets.all()}
+    assets_a = {asset.bom_ref: asset for asset in snapshot_a.assets.all()}
+    assets_b = {asset.bom_ref: asset for asset in snapshot_b.assets.all()}
     added_keys = set(assets_b) - set(assets_a)
     removed_keys = set(assets_a) - set(assets_b)
     shared_keys = set(assets_a) & set(assets_b)
@@ -110,7 +111,7 @@ def _parse_csv(value: str | None):
 
 def _diff_asset(asset):
     return {
-        "bom_ref": asset.natural_key,
+        "bom_ref": asset.bom_ref,
         "type": asset.asset_type,
         "name": asset.name,
     }
@@ -180,7 +181,7 @@ def list_snapshot_assets(
             asset
             for asset in assets
             if query in asset.name.casefold()
-            or query in asset.natural_key.casefold()
+            or query in asset.bom_ref.casefold()
             or query in asset.algorithm.casefold()
             or (asset.target and query in asset.target.host.casefold())
         ]

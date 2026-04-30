@@ -1005,7 +1005,6 @@ export interface components {
             properties: {
                 [key: string]: unknown;
             };
-            natural_key: string;
             /** Format: date-time */
             discovered_at: string;
             target?: components["schemas"]["AssetTarget"] | null;

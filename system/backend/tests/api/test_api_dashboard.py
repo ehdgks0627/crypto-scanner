@@ -18,8 +18,8 @@ def test_api_dsh_001_dashboard_summary_uses_latest_snapshot(client):
 
     older = create_snapshot(serial_number="older")
     latest = create_snapshot(serial_number="latest")
-    old_asset = create_asset(snapshot=older, natural_key="old")
-    latest_asset = create_asset(snapshot=latest, natural_key="latest", asset_type="certificate")
+    old_asset = create_asset(snapshot=older, bom_ref="old")
+    latest_asset = create_asset(snapshot=latest, bom_ref="latest", asset_type="certificate")
     create_risk_score(old_asset, score=20.0, tier="LOW")
     create_risk_score(latest_asset, score=95.0, tier="CRITICAL")
     job = create_async_job(kind="scan_job", status="COMPLETED", result={"snapshot_id": latest.id})

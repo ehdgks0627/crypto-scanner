@@ -14,7 +14,6 @@ flowchart TB
         Worker["Celery Worker<br/>Scanner Runner"]
         Redis["Redis<br/>Broker + Cache"]
         DB[("PostgreSQL 16<br/>:5432")]
-        FileStore["CBOM File Store<br/>(/var/cbom)"]
     end
 
     subgraph Testbed["Testbed (별도 docker-compose)"]
@@ -37,7 +36,6 @@ flowchart TB
     Worker -->|Network Scan| Testbed
     Worker -->|HTTP Pull| Agents
     Agents -->|등록 Push| Backend
-    Backend -->|CBOM 저장| FileStore
     Worker -.->|호스트명 해석| DNS
 ```
 
@@ -93,8 +91,7 @@ address=/db.testbed.local/172.31.240.16
 | **Backend API** | REST 엔드포인트 제공, DB CRUD, Job 큐잉, Agent 등록/트리거 라우팅 |
 | **Celery Worker** | Scan Job 비동기 실행 (Network Scanner 직접 수행, Agent에 Pull 요청) |
 | **Redis** | Celery broker, 캐시 (디스커버리 결과 임시 저장 등) |
-| **PostgreSQL** | 영구 데이터 저장 (Targets, Assets, Snapshots 메타, Jobs, Risk 평가 등) |
-| **CBOM File Store** | 큰 CBOM JSON 원본 저장 (DB에는 메타와 경로만) |
+| **PostgreSQL** | 영구 데이터 저장 (Targets, Assets/CBOM components, Asset dependencies, Snapshots 메타, Jobs, Risk 평가 등) |
 | **Agent** | 테스트베드 컨테이너 내부에서 파일/시스템 스캔 수행, 결과를 Worker에 응답 |
 | **dnsmasq** | 테스트베드 호스트네임 해석 |
 
@@ -112,7 +109,6 @@ sequenceDiagram
     participant N as Network Scanner<br/>(in Worker)
     participant A as Agent<br/>(in Testbed)
     participant DB as PostgreSQL
-    participant FS as CBOM File Store
 
     U->>F: Scan 시작 (Targets, Scanner 선택)
     F->>B: POST /api/jobs
@@ -133,10 +129,8 @@ sequenceDiagram
         A-->>W: AgentScanResult
     end
 
-    W->>W: 결과 정규화 → Asset 객체화
-    W->>DB: Assets, Findings 저장
-    W->>W: CBOM 생성
-    W->>FS: cbom_<snapshot_id>.json 저장
+    W->>W: 결과 정규화 → Asset(CBOM component) 객체화
+    W->>DB: Assets, AssetDependency, Findings 저장
     W->>DB: Snapshot 메타 저장
     W->>W: Risk Score 계산 (휴리스틱)
     W->>DB: RiskScore 저장
@@ -196,7 +190,7 @@ sequenceDiagram
 ### 1.5.3 데이터 보호
 
 - DB는 시스템 docker-compose 내부 네트워크에만 노출 (외부 미노출)
-- CBOM File Store는 컨테이너 볼륨, 호스트 미노출
+- CBOM JSON은 별도 파일 저장소 없이 Snapshot/Asset/AssetDependency에서 export 시 조립
 - Agent 통신은 평문 HTTP 허용 (테스트베드 내부 한정), TLS 옵션은 v2
 
 ## 1.6 확장성 고려

@@ -311,9 +311,6 @@ REDIS_URL=redis://redis:6379/0
 CELERY_BROKER_URL=redis://redis:6379/1
 CELERY_RESULT_BACKEND=redis://redis:6379/2
 
-# CBOM 파일 저장
-CBOM_FILE_DIR=/var/cbom
-
 # Agent 인증
 AGENT_BOOTSTRAP_TOKEN=<랜덤 32자, 테스트베드 BOOTSTRAP_TOKEN과 동일값>
 
@@ -379,8 +376,6 @@ services:
     env_file: .env
     ports: ["8000:8000"]
     depends_on: [db, redis]
-    volumes:
-      - cbom-data:/var/cbom
     networks: [pqc-system-net]
 
   worker:
@@ -388,8 +383,6 @@ services:
     command: celery -A pqc_ras worker -c ${WORKER_CONCURRENCY}
     env_file: .env
     depends_on: [db, redis]
-    volumes:
-      - cbom-data:/var/cbom
     networks: [pqc-system-net]
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -416,7 +409,6 @@ services:
 
 volumes:
   db-data:
-  cbom-data:
 
 networks:
   pqc-system-net:

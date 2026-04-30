@@ -6,7 +6,6 @@ class CbomSnapshot(models.Model):
     serial_number = models.CharField(max_length=128, default="")
     summary = models.JSONField(default=dict)
     validation_errors = models.JSONField(default=list)
-    cbom_json = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

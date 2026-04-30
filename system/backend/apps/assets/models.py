@@ -19,7 +19,7 @@ class Asset(models.Model):
     name = models.CharField(max_length=255)
     asset_class = models.CharField(max_length=32, default="crypto")
     asset_type = models.CharField(max_length=32, default="certificate")
-    natural_key = models.CharField(max_length=255, default="")
+    bom_ref = models.CharField(max_length=255, default="")
     algorithm = models.CharField(max_length=128, default="")
     algorithm_family = models.CharField(max_length=64, default="")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -27,12 +27,12 @@ class Asset(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["snapshot", "natural_key"], name="uniq_asset_snapshot_natural_key"),
+            models.UniqueConstraint(fields=["snapshot", "bom_ref"], name="uniq_asset_snapshot_bom_ref"),
         ]
         indexes = [
             models.Index(fields=["snapshot", "asset_type"], name="asset_snapshot_type_idx"),
             models.Index(fields=["snapshot", "target"], name="asset_snapshot_target_idx"),
-            models.Index(fields=["natural_key"], name="asset_natural_key_idx"),
+            models.Index(fields=["bom_ref"], name="asset_bom_ref_idx"),
             models.Index(fields=["algorithm_family"], name="asset_algorithm_family_idx"),
         ]
 
@@ -70,3 +70,35 @@ class QualitativeAssessment(models.Model):
     migration_recommendation = models.TextField()
     confidence = models.FloatField(default=0.0)
     generated_at = models.DateTimeField(auto_now=True)
+
+
+class AssetDependency(models.Model):
+    snapshot = models.ForeignKey(
+        "snapshots.CbomSnapshot",
+        on_delete=models.CASCADE,
+        related_name="asset_dependencies",
+    )
+    source_asset = models.ForeignKey(
+        Asset,
+        on_delete=models.CASCADE,
+        related_name="dependency_edges",
+    )
+    target_asset = models.ForeignKey(
+        Asset,
+        on_delete=models.CASCADE,
+        related_name="depended_by_edges",
+    )
+    relation_type = models.CharField(max_length=32, default="dependsOn")
+    semantic = models.CharField(max_length=64, default="")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["snapshot", "source_asset", "target_asset", "relation_type"],
+                name="uniq_asset_dependency_edge",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["snapshot", "source_asset"], name="asset_dep_source_idx"),
+            models.Index(fields=["snapshot", "target_asset"], name="asset_dep_target_idx"),
+        ]

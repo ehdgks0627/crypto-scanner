@@ -62,8 +62,8 @@ def test_api_com_004_not_found_uses_standard_error_response(client):
 
 def test_api_com_005_csv_query_array_is_accepted(client):
     snapshot = create_snapshot()
-    critical_asset = create_asset(snapshot=snapshot, natural_key="common:critical")
-    high_asset = create_asset(snapshot=snapshot, natural_key="common:high")
+    critical_asset = create_asset(snapshot=snapshot, bom_ref="common:critical")
+    high_asset = create_asset(snapshot=snapshot, bom_ref="common:high")
     create_risk_score(critical_asset, tier="CRITICAL")
     create_risk_score(high_asset, tier="HIGH")
 

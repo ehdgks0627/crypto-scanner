@@ -108,7 +108,7 @@ def _heuristic_qualitative_score(asset, context):
 
 
 def _qualitative_summary(asset, context, score):
-    name = asset.name or asset.natural_key or f"asset {asset.id}"
+    name = asset.name or asset.bom_ref or f"asset {asset.id}"
     algorithm = asset.algorithm or asset.algorithm_family or "unknown algorithm"
     target = target_label(asset) or "unmapped target"
     exposure = context.get("exposure") or "unknown exposure"
@@ -173,7 +173,7 @@ def serialize_asset_summary(asset, risk_score=None):
     return {
         "id": asset.id,
         "snapshot_id": asset.snapshot_id,
-        "bom_ref": asset.natural_key,
+        "bom_ref": asset.bom_ref,
         "name": asset.name,
         "asset_class": asset.asset_class,
         "asset_type": asset.asset_type,
@@ -191,13 +191,12 @@ def serialize_asset_detail(asset):
     return {
         "id": asset.id,
         "snapshot_id": asset.snapshot_id,
-        "bom_ref": asset.natural_key,
+        "bom_ref": asset.bom_ref,
         "name": asset.name,
         "asset_class": asset.asset_class,
         "asset_type": asset.asset_type,
         "crypto_properties": crypto_properties(asset),
         "properties": asset_properties(asset),
-        "natural_key": asset.natural_key,
         "discovered_at": serialize_dt(asset.created_at),
         "target": None if not asset.target else {"id": asset.target.id, "host": asset.target.host, "port": asset.target.port},
         "effective_context": effective_context(asset, override),
@@ -205,7 +204,7 @@ def serialize_asset_detail(asset):
         "context_sources": context_sources(asset, override),
         "risk": risk_services.serialize_risk_detail(risk_score) if risk_score else None,
         "qualitative": serialize_qualitative(qualitative) if qualitative else None,
-        "dependencies": {"dependsOn": [], "dependedBy": []},
+        "dependencies": serialize_dependencies(asset),
         "history": serialize_history(asset),
     }
 
@@ -232,7 +231,29 @@ def crypto_properties(asset):
 
 def asset_properties(asset):
     return {
-        "natural_key": asset.natural_key,
+        "bom_ref": asset.bom_ref,
+    }
+
+
+def serialize_dependencies(asset):
+    return {
+        "dependsOn": [
+            dependency_item(edge.target_asset, edge)
+            for edge in asset.dependency_edges.select_related("target_asset").order_by("target_asset__bom_ref")
+        ],
+        "dependedBy": [
+            dependency_item(edge.source_asset, edge)
+            for edge in asset.depended_by_edges.select_related("source_asset").order_by("source_asset__bom_ref")
+        ],
+    }
+
+
+def dependency_item(asset, edge):
+    return {
+        "id": asset.id,
+        "bom_ref": asset.bom_ref,
+        "name": asset.name,
+        "semantic": edge.semantic or edge.relation_type,
     }
 
 
@@ -240,7 +261,7 @@ def serialize_history(asset):
     from apps.risk.models import RiskScore
 
     items = []
-    for risk_score in RiskScore.objects.filter(asset__natural_key=asset.natural_key).select_related("snapshot").order_by("snapshot__created_at", "id"):
+    for risk_score in RiskScore.objects.filter(asset__bom_ref=asset.bom_ref).select_related("snapshot").order_by("snapshot__created_at", "id"):
         items.append(
             {
                 "snapshot_id": risk_score.snapshot_id,

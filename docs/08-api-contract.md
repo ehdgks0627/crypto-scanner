@@ -621,7 +621,6 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
   "name": "web.testbed.local (leaf)",
   "crypto_properties": { ... },
   "properties": { ... },
-  "natural_key": "x509:ab12cd34...",
   "discovered_at": "...",
   "target": {
     "id": 1,
