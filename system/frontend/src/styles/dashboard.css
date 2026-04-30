@@ -59,13 +59,37 @@
 .network-graph-stage {
   position: relative;
   min-width: 0;
-  height: clamp(420px, 48vh, 560px);
-  overflow: hidden;
+  height: clamp(520px, 55vh, 700px);
+  overflow: auto;
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background:
-    radial-gradient(circle at 20% 15%, rgb(75 140 168 / 22%), transparent 30%),
-    radial-gradient(circle at 80% 70%, rgb(196 65 58 / 16%), transparent 28%),
-    #101114;
+  background: var(--panel);
+}
+
+.network-graph-stage--svg {
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.network-graph-svg {
+  min-width: 920px;
+  padding: 18px;
+}
+
+.network-graph-svg svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.network-graph-svg a {
+  cursor: pointer;
+}
+
+.network-graph-svg text {
+  letter-spacing: 0;
 }
 
 .network-graph-refresh {
@@ -74,10 +98,10 @@
   right: 10px;
   z-index: 2;
   padding: 3px 7px;
-  border: 1px solid rgb(255 255 255 / 18%);
+  border: 1px solid var(--border);
   border-radius: 3px;
-  background: rgb(16 17 20 / 70%);
-  color: #f1f1f1;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: var(--text-soft);
   font-family: var(--font-mono);
   font-size: 10px;
   text-transform: uppercase;
@@ -92,57 +116,15 @@
   justify-items: center;
   gap: 8px;
   padding: 20px;
-  background: rgb(16 17 20 / 72%);
-  color: #f1f1f1;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  color: var(--text);
   text-align: center;
   font-size: 12px;
   font-weight: 700;
 }
 
 .network-graph-overlay--error {
-  background: rgb(16 17 20 / 86%);
-}
-
-.network-graph-static {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-content: center;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 24px;
-}
-
-.network-graph-static__node {
-  display: inline-flex;
-  align-items: center;
-  max-width: min(260px, 90%);
-  gap: 6px;
-  padding: 6px 9px;
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 3px;
-  background: rgb(255 255 255 / 8%);
-  color: #f1f1f1;
-  font-size: 11px;
-  line-height: 1.3;
-}
-
-.network-graph-static__node.is-target {
-  border-color: rgb(75 140 168 / 60%);
-}
-
-.network-graph-static__node.is-endpoint {
-  border-color: rgb(109 90 154 / 62%);
-}
-
-.network-graph-static__node.is-asset {
-  border-color: rgb(93 138 90 / 62%);
-}
-
-.network-graph-static__node.is-finding {
-  border-color: rgb(196 65 58 / 70%);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
 }
 
 .network-graph-inspector {
@@ -215,6 +197,7 @@
 .network-graph-legend {
   display: grid;
   align-items: start;
+  gap: 8px;
 }
 
 .network-graph-legend span {
@@ -223,24 +206,98 @@
   gap: 7px;
 }
 
-.network-graph-legend i {
-  width: 9px;
-  height: 9px;
+.network-graph-risk-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.network-graph-risk-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel);
+}
+
+.network-graph-risk-legend i {
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
 }
 
-.network-graph-legend .is-target {
-  background: #4b8ca8;
+.network-graph-risk-legend .is-critical {
+  background: #c4413a;
 }
 
-.network-graph-legend .is-endpoint {
-  background: #6d5a9a;
+.network-graph-risk-legend .is-high {
+  background: #d18a3a;
 }
 
-.network-graph-legend .is-asset {
+.network-graph-risk-legend .is-medium {
+  background: #b9a23a;
+}
+
+.network-graph-risk-legend .is-low {
   background: #5d8a5a;
 }
 
-.network-graph-legend .is-finding {
-  background: #c4413a;
+.network-graph-relations {
+  display: grid;
+  gap: 7px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.network-graph-relations span {
+  display: grid;
+  grid-template-columns: 16px minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.network-graph-relations i {
+  width: 16px;
+  border-top: 2px solid currentColor;
+}
+
+.network-graph-relations b {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.network-graph-relations .is-exposes {
+  color: #4b8ca8;
+}
+
+.network-graph-relations .is-presents {
+  color: #6d5a9a;
+}
+
+.network-graph-relations .is-supports {
+  color: #5d8a5a;
+}
+
+.network-graph-relations .is-uses {
+  color: #8a8a8a;
+}
+
+.network-graph-relations .is-has_finding {
+  color: #c4413a;
+}
+
+.network-graph-relations .is-has_finding i {
+  border-top-style: dashed;
 }

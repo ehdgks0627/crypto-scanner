@@ -10,7 +10,7 @@ import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { BarChartCard, DonutChartCard, TrendChartCard } from "../../components/charts/ChartCards";
 import { MetricCard } from "../../components/charts/MetricCard";
-import { NetworkExposureGraph3D } from "../../components/graph/NetworkExposureGraph3D";
+import { NetworkExposureGraphViz } from "../../components/graph/NetworkExposureGraphViz";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Select } from "../../components/ui/form";
@@ -162,7 +162,7 @@ export function DashboardView() {
         />
       </div>
 
-      <NetworkExposureGraph3D
+      <NetworkExposureGraphViz
         graph={exposureGraph}
         isLoading={graphAssets.isLoading || graphTargets.isLoading}
         isFetching={graphAssets.isFetching || graphTargets.isFetching || summary.isFetching}

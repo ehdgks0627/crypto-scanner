@@ -103,6 +103,11 @@
     height: 380px;
   }
 
+  .network-graph-svg {
+    min-width: 760px;
+    padding: 12px;
+  }
+
   .network-graph-inspector {
     grid-template-columns: 1fr;
   }
