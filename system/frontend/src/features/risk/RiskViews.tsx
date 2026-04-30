@@ -210,8 +210,17 @@ function RiskTable({ risks, onAssetClick }: { risks: Schema<"RiskScore">[]; onAs
         { key: "type", header: "Type", render: (risk) => risk.asset_type ?? "-" },
         { key: "score", header: "Score", render: (risk) => formatScore(risk.score) },
         { key: "tier", header: "Tier", render: (risk) => <RiskTierBadge tier={risk.tier} /> },
+        { key: "factor-a", header: "A", render: (risk) => formatFactor(risk.factors.a), align: "right" },
+        { key: "factor-d", header: "D", render: (risk) => formatFactor(risk.factors.d), align: "right" },
+        { key: "factor-e", header: "E", render: (risk) => formatFactor(risk.factors.e), align: "right" },
+        { key: "factor-l", header: "L", render: (risk) => formatFactor(risk.factors.l), align: "right" },
+        { key: "factor-c", header: "C", render: (risk) => formatFactor(risk.factors.c), align: "right" },
         { key: "computed", header: "Computed", render: (risk) => formatDateTime(risk.computed_at) }
       ]}
     />
   );
+}
+
+function formatFactor(value: number) {
+  return value.toFixed(2);
 }

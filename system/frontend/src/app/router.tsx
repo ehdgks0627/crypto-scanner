@@ -20,6 +20,7 @@ const AssetDetailPage = lazyRoute(() => import("../pages/AssetDetailPage"), "Ass
 const SnapshotDiffPage = lazyRoute(() => import("../pages/SnapshotDiffPage"), "SnapshotDiffPage");
 const SnapshotRiskPage = lazyRoute(() => import("../pages/SnapshotRiskPage"), "SnapshotRiskPage");
 const SnapshotMigrationPage = lazyRoute(() => import("../pages/SnapshotMigrationPage"), "SnapshotMigrationPage");
+const RiskPage = lazyRoute(() => import("../pages/RiskPage"), "RiskPage");
 const AgentsPage = lazyRoute(() => import("../pages/AgentsPage"), "AgentsPage");
 const SettingsPage = lazyRoute(() => import("../pages/SettingsPage"), "SettingsPage");
 const TodoPage = lazyRoute(() => import("../pages/TodoPage"), "TodoPage");
@@ -51,7 +52,7 @@ export const router = createBrowserRouter([
       { path: "agents", element: page(<AgentsPage />) },
       { path: "settings", element: page(<SettingsPage />) },
       { path: "migration", element: page(<TodoPage />) },
-      { path: "risk", element: page(<TodoPage />) },
+      { path: "risk", element: page(<RiskPage />) },
       { path: "*", element: <Navigate to="/" replace /> }
     ]
   }

@@ -21,6 +21,27 @@ services:
       - "8000"
     restart: unless-stopped
 
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python manage.py process_recompute_jobs --loop --sleep 2
+    environment:
+      AGENT_BOOTSTRAP_TOKEN: ${AGENT_BOOTSTRAP_TOKEN:-dev-bootstrap-token}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/db.sqlite3}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-secret-key}
+      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-false}
+      DJANGO_SESSION_COOKIE_SECURE: ${DJANGO_SESSION_COOKIE_SECURE:-false}
+      DJANGO_CSRF_COOKIE_SECURE: ${DJANGO_CSRF_COOKIE_SECURE:-false}
+      LOAD_INITIAL_TARGETS: "0"
+    volumes:
+      - backend-data:/data
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
@@ -30,6 +51,7 @@ services:
       TLS_CERT_SAN: ${TLS_CERT_SAN:-DNS:localhost,IP:127.0.0.1}
     depends_on:
       - backend
+      - worker
     ports:
       - "${WEB_PORT:-80}:80"
       - "${WEB_HTTPS_PORT:-443}:443"
