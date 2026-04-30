@@ -742,7 +742,7 @@ export interface components {
             limit: number;
         };
         DiscoveryCreate: {
-            /** @example 172.20.0.0/24 */
+            /** @example 172.31.240.0/24 */
             cidr: string;
             ports?: number[];
             /** @description Defaults to true when omitted. */
