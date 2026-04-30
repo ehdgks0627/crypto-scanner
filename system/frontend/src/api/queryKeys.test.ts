@@ -15,4 +15,8 @@ describe("queryKeys", () => {
     expect(queryKeys.agents.list(true).slice(0, 2)).toEqual(queryKeys.agents.listPrefix);
     expect(queryKeys.agents.list(false).slice(0, 2)).toEqual(queryKeys.agents.listPrefix);
   });
+
+  it("keeps performance run prefix compatible with filtered run keys", () => {
+    expect(queryKeys.performance.runs(7, { status: "COMPLETED" }).slice(0, 3)).toEqual(queryKeys.performance.runsPrefix(7));
+  });
 });

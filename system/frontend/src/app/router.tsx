@@ -20,8 +20,10 @@ const AssetDetailPage = lazyRoute(() => import("../pages/AssetDetailPage"), "Ass
 const SnapshotDiffPage = lazyRoute(() => import("../pages/SnapshotDiffPage"), "SnapshotDiffPage");
 const SnapshotRiskPage = lazyRoute(() => import("../pages/SnapshotRiskPage"), "SnapshotRiskPage");
 const SnapshotMigrationPage = lazyRoute(() => import("../pages/SnapshotMigrationPage"), "SnapshotMigrationPage");
+const SnapshotPerformancePage = lazyRoute(() => import("../pages/SnapshotPerformancePage"), "SnapshotPerformancePage");
 const RiskPage = lazyRoute(() => import("../pages/RiskPage"), "RiskPage");
 const MigrationPage = lazyRoute(() => import("../pages/MigrationPage"), "MigrationPage");
+const PerformancePage = lazyRoute(() => import("../pages/PerformancePage"), "PerformancePage");
 const AgentsPage = lazyRoute(() => import("../pages/AgentsPage"), "AgentsPage");
 const SettingsPage = lazyRoute(() => import("../pages/SettingsPage"), "SettingsPage");
 const TodoPage = lazyRoute(() => import("../pages/TodoPage"), "TodoPage");
@@ -50,9 +52,11 @@ export const router = createBrowserRouter([
       { path: "snapshots/:id/diff", element: page(<SnapshotDiffPage />) },
       { path: "snapshots/:id/risk", element: page(<SnapshotRiskPage />) },
       { path: "snapshots/:id/migration", element: page(<SnapshotMigrationPage />) },
+      { path: "snapshots/:id/performance", element: page(<SnapshotPerformancePage />) },
       { path: "agents", element: page(<AgentsPage />) },
       { path: "settings", element: page(<SettingsPage />) },
       { path: "migration", element: page(<MigrationPage />) },
+      { path: "performance", element: page(<PerformancePage />) },
       { path: "risk", element: page(<RiskPage />) },
       { path: "*", element: <Navigate to="/" replace /> }
     ]

@@ -12,6 +12,7 @@ from apps.agents.models import Agent
 from apps.assets.models import Asset, AssetContextOverride, AssetDependency, QualitativeAssessment
 from apps.discoveries.models import DiscoveredEndpoint, Discovery
 from apps.jobs.models import AsyncJob, ScanJob, ScanRunLog
+from apps.performance import services as performance_services
 from apps.risk.models import RiskScore, RiskWeights
 from apps.snapshots.models import CbomSnapshot
 from apps.targets.models import Target
@@ -110,6 +111,7 @@ class Command(BaseCommand):
         scan_job = self._seed_scan_job(targets, now)
         baseline = self._seed_snapshot("baseline", BASELINE_ASSETS, targets, scan_job, now - timedelta(days=2, hours=4))
         latest = self._seed_snapshot("latest", LATEST_ASSETS, targets, scan_job, now - timedelta(minutes=35))
+        self._seed_performance_runs(baseline, latest, now - timedelta(minutes=25))
         discovery = self._seed_discovery(targets, now - timedelta(hours=2))
         self._seed_recompute_job(latest, now - timedelta(minutes=12))
         self._seed_failed_scan_job(targets, now - timedelta(minutes=8))
@@ -261,6 +263,71 @@ class Command(BaseCommand):
                 )
         self._seed_dependencies(snapshot, created_assets)
         return snapshot
+
+    def _seed_performance_runs(self, baseline, latest, created_at):
+        baseline_run = performance_services.create_run(
+            baseline,
+            {
+                "trigger": "manual",
+                "profile": "smoke",
+                "environment": {"scenario": SCENARIO, "location": "testbed", "sample_count": 30},
+            },
+        )
+        self._timestamp(baseline_run, created_at=created_at - timedelta(days=2), updated_at=created_at - timedelta(days=2))
+        for asset in baseline.assets.select_related("target").all():
+            performance_services.upsert_result(
+                baseline_run,
+                {
+                    "asset_id": asset.id,
+                    "compatibility_status": "PASS",
+                    "negotiated_algorithm": asset.algorithm,
+                    "metrics": self._performance_metrics(asset, migrated=False),
+                },
+            )
+        performance_services.update_run_status(baseline_run, "COMPLETED")
+
+        latest_run = performance_services.create_run(
+            latest,
+            {
+                "baseline_snapshot_id": baseline.id,
+                "trigger": "post_migration",
+                "profile": "smoke",
+                "environment": {"scenario": SCENARIO, "location": "testbed", "sample_count": 30},
+            },
+        )
+        self._timestamp(latest_run, created_at=created_at, updated_at=created_at)
+        for asset in latest.assets.select_related("target").all():
+            performance_services.upsert_result(
+                latest_run,
+                {
+                    "asset_id": asset.id,
+                    "compatibility_status": "PASS",
+                    "negotiated_algorithm": asset.algorithm,
+                    "metrics": self._performance_metrics(asset, migrated=asset.algorithm_family in {"ML-DSA", "ML-KEM"}),
+                },
+            )
+        performance_services.update_run_status(latest_run, "COMPLETED")
+
+    def _performance_metrics(self, asset, *, migrated):
+        host_weight = (asset.target.port if asset.target else 443) % 11
+        base_handshake = 78 + host_weight
+        base_ttfb = 142 + host_weight * 3
+        if migrated:
+            base_handshake += 24
+            base_ttfb += 12
+        elif asset.algorithm_family in {"RSA", "ECDSA", "DH"}:
+            base_handshake += 8
+        return {
+            "tcp_connect_ms": {"p50": 8 + host_weight, "p95": 15 + host_weight, "samples": 30},
+            "handshake_ms": {"p50": base_handshake * 0.62, "p95": base_handshake, "samples": 30},
+            "ttfb_ms": {"p50": base_ttfb * 0.66, "p95": base_ttfb, "samples": 30},
+            "total_request_ms": {"p50": (base_ttfb + 50) * 0.68, "p95": base_ttfb + 50, "samples": 30},
+            "failure_rate": 0.0 if asset.algorithm_family != "UNKNOWN" else 0.015,
+            "timeout_rate": 0.0,
+            "session_resumption_rate": 0.72,
+            "handshake_bytes_sent": 2100 + (1400 if migrated else 0),
+            "handshake_bytes_received": 3900 + (2600 if migrated else 0),
+        }
 
     def _seed_dependencies(self, snapshot, assets):
         for source_ref, target_ref, semantic in DEMO_DEPENDENCIES:

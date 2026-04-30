@@ -1,5 +1,5 @@
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Bot, Database, Gauge, ListChecks, Moon, Radar, RefreshCw, Settings, ShieldAlert, Sun, Target, Workflow } from "lucide-react";
+import { Activity, Bot, Database, Gauge, ListChecks, Moon, Radar, RefreshCw, Settings, ShieldAlert, Sun, Target, Timer, Workflow } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -14,7 +14,7 @@ import { useUiStore } from "../stores/uiStore";
 import { getSnapshotSidebarState, type SnapshotSidebarState } from "./snapshotSidebar";
 
 type NavItem = {
-  key: "dashboard" | "assets" | "risk" | "migration" | "discoveries" | "targets" | "scans" | "agents" | "settings";
+  key: "dashboard" | "assets" | "risk" | "migration" | "performance" | "discoveries" | "targets" | "scans" | "agents" | "settings";
   to: string;
   label: string;
   icon: typeof Gauge;
@@ -25,7 +25,8 @@ const reportNavItems: NavItem[] = [
   { key: "dashboard", to: "/", label: "대시보드", icon: Gauge, end: true },
   { key: "assets", to: "/snapshots", label: "식별 자산", icon: Database },
   { key: "risk", to: "/risk", label: "위험평가", icon: Workflow },
-  { key: "migration", to: "/migration", label: "마이그레이션", icon: ListChecks }
+  { key: "migration", to: "/migration", label: "마이그레이션", icon: ListChecks },
+  { key: "performance", to: "/performance", label: "성능평가", icon: Timer }
 ];
 
 const operationNavItems: NavItem[] = [
@@ -95,6 +96,7 @@ export function AppLayout() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.snapshots.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.risk.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.migration.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.performance.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.all });
       if (snapshotId) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.snapshots.detail(snapshotId) });
@@ -226,6 +228,9 @@ function resolveNavPath(item: NavItem, snapshotSidebarState: SnapshotSidebarStat
   if (item.key === "migration") {
     return snapshotSidebarState.migrationPath;
   }
+  if (item.key === "performance") {
+    return snapshotSidebarState.performancePath;
+  }
   return item.to;
 }
 
@@ -238,6 +243,9 @@ function isSpecialNavActive(item: NavItem, snapshotSidebarState: SnapshotSidebar
   }
   if (item.key === "migration") {
     return snapshotSidebarState.activeSection === "migration";
+  }
+  if (item.key === "performance") {
+    return snapshotSidebarState.activeSection === "performance";
   }
   return null;
 }

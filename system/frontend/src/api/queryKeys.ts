@@ -45,6 +45,13 @@ export const queryKeys = {
     plan: (snapshotId: number, filters?: unknown) => ["migration", "plan", snapshotId, filters] as const,
     impact: (snapshotId: number, assetIds: number[]) => ["migration", "impact", snapshotId, assetIds] as const
   },
+  performance: {
+    all: ["performance"] as const,
+    runsPrefix: (snapshotId: number) => ["performance", "runs", snapshotId] as const,
+    runs: (snapshotId: number, filters?: unknown) => ["performance", "runs", snapshotId, filters] as const,
+    detail: (snapshotId: number, runId: number) => ["performance", "detail", snapshotId, runId] as const,
+    history: (assetId: number) => ["performance", "history", assetId] as const
+  },
   agents: {
     all: ["agents"] as const,
     listPrefix: ["agents", "list"] as const,

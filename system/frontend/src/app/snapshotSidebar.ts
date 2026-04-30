@@ -1,9 +1,10 @@
-export type SnapshotSidebarSection = "snapshot" | "migration" | "risk" | null;
+export type SnapshotSidebarSection = "snapshot" | "migration" | "risk" | "performance" | null;
 
 export interface SnapshotSidebarState {
   snapshotPath: string;
   migrationPath: string;
   riskPath: string;
+  performancePath: string;
   activeSection: SnapshotSidebarSection;
 }
 
@@ -20,6 +21,8 @@ export function getSnapshotSidebarState(pathname: string): SnapshotSidebarState 
       activeSection = "migration";
     } else if (segments[2] === "risk") {
       activeSection = "risk";
+    } else if (segments[2] === "performance") {
+      activeSection = "performance";
     } else {
       activeSection = "snapshot";
     }
@@ -29,6 +32,7 @@ export function getSnapshotSidebarState(pathname: string): SnapshotSidebarState 
     snapshotPath,
     migrationPath: snapshotId ? `${snapshotPath}/migration` : "/snapshots",
     riskPath: snapshotId ? `${snapshotPath}/risk` : "/snapshots",
+    performancePath: snapshotId ? `${snapshotPath}/performance` : "/snapshots",
     activeSection
   };
 }

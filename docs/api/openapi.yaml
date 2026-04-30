@@ -29,6 +29,8 @@ tags:
     description: Risk score retrieval, weights, and recomputation.
   - name: Migration
     description: PQC migration recommendations.
+  - name: Performance
+    description: PQC migration performance evaluation runs and asset-level measurements.
   - name: Agents
     description: Agent registration, listing, and heartbeat.
   - name: Health
@@ -1025,6 +1027,170 @@ paths:
           $ref: '#/components/responses/Error'
         '422':
           $ref: '#/components/responses/Unprocessable'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{sid}/performance-runs:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotId'
+    get:
+      tags: [Performance]
+      summary: List performance evaluation runs for a snapshot
+      operationId: listPerformanceRuns
+      parameters:
+        - name: profile
+          in: query
+          schema:
+            $ref: '#/components/schemas/PerformanceRunProfile'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/PerformanceRunStatus'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Performance evaluation runs
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceEvaluationRunPage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Performance]
+      summary: Create a performance evaluation run
+      operationId: createPerformanceRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceRunCreate'
+      responses:
+        '201':
+          description: Created performance run
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceEvaluationRun'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{sid}/performance-runs/{id}:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotId'
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Performance]
+      summary: Get performance evaluation run detail
+      operationId: getPerformanceRun
+      responses:
+        '200':
+          description: Performance run with asset results
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceEvaluationRunDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+    patch:
+      tags: [Performance]
+      summary: Update performance run status
+      operationId: patchPerformanceRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceRunPatch'
+      responses:
+        '200':
+          description: Updated performance run
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceEvaluationRun'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /snapshots/{sid}/performance-runs/{id}/results:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotId'
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Performance]
+      summary: Upsert an asset performance result in a run
+      operationId: upsertPerformanceResult
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceResultCreate'
+      responses:
+        '201':
+          description: Created or updated asset performance result
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetPerformanceResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /assets/{id}/performance-history:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Performance]
+      summary: List performance history for one asset row
+      operationId: listAssetPerformanceHistory
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Asset performance history
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetPerformanceResultPage'
         '404':
           $ref: '#/components/responses/NotFound'
         default:
@@ -2814,6 +2980,301 @@ components:
         estimated_downtime_min:
           type: integer
           minimum: 0
+
+    PerformanceRunTrigger:
+      type: string
+      enum: [manual, post_migration, scheduled, canary]
+
+    PerformanceRunProfile:
+      type: string
+      enum: [smoke, baseline, canary, stress]
+
+    PerformanceRunStatus:
+      type: string
+      enum: [PENDING, RUNNING, COMPLETED, FAILED]
+
+    PerformanceResultStatus:
+      type: string
+      enum: [PASS, WARN, FAIL, ERROR]
+
+    PerformanceRunSummary:
+      type: object
+      required: [total_results, by_status, average_deltas, overall_status]
+      properties:
+        total_results:
+          type: integer
+          minimum: 0
+        by_status:
+          type: object
+          required: [PASS, WARN, FAIL, ERROR]
+          properties:
+            PASS:
+              type: integer
+              minimum: 0
+            WARN:
+              type: integer
+              minimum: 0
+            FAIL:
+              type: integer
+              minimum: 0
+            ERROR:
+              type: integer
+              minimum: 0
+        average_deltas:
+          type: object
+          additionalProperties:
+            type: number
+        overall_status:
+          type: string
+          enum: [PENDING, PASS, WARN, FAIL, ERROR]
+
+    PerformanceMetricSeries:
+      type: object
+      properties:
+        p50:
+          type: number
+        p95:
+          type: number
+        p99:
+          type: number
+        mean:
+          type: number
+        min:
+          type: number
+        max:
+          type: number
+        samples:
+          type: integer
+          minimum: 0
+
+    PerformanceMetrics:
+      type: object
+      properties:
+        tcp_connect_ms:
+          $ref: '#/components/schemas/PerformanceMetricSeries'
+        handshake_ms:
+          $ref: '#/components/schemas/PerformanceMetricSeries'
+        ttfb_ms:
+          $ref: '#/components/schemas/PerformanceMetricSeries'
+        total_request_ms:
+          $ref: '#/components/schemas/PerformanceMetricSeries'
+        failure_rate:
+          type: number
+          minimum: 0
+        timeout_rate:
+          type: number
+          minimum: 0
+        session_resumption_rate:
+          type: number
+          minimum: 0
+        handshake_bytes_sent:
+          type: integer
+          minimum: 0
+        handshake_bytes_received:
+          type: integer
+          minimum: 0
+      additionalProperties: true
+
+    PerformanceRunCreate:
+      type: object
+      properties:
+        baseline_snapshot_id:
+          type: integer
+          nullable: true
+        trigger:
+          $ref: '#/components/schemas/PerformanceRunTrigger'
+        profile:
+          $ref: '#/components/schemas/PerformanceRunProfile'
+        thresholds:
+          type: object
+          additionalProperties:
+            type: number
+        environment:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+
+    PerformanceRunPatch:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/PerformanceRunStatus'
+        summary:
+          type: object
+          additionalProperties: true
+          nullable: true
+      additionalProperties: false
+
+    PerformanceResultCreate:
+      type: object
+      required: [asset_id]
+      properties:
+        asset_id:
+          type: integer
+        compatibility_status:
+          $ref: '#/components/schemas/PerformanceResultStatus'
+        negotiated_algorithm:
+          type: string
+        metrics:
+          $ref: '#/components/schemas/PerformanceMetrics'
+        recommendation:
+          type: string
+          nullable: true
+        error_message:
+          type: string
+      additionalProperties: false
+
+    PerformanceEvaluationRun:
+      type: object
+      required:
+        - id
+        - snapshot_id
+        - baseline_snapshot_id
+        - trigger
+        - profile
+        - status
+        - thresholds
+        - environment
+        - summary
+        - started_at
+        - completed_at
+        - created_at
+      properties:
+        id:
+          type: integer
+        snapshot_id:
+          type: integer
+        baseline_snapshot_id:
+          type: integer
+          nullable: true
+        trigger:
+          $ref: '#/components/schemas/PerformanceRunTrigger'
+        profile:
+          $ref: '#/components/schemas/PerformanceRunProfile'
+        status:
+          $ref: '#/components/schemas/PerformanceRunStatus'
+        thresholds:
+          type: object
+          additionalProperties:
+            type: number
+        environment:
+          type: object
+          additionalProperties: true
+        summary:
+          $ref: '#/components/schemas/PerformanceRunSummary'
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    AssetPerformanceSignal:
+      type: object
+      required: [level, reason]
+      properties:
+        level:
+          type: string
+          enum: [WARN, FAIL]
+        reason:
+          type: string
+        value:
+          type: number
+
+    AssetPerformanceResult:
+      type: object
+      required:
+        - id
+        - run_id
+        - asset_id
+        - asset_name
+        - bom_ref
+        - target_label
+        - status
+        - compatibility_status
+        - negotiated_algorithm
+        - metrics
+        - deltas
+        - signals
+        - recommendation
+        - error_message
+        - measured_at
+      properties:
+        id:
+          type: integer
+        run_id:
+          type: integer
+        asset_id:
+          type: integer
+        asset_name:
+          type: string
+        bom_ref:
+          type: string
+        target_label:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/PerformanceResultStatus'
+        compatibility_status:
+          $ref: '#/components/schemas/PerformanceResultStatus'
+        negotiated_algorithm:
+          type: string
+        metrics:
+          $ref: '#/components/schemas/PerformanceMetrics'
+        deltas:
+          type: object
+          additionalProperties:
+            type: number
+        signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetPerformanceSignal'
+        recommendation:
+          type: string
+        error_message:
+          type: string
+        measured_at:
+          type: string
+          format: date-time
+
+    PerformanceEvaluationRunDetail:
+      allOf:
+        - $ref: '#/components/schemas/PerformanceEvaluationRun'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/AssetPerformanceResult'
+
+    PerformanceEvaluationRunPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/PerformanceEvaluationRun'
+
+    AssetPerformanceResultPage:
+      allOf:
+        - $ref: '#/components/schemas/PageBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AssetPerformanceResult'
 
     AgentRegister:
       type: object

@@ -9,6 +9,7 @@ from apps.discoveries.api import router as discoveries_router
 from apps.health.api import router as health_router
 from apps.jobs.api import router as jobs_router
 from apps.meta.api import router as meta_router
+from apps.performance.api import router as performance_router
 from apps.risk.api import router as risk_router
 from apps.snapshots.api import router as snapshots_router
 from apps.targets.api import router as targets_router
@@ -24,6 +25,7 @@ api.add_router("", discoveries_router)
 api.add_router("", health_router)
 api.add_router("", jobs_router)
 api.add_router("", meta_router)
+api.add_router("", performance_router)
 api.add_router("", risk_router)
 api.add_router("", snapshots_router)
 api.add_router("", targets_router)

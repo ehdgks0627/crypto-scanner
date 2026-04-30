@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "apps.health",
     "apps.jobs",
     "apps.meta",
+    "apps.performance",
     "apps.risk",
     "apps.snapshots",
     "apps.targets",

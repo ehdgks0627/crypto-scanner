@@ -10,7 +10,8 @@ describe("snapshot sidebar state", () => {
         activeSection: "snapshot",
         snapshotPath: "/snapshots",
         migrationPath: "/snapshots",
-        riskPath: "/snapshots"
+        riskPath: "/snapshots",
+        performancePath: "/snapshots"
       }
     ],
     [
@@ -19,7 +20,8 @@ describe("snapshot sidebar state", () => {
         activeSection: "snapshot",
         snapshotPath: "/snapshots/7",
         migrationPath: "/snapshots/7/migration",
-        riskPath: "/snapshots/7/risk"
+        riskPath: "/snapshots/7/risk",
+        performancePath: "/snapshots/7/performance"
       }
     ],
     [
@@ -28,7 +30,8 @@ describe("snapshot sidebar state", () => {
         activeSection: "risk",
         snapshotPath: "/snapshots/7",
         migrationPath: "/snapshots/7/migration",
-        riskPath: "/snapshots/7/risk"
+        riskPath: "/snapshots/7/risk",
+        performancePath: "/snapshots/7/performance"
       }
     ],
     [
@@ -37,7 +40,18 @@ describe("snapshot sidebar state", () => {
         activeSection: "migration",
         snapshotPath: "/snapshots/7",
         migrationPath: "/snapshots/7/migration",
-        riskPath: "/snapshots/7/risk"
+        riskPath: "/snapshots/7/risk",
+        performancePath: "/snapshots/7/performance"
+      }
+    ],
+    [
+      "/snapshots/7/performance",
+      {
+        activeSection: "performance",
+        snapshotPath: "/snapshots/7",
+        migrationPath: "/snapshots/7/migration",
+        riskPath: "/snapshots/7/risk",
+        performancePath: "/snapshots/7/performance"
       }
     ],
     [
@@ -46,7 +60,8 @@ describe("snapshot sidebar state", () => {
         activeSection: null,
         snapshotPath: "/snapshots",
         migrationPath: "/snapshots",
-        riskPath: "/snapshots"
+        riskPath: "/snapshots",
+        performancePath: "/snapshots"
       }
     ]
   ])("returns the expected sidebar state for %s", (pathname, expected) => {

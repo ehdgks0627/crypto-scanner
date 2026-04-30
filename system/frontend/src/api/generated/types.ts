@@ -463,6 +463,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/snapshots/{sid}/performance-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: components["parameters"]["SnapshotId"];
+            };
+            cookie?: never;
+        };
+        /** List performance evaluation runs for a snapshot */
+        get: operations["listPerformanceRuns"];
+        put?: never;
+        /** Create a performance evaluation run */
+        post: operations["createPerformanceRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/snapshots/{sid}/performance-runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: components["parameters"]["SnapshotId"];
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Get performance evaluation run detail */
+        get: operations["getPerformanceRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update performance run status */
+        patch: operations["patchPerformanceRun"];
+        trace?: never;
+    };
+    "/snapshots/{sid}/performance-runs/{id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: components["parameters"]["SnapshotId"];
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upsert an asset performance result in a run */
+        post: operations["upsertPerformanceResult"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assets/{id}/performance-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** List performance history for one asset row */
+        get: operations["listAssetPerformanceHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agents/register": {
         parameters: {
             query?: never;
@@ -1140,6 +1220,131 @@ export interface components {
             config_changes: number;
             key_regens: number;
             estimated_downtime_min: number;
+        };
+        /** @enum {string} */
+        PerformanceRunTrigger: "manual" | "post_migration" | "scheduled" | "canary";
+        /** @enum {string} */
+        PerformanceRunProfile: "smoke" | "baseline" | "canary" | "stress";
+        /** @enum {string} */
+        PerformanceRunStatus: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+        /** @enum {string} */
+        PerformanceResultStatus: "PASS" | "WARN" | "FAIL" | "ERROR";
+        PerformanceRunSummary: {
+            total_results: number;
+            by_status: {
+                PASS: number;
+                WARN: number;
+                FAIL: number;
+                ERROR: number;
+            };
+            average_deltas: {
+                [key: string]: number;
+            };
+            /** @enum {string} */
+            overall_status: "PENDING" | "PASS" | "WARN" | "FAIL" | "ERROR";
+        };
+        PerformanceMetricSeries: {
+            p50?: number;
+            p95?: number;
+            p99?: number;
+            mean?: number;
+            min?: number;
+            max?: number;
+            samples?: number;
+        };
+        PerformanceMetrics: {
+            tcp_connect_ms?: components["schemas"]["PerformanceMetricSeries"];
+            handshake_ms?: components["schemas"]["PerformanceMetricSeries"];
+            ttfb_ms?: components["schemas"]["PerformanceMetricSeries"];
+            total_request_ms?: components["schemas"]["PerformanceMetricSeries"];
+            failure_rate?: number;
+            timeout_rate?: number;
+            session_resumption_rate?: number;
+            handshake_bytes_sent?: number;
+            handshake_bytes_received?: number;
+        } & {
+            [key: string]: unknown;
+        };
+        PerformanceRunCreate: {
+            baseline_snapshot_id?: number | null;
+            trigger?: components["schemas"]["PerformanceRunTrigger"];
+            profile?: components["schemas"]["PerformanceRunProfile"];
+            thresholds?: {
+                [key: string]: number;
+            };
+            environment?: {
+                [key: string]: unknown;
+            };
+        };
+        PerformanceRunPatch: {
+            status: components["schemas"]["PerformanceRunStatus"];
+            summary?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        PerformanceResultCreate: {
+            asset_id: number;
+            compatibility_status?: components["schemas"]["PerformanceResultStatus"];
+            negotiated_algorithm?: string;
+            metrics?: components["schemas"]["PerformanceMetrics"];
+            recommendation?: string | null;
+            error_message?: string;
+        };
+        PerformanceEvaluationRun: {
+            id: number;
+            snapshot_id: number;
+            baseline_snapshot_id: number | null;
+            trigger: components["schemas"]["PerformanceRunTrigger"];
+            profile: components["schemas"]["PerformanceRunProfile"];
+            status: components["schemas"]["PerformanceRunStatus"];
+            thresholds: {
+                [key: string]: number;
+            };
+            environment: {
+                [key: string]: unknown;
+            };
+            summary: components["schemas"]["PerformanceRunSummary"];
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            completed_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AssetPerformanceSignal: {
+            /** @enum {string} */
+            level: "WARN" | "FAIL";
+            reason: string;
+            value?: number;
+        };
+        AssetPerformanceResult: {
+            id: number;
+            run_id: number;
+            asset_id: number;
+            asset_name: string;
+            bom_ref: string;
+            target_label: string | null;
+            status: components["schemas"]["PerformanceResultStatus"];
+            compatibility_status: components["schemas"]["PerformanceResultStatus"];
+            negotiated_algorithm: string;
+            metrics: components["schemas"]["PerformanceMetrics"];
+            deltas: {
+                [key: string]: number;
+            };
+            signals: components["schemas"]["AssetPerformanceSignal"][];
+            recommendation: string;
+            error_message: string;
+            /** Format: date-time */
+            measured_at: string;
+        };
+        PerformanceEvaluationRunDetail: components["schemas"]["PerformanceEvaluationRun"] & {
+            results: components["schemas"]["AssetPerformanceResult"][];
+        };
+        PerformanceEvaluationRunPage: components["schemas"]["PageBase"] & {
+            items: components["schemas"]["PerformanceEvaluationRun"][];
+        };
+        AssetPerformanceResultPage: components["schemas"]["PageBase"] & {
+            items: components["schemas"]["AssetPerformanceResult"][];
         };
         /** @description Uses X-Bootstrap-Token. New hostnames create an agent; existing hostnames update metadata and rotate the agent token. */
         AgentRegister: {
@@ -2227,6 +2432,182 @@ export interface operations {
             400: components["responses"]["Error"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["Unprocessable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listPerformanceRuns: {
+        parameters: {
+            query?: {
+                profile?: components["schemas"]["PerformanceRunProfile"];
+                status?: components["schemas"]["PerformanceRunStatus"];
+                offset?: components["parameters"]["Offset"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                sid: components["parameters"]["SnapshotId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Performance evaluation runs */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceEvaluationRunPage"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            default: components["responses"]["Error"];
+        };
+    };
+    createPerformanceRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: components["parameters"]["SnapshotId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PerformanceRunCreate"];
+            };
+        };
+        responses: {
+            /** @description Created performance run */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceEvaluationRun"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Unprocessable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    getPerformanceRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: components["parameters"]["SnapshotId"];
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Performance run with asset results */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceEvaluationRunDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            default: components["responses"]["Error"];
+        };
+    };
+    patchPerformanceRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: components["parameters"]["SnapshotId"];
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PerformanceRunPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated performance run */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceEvaluationRun"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Unprocessable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    upsertPerformanceResult: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: components["parameters"]["SnapshotId"];
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PerformanceResultCreate"];
+            };
+        };
+        responses: {
+            /** @description Created or updated asset performance result */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetPerformanceResult"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Unprocessable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listAssetPerformanceHistory: {
+        parameters: {
+            query?: {
+                offset?: components["parameters"]["Offset"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Asset performance history */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetPerformanceResultPage"];
+                };
+            };
+            404: components["responses"]["NotFound"];
             default: components["responses"]["Error"];
         };
     };

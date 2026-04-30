@@ -1,0 +1,77 @@
+import { screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { services } from "../../api/services";
+import type { Schema } from "../../api/types";
+import { renderWithApp } from "../../test/test-utils";
+import { PerformanceEvaluationView } from "./PerformanceViews";
+
+const run = {
+  id: 44,
+  snapshot_id: 3,
+  baseline_snapshot_id: 2,
+  trigger: "post_migration",
+  profile: "smoke",
+  status: "COMPLETED",
+  thresholds: {},
+  environment: { scenario: "testbed" },
+  summary: {
+    total_results: 1,
+    by_status: { PASS: 0, WARN: 1, FAIL: 0, ERROR: 0 },
+    average_deltas: { handshake_p95_percent: 18.2 },
+    overall_status: "WARN"
+  },
+  started_at: "2026-05-01T00:00:00Z",
+  completed_at: "2026-05-01T00:02:00Z",
+  created_at: "2026-05-01T00:00:00Z"
+} satisfies Schema<"PerformanceEvaluationRun">;
+
+const detail = {
+  ...run,
+  results: [
+    {
+      id: 90,
+      run_id: 44,
+      asset_id: 7,
+      asset_name: "web TLS leaf",
+      bom_ref: "tls:web:leaf",
+      target_label: "web.testbed.local:443",
+      status: "WARN",
+      compatibility_status: "PASS",
+      negotiated_algorithm: "ML-KEM-768+ECDHE",
+      metrics: {
+        handshake_ms: { p50: 40, p95: 118.2, samples: 30 },
+        ttfb_ms: { p50: 80, p95: 160.4, samples: 30 },
+        failure_rate: 0,
+        timeout_rate: 0,
+        handshake_bytes_sent: 3400,
+        handshake_bytes_received: 5200
+      },
+      deltas: { handshake_p95_percent: 18.2 },
+      signals: [{ level: "WARN", reason: "handshake_p95_percent_above_warn_threshold", value: 18.2 }],
+      recommendation: "canary_more",
+      error_message: "",
+      measured_at: "2026-05-01T00:01:00Z"
+    }
+  ]
+} satisfies Schema<"PerformanceEvaluationRunDetail">;
+
+describe("PerformanceEvaluationView", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders performance run summary and asset measurements", async () => {
+    vi.spyOn(services.performance, "listRuns").mockResolvedValue({ items: [run], total: 1, offset: 0, limit: 100 });
+    vi.spyOn(services.performance, "getRun").mockResolvedValue(detail);
+
+    renderWithApp(<PerformanceEvaluationView snapshotId={3} />);
+
+    expect(await screen.findByText("Snapshot #3 Performance")).toBeInTheDocument();
+    expect(await screen.findByText("tls:web:leaf")).toBeInTheDocument();
+    expect(screen.getByText("post_migration")).toBeInTheDocument();
+    expect(screen.getByText("118.2 ms")).toBeInTheDocument();
+    expect(screen.getByText("+18.2%")).toBeInTheDocument();
+    expect(screen.getByText("canary_more")).toBeInTheDocument();
+  });
+});

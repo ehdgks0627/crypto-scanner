@@ -58,6 +58,9 @@ export function getSnapshotSelectionPath(pathname: string, snapshotId: number) {
   if (segments[2] === "migration") {
     return `/snapshots/${snapshotId}/migration`;
   }
+  if (segments[2] === "performance") {
+    return `/snapshots/${snapshotId}/performance`;
+  }
   if (segments[2] === "diff") {
     return `/snapshots/${snapshotId}/diff`;
   }

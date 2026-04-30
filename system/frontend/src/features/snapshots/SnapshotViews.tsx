@@ -106,6 +106,7 @@ function SnapshotAssetsView({ id, snapshotHint }: { id: number; snapshotHint?: S
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/diff`)}>Diff</Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/risk`)}>Risk</Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/migration`)}>Migration</Button>
+            <Button type="button" onClick={() => navigate(`/snapshots/${id}/performance`)}>Performance</Button>
           </>
         }
       />
@@ -170,6 +171,10 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
   const asset = useQuery({
     queryKey: queryKeys.assets.detail(assetId),
     queryFn: () => services.assets.get(assetId)
+  });
+  const performanceHistory = useQuery({
+    queryKey: queryKeys.performance.history(assetId),
+    queryFn: () => services.performance.history(assetId)
   });
   const qualitative = useMutation({
     mutationFn: () => services.assets.qualitative(assetId),
@@ -286,6 +291,30 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
           </CardContent>
         </Card>
       ) : null}
+      <Card>
+        <CardHeader>
+          <CardTitle>Performance History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {performanceHistory.isLoading ? <LoadingState /> : null}
+          {performanceHistory.isError ? <ErrorState error={performanceHistory.error} onRetry={() => void performanceHistory.refetch()} /> : null}
+          {performanceHistory.data ? (
+            <DataTable
+              items={performanceHistory.data.items}
+              getRowKey={(item) => item.id}
+              empty={<EmptyState title="성능평가 이력이 없습니다" />}
+              columns={[
+                { key: "run", header: "Run", render: (item) => `#${item.run_id}` },
+                { key: "status", header: "Status", render: (item) => item.status },
+                { key: "algorithm", header: "Negotiated", render: (item) => item.negotiated_algorithm || "-" },
+                { key: "handshake", header: "Handshake p95", align: "right", render: (item) => formatAssetPerfMs(item.metrics.handshake_ms?.p95) },
+                { key: "delta", header: "Handshake Δ", align: "right", render: (item) => formatAssetPerfDelta(item.deltas.handshake_p95_percent) },
+                { key: "measured", header: "Measured", render: (item) => formatDateTime(item.measured_at) }
+              ]}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
       <div className="content-grid">
         <Card>
           <CardHeader>
@@ -322,6 +351,17 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
       </Card>
     </Section>
   );
+}
+
+function formatAssetPerfMs(value?: number) {
+  return typeof value === "number" ? `${value.toFixed(1)} ms` : "-";
+}
+
+function formatAssetPerfDelta(value?: number) {
+  if (typeof value !== "number") {
+    return "-";
+  }
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
 function AssetContextForm({

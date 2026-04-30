@@ -164,6 +164,45 @@ export class MigrationService extends BaseService {
   }
 }
 
+export class PerformanceService extends BaseService {
+  listRuns(snapshotId: number, query: QueryParams = {}) {
+    return this.client.request<Schema<"PerformanceEvaluationRunPage">>(`/snapshots/${snapshotId}/performance-runs`, {
+      query: { limit: 100, ...query }
+    });
+  }
+
+  getRun(snapshotId: number, runId: number) {
+    return this.client.request<Schema<"PerformanceEvaluationRunDetail">>(`/snapshots/${snapshotId}/performance-runs/${runId}`);
+  }
+
+  createRun(snapshotId: number, payload: Schema<"PerformanceRunCreate">) {
+    return this.client.request<Schema<"PerformanceEvaluationRun">>(`/snapshots/${snapshotId}/performance-runs`, {
+      method: "POST",
+      body: payload
+    });
+  }
+
+  patchRun(snapshotId: number, runId: number, payload: Schema<"PerformanceRunPatch">) {
+    return this.client.request<Schema<"PerformanceEvaluationRun">>(`/snapshots/${snapshotId}/performance-runs/${runId}`, {
+      method: "PATCH",
+      body: payload
+    });
+  }
+
+  upsertResult(snapshotId: number, runId: number, payload: Schema<"PerformanceResultCreate">) {
+    return this.client.request<Schema<"AssetPerformanceResult">>(`/snapshots/${snapshotId}/performance-runs/${runId}/results`, {
+      method: "POST",
+      body: payload
+    });
+  }
+
+  history(assetId: number) {
+    return this.client.request<Schema<"AssetPerformanceResultPage">>(`/assets/${assetId}/performance-history`, {
+      query: { limit: 100 }
+    });
+  }
+}
+
 export class AgentService extends BaseService {
   list(active?: boolean) {
     return this.client.request<Schema<"AgentPage">>("/agents", { query: { active, limit: 100 } });
@@ -207,6 +246,7 @@ export const services = {
   assets: new AssetService(apiClient),
   risk: new RiskService(apiClient),
   migration: new MigrationService(apiClient),
+  performance: new PerformanceService(apiClient),
   agents: new AgentService(apiClient),
   meta: new MetaService(apiClient),
   health: new HealthService(apiClient)
