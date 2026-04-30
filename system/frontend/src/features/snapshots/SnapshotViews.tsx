@@ -446,6 +446,10 @@ export function SnapshotDiffView({ id }: { id: number }) {
   const selectedModifiedAsset = selectedBomRef ? diffIndex.modified.get(selectedBomRef) ?? null : null;
   const isDiffLoading = diff.isLoading || previousAssets.isLoading || currentAssets.isLoading;
   const diffError = diff.error ?? previousAssets.error ?? currentAssets.error;
+  const pairedRows = useMemo(
+    () => buildDiffAssetPairs(diffIndex, showAllAssets, previousAssetItems, currentAssetItems),
+    [currentAssetItems, diffIndex, previousAssetItems, showAllAssets]
+  );
 
   useEffect(() => {
     if (!otherId || !diff.data) {
@@ -521,9 +525,8 @@ export function SnapshotDiffView({ id }: { id: number }) {
             <DiffAssetTable
               title={`Snapshot #${diff.data.snapshot_a}`}
               side="previous"
-              assets={previousAssetItems}
+              rows={pairedRows}
               diffIndex={diffIndex}
-              showAllAssets={showAllAssets}
               selectedBomRef={selectedBomRef}
               onSelect={setSelectedBomRef}
             />
@@ -531,9 +534,8 @@ export function SnapshotDiffView({ id }: { id: number }) {
               title={`Snapshot #${diff.data.snapshot_b}`}
               latest
               side="current"
-              assets={currentAssetItems}
+              rows={pairedRows}
               diffIndex={diffIndex}
-              showAllAssets={showAllAssets}
               selectedBomRef={selectedBomRef}
               onSelect={setSelectedBomRef}
             />
@@ -550,6 +552,13 @@ type DiffAsset = Schema<"AssetListItem">;
 type DiffAssetStatus = "added" | "removed" | "modified" | "unchanged";
 type DiffSide = "previous" | "current";
 
+type DiffAssetPair = {
+  bom_ref: string;
+  status: DiffAssetStatus;
+  previous: DiffAsset | null;
+  current: DiffAsset | null;
+};
+
 type DiffIndex = {
   added: Set<string>;
   removed: Set<string>;
@@ -560,22 +569,19 @@ function DiffAssetTable({
   title,
   latest = false,
   side,
-  assets,
+  rows,
   diffIndex,
-  showAllAssets,
   selectedBomRef,
   onSelect
 }: {
   title: string;
   latest?: boolean;
   side: DiffSide;
-  assets: DiffAsset[];
+  rows: DiffAssetPair[];
   diffIndex: DiffIndex;
-  showAllAssets: boolean;
   selectedBomRef: string | null;
   onSelect: (bomRef: string) => void;
 }) {
-  const visibleAssets = showAllAssets ? assets : assets.filter((asset) => getSideDiffStatus(asset.bom_ref, side, diffIndex) !== "unchanged");
   return (
     <Card className="snapshot-diff-table-card">
       <CardHeader>
@@ -588,31 +594,56 @@ function DiffAssetTable({
       </CardHeader>
       <CardContent>
         <DataTable
-          items={visibleAssets}
-          getRowKey={(asset) => asset.bom_ref}
-          rowClassName={(asset) => (asset.bom_ref === selectedBomRef ? "is-selected" : undefined)}
+          items={rows}
+          getRowKey={(row) => row.bom_ref}
+          rowClassName={(row) => (row.bom_ref === selectedBomRef ? "is-selected" : undefined)}
           empty={<EmptyState title="자산이 없습니다" />}
           columns={[
-            { key: "status", header: "상태", render: (asset) => <DiffStatusBadge status={getSideDiffStatus(asset.bom_ref, side, diffIndex)} /> },
+            { key: "status", header: "상태", render: (row) => <DiffSideStatus row={row} side={side} diffIndex={diffIndex} /> },
             {
               key: "bom_ref",
               header: "BOM Ref",
-              render: (asset) => (
-                <button
-                  className={asset.bom_ref === selectedBomRef ? "link-button diff-select-button is-selected" : "link-button diff-select-button"}
-                  type="button"
-                  onClick={() => onSelect(asset.bom_ref)}
-                >
-                  {asset.bom_ref}
-                </button>
-              )
+              render: (row) => <DiffSideBomRef row={row} side={side} selectedBomRef={selectedBomRef} onSelect={onSelect} />
             },
-            { key: "name", header: "Name", render: (asset) => asset.name },
-            { key: "type", header: "Type", render: (asset) => asset.asset_type }
+            { key: "name", header: "Name", render: (row) => getDiffPairAsset(row, side)?.name ?? <span className="muted">-</span> },
+            { key: "type", header: "Type", render: (row) => getDiffPairAsset(row, side)?.asset_type ?? <span className="muted">-</span> }
           ]}
         />
       </CardContent>
     </Card>
+  );
+}
+
+function DiffSideStatus({ row, side, diffIndex }: { row: DiffAssetPair; side: DiffSide; diffIndex: DiffIndex }) {
+  const asset = getDiffPairAsset(row, side);
+  if (!asset) {
+    return <span className="muted">-</span>;
+  }
+  return <DiffStatusBadge status={getSideDiffStatus(row.bom_ref, side, diffIndex)} />;
+}
+
+function DiffSideBomRef({
+  row,
+  side,
+  selectedBomRef,
+  onSelect
+}: {
+  row: DiffAssetPair;
+  side: DiffSide;
+  selectedBomRef: string | null;
+  onSelect: (bomRef: string) => void;
+}) {
+  if (!getDiffPairAsset(row, side)) {
+    return <span className="muted">-</span>;
+  }
+  return (
+    <button
+      className={row.bom_ref === selectedBomRef ? "link-button diff-select-button is-selected" : "link-button diff-select-button"}
+      type="button"
+      onClick={() => onSelect(row.bom_ref)}
+    >
+      {row.bom_ref}
+    </button>
   );
 }
 
@@ -753,6 +784,41 @@ function buildDiffIndex(diff?: Schema<"CbomDiff">): DiffIndex {
 
 function indexAssetsByBomRef(assets: DiffAsset[]) {
   return new Map(assets.map((asset) => [asset.bom_ref, asset]));
+}
+
+function buildDiffAssetPairs(diffIndex: DiffIndex, showAllAssets: boolean, previousAssets: DiffAsset[], currentAssets: DiffAsset[]): DiffAssetPair[] {
+  const previousByBomRef = indexAssetsByBomRef(previousAssets);
+  const currentByBomRef = indexAssetsByBomRef(currentAssets);
+  const bomRefs = new Set<string>();
+  for (const asset of previousAssets) {
+    bomRefs.add(asset.bom_ref);
+  }
+  for (const asset of currentAssets) {
+    bomRefs.add(asset.bom_ref);
+  }
+
+  return [...bomRefs]
+    .map((bomRef) => ({
+      bom_ref: bomRef,
+      status: getPairedDiffStatus(bomRef, diffIndex),
+      previous: previousByBomRef.get(bomRef) ?? null,
+      current: currentByBomRef.get(bomRef) ?? null
+    }))
+    .filter((row) => showAllAssets || row.status !== "unchanged")
+    .sort(compareDiffAssetPairs);
+}
+
+function compareDiffAssetPairs(left: DiffAssetPair, right: DiffAssetPair) {
+  const statusOrder: Record<DiffAssetStatus, number> = { modified: 0, added: 1, removed: 2, unchanged: 3 };
+  const statusDelta = statusOrder[left.status] - statusOrder[right.status];
+  if (statusDelta !== 0) {
+    return statusDelta;
+  }
+  return left.bom_ref.localeCompare(right.bom_ref);
+}
+
+function getDiffPairAsset(row: DiffAssetPair, side: DiffSide) {
+  return side === "previous" ? row.previous : row.current;
 }
 
 function getSideDiffStatus(bomRef: string, side: DiffSide, diffIndex: DiffIndex): DiffAssetStatus {

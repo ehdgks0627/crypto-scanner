@@ -150,6 +150,24 @@ describe("SnapshotDiffView", () => {
     expect(screen.getByText("cert:removed")).toBeInTheDocument();
     expect(screen.getAllByText("cert:algo").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("cert:same")).not.toBeInTheDocument();
+    const getDiffRows = () => {
+      const cards = Array.from(document.querySelectorAll<HTMLElement>(".snapshot-diff-table-card"));
+      expect(cards).toHaveLength(2);
+      return [
+        Array.from(cards[0]!.querySelectorAll<HTMLTableRowElement>("tbody tr")),
+        Array.from(cards[1]!.querySelectorAll<HTMLTableRowElement>("tbody tr"))
+      ] as const;
+    };
+    const getBomRefCell = (row: HTMLTableRowElement) => row.querySelectorAll<HTMLTableCellElement>("td")[1]!;
+    const [previousRows, currentRows] = getDiffRows();
+    expect(previousRows).toHaveLength(3);
+    expect(currentRows).toHaveLength(3);
+    expect(getBomRefCell(previousRows[0]!)).toHaveTextContent("cert:algo");
+    expect(getBomRefCell(currentRows[0]!)).toHaveTextContent("cert:algo");
+    expect(getBomRefCell(previousRows[1]!)).toHaveTextContent("-");
+    expect(getBomRefCell(currentRows[1]!)).toHaveTextContent("cert:added");
+    expect(getBomRefCell(previousRows[2]!)).toHaveTextContent("cert:removed");
+    expect(getBomRefCell(currentRows[2]!)).toHaveTextContent("-");
     const comparisonHeading = screen.getByText("선택 자산 비교");
     expect(comparisonHeading).toBeInTheDocument();
     expect(comparisonHeading.compareDocumentPosition(screen.getByRole("button", { name: "cert:removed" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -166,6 +184,10 @@ describe("SnapshotDiffView", () => {
 
     await user.click(screen.getByRole("checkbox", { name: "전체보기" }));
     expect(screen.getAllByText("cert:same").length).toBeGreaterThanOrEqual(2);
+    const [fullPreviousRows, fullCurrentRows] = getDiffRows();
+    const sameRowIndex = fullPreviousRows.findIndex((row) => getBomRefCell(row).textContent?.includes("cert:same"));
+    expect(sameRowIndex).toBeGreaterThanOrEqual(0);
+    expect(getBomRefCell(fullCurrentRows[sameRowIndex]!)).toHaveTextContent("cert:same");
   });
 });
 
