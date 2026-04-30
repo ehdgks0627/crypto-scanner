@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { cn } from "../../lib/utils";
+
 export type TableColumn<T> = {
   key: string;
   header: ReactNode;
@@ -12,9 +14,10 @@ type DataTableProps<T> = {
   items: T[];
   getRowKey: (item: T, index: number) => string | number;
   empty?: ReactNode;
+  rowClassName?: (item: T, index: number) => string | undefined;
 };
 
-export function DataTable<T>({ columns, items, getRowKey, empty }: DataTableProps<T>) {
+export function DataTable<T>({ columns, items, getRowKey, empty, rowClassName }: DataTableProps<T>) {
   if (items.length === 0) {
     return <div className="ui-table__empty">{empty ?? "데이터가 없습니다."}</div>;
   }
@@ -33,7 +36,7 @@ export function DataTable<T>({ columns, items, getRowKey, empty }: DataTableProp
         </thead>
         <tbody>
           {items.map((item, index) => (
-            <tr key={getRowKey(item, index)}>
+            <tr key={getRowKey(item, index)} className={cn(rowClassName?.(item, index))}>
               {columns.map((column) => (
                 <td key={column.key} className={column.align ? `is-${column.align}` : undefined}>
                   {column.render(item)}

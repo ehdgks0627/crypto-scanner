@@ -468,18 +468,24 @@ export function SnapshotDiffView({ id }: { id: number }) {
       <PageHeader title={`Snapshot #${id} Diff`} description="기준 스냅샷과 비교할 이전 스냅샷을 선택합니다." />
       <Card>
         <CardContent>
-          <Field>
-            <FieldLabel>Compare with</FieldLabel>
-            <Select
-              value={otherId ?? ""}
-              onChange={(event) => setSearchParams(event.target.value ? { other: event.target.value } : {})}
-            >
-              <option value="">스냅샷 선택</option>
-              {(snapshots.data?.items ?? []).filter((snapshot) => snapshot.id !== id).map((snapshot) => (
-                <option key={snapshot.id} value={snapshot.id}>#{snapshot.id} · {formatDateTime(snapshot.created_at)}</option>
-              ))}
-            </Select>
-          </Field>
+          <div className="snapshot-diff-controls">
+            <Field className="snapshot-diff-controls__select">
+              <FieldLabel>Compare with</FieldLabel>
+              <Select
+                value={otherId ?? ""}
+                onChange={(event) => setSearchParams(event.target.value ? { other: event.target.value } : {})}
+              >
+                <option value="">스냅샷 선택</option>
+                {(snapshots.data?.items ?? []).filter((snapshot) => snapshot.id !== id).map((snapshot) => (
+                  <option key={snapshot.id} value={snapshot.id}>#{snapshot.id} · {formatDateTime(snapshot.created_at)}</option>
+                ))}
+              </Select>
+            </Field>
+            <label className="inline-actions snapshot-diff-controls__toggle">
+              <Checkbox checked={showAllAssets} disabled={!otherId} onChange={(event) => setShowAllAssets(event.target.checked)} aria-label="전체보기" />
+              <span>전체보기</span>
+            </label>
+          </div>
         </CardContent>
       </Card>
       {otherId && isDiffLoading ? <LoadingState /> : null}
@@ -501,14 +507,6 @@ export function SnapshotDiffView({ id }: { id: number }) {
             <MetricCard label="Modified" value={diff.data.modified.length} />
             <MetricCard label="Unchanged" value={diff.data.unchanged_count} />
           </div>
-          <Card>
-            <CardContent>
-              <label className="inline-actions">
-                <Checkbox checked={showAllAssets} onChange={(event) => setShowAllAssets(event.target.checked)} aria-label="전체보기" />
-                <span>전체보기</span>
-              </label>
-            </CardContent>
-          </Card>
           <div className="snapshot-diff-grid">
             <DiffAssetTable
               title={`Snapshot #${diff.data.snapshot_a}`}
@@ -592,6 +590,7 @@ function DiffAssetTable({
         <DataTable
           items={visibleAssets}
           getRowKey={(asset) => asset.bom_ref}
+          rowClassName={(asset) => (asset.bom_ref === selectedBomRef ? "is-selected" : undefined)}
           empty={<EmptyState title="자산이 없습니다" />}
           columns={[
             { key: "status", header: "상태", render: (asset) => <DiffStatusBadge status={getSideDiffStatus(asset.bom_ref, side, diffIndex)} /> },

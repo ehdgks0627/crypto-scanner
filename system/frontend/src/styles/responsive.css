@@ -63,6 +63,7 @@
   .content-grid,
   .content-grid--3,
   .content-grid--4,
+  .snapshot-diff-controls,
   .split-pane {
     grid-template-columns: 1fr;
   }

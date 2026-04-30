@@ -154,9 +154,12 @@ describe("SnapshotDiffView", () => {
     expect(screen.getAllByText("RSA-2048").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("ML-DSA-65").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Raw Diff")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "cert:algo" })[0].closest("tr")).toHaveClass("is-selected");
+    expect(screen.getByRole("checkbox", { name: "전체보기" }).closest(".snapshot-diff-controls")).not.toBeNull();
 
     await user.click(screen.getByRole("button", { name: "cert:added" }));
     expect(screen.getByText("Snapshot #2에만 존재합니다.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "cert:added" }).closest("tr")).toHaveClass("is-selected");
 
     await user.click(screen.getByRole("checkbox", { name: "전체보기" }));
     expect(screen.getAllByText("cert:same").length).toBeGreaterThanOrEqual(2);
