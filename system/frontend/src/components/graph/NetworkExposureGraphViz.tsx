@@ -60,7 +60,7 @@ export function NetworkExposureGraphViz({
 
     import("@hpcc-js/wasm/graphviz")
       .then(({ Graphviz }) => Graphviz.load())
-      .then((graphviz) => graphviz.dot(dot, "svg"))
+      .then((graphviz) => graphviz.sfdp(dot, "svg"))
       .then((nextSvg) => {
         if (!cancelled) {
           setSvg(nextSvg);

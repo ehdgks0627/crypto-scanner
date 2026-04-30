@@ -2,15 +2,15 @@ import type { RiskTier } from "../api/types";
 import type { NetworkExposureGraph, NetworkExposureLink, NetworkExposureLinkKind, NetworkExposureNode, NetworkExposureNodeKind } from "./networkExposureGraph";
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
-  target: "TARGET",
-  endpoint: "ENDPOINT",
-  asset: "CRYPTO ASSET",
-  finding: "FINDING"
+  target: "Target",
+  endpoint: "Endpoint",
+  asset: "Crypto asset",
+  finding: "Finding"
 };
 
 const kindShapes: Record<NetworkExposureNodeKind, string> = {
-  target: "component",
-  endpoint: "box3d",
+  target: "box3d",
+  endpoint: "component",
   asset: "note",
   finding: "octagon"
 };
@@ -32,16 +32,11 @@ const edgeStyles: Record<NetworkExposureLinkKind, { color: string; label: string
 };
 
 export function buildNetworkExposureDot(graph: NetworkExposureGraph) {
-  const nodesByKind = groupNodesByKind(graph.nodes);
   const lines = [
-    "digraph NetworkExposure {",
-    '  graph [rankdir=LR, bgcolor="transparent", pad="0.20", nodesep="0.52", ranksep="0.92", splines=ortho, outputorder=edgesfirst];',
-    '  node [fontname="Inter", fontsize=11, margin="0.10,0.07"];',
-    '  edge [fontname="JetBrains Mono", fontsize=10, arrowsize=0.70, penwidth=1.55];',
-    ...rankBlock("targets", nodesByKind.target),
-    ...rankBlock("endpoints", nodesByKind.endpoint),
-    ...rankBlock("assets", nodesByKind.asset),
-    ...rankBlock("findings", nodesByKind.finding),
+    "graph NetworkExposure {",
+    '  graph [layout=sfdp, bgcolor="transparent", pad="0.24", overlap=prism, overlap_scaling=-5, sep="+24", K=0.95, repulsiveforce=1.55, start=37, splines=true, outputorder=edgesfirst];',
+    '  node [fontname="Inter", fontsize=11, margin="0.13,0.08"];',
+    '  edge [fontname="JetBrains Mono", fontsize=9, penwidth=1.55, len=1.6];',
     ...graph.nodes.map(nodeStatement),
     ...graph.links.map(edgeStatement),
     "}"
@@ -63,27 +58,6 @@ export function parseGraphNodeAppUrl(href: string | null | undefined) {
   } catch {
     return undefined;
   }
-}
-
-function groupNodesByKind(nodes: NetworkExposureNode[]) {
-  return {
-    target: nodes.filter((node) => node.kind === "target"),
-    endpoint: nodes.filter((node) => node.kind === "endpoint"),
-    asset: nodes.filter((node) => node.kind === "asset"),
-    finding: nodes.filter((node) => node.kind === "finding")
-  };
-}
-
-function rankBlock(name: string, nodes: NetworkExposureNode[]) {
-  if (nodes.length === 0) {
-    return [];
-  }
-  return [
-    `  subgraph rank_${name} {`,
-    "    rank=same;",
-    `    ${nodes.map((node) => quoteId(node.id)).join("; ")};`,
-    "  }"
-  ];
 }
 
 function nodeStatement(node: NetworkExposureNode) {
@@ -109,7 +83,7 @@ function nodeStatement(node: NetworkExposureNode) {
 function edgeStatement(link: NetworkExposureLink) {
   const style = edgeStyles[link.kind];
   return [
-    `  ${quoteId(link.source)} -> ${quoteId(link.target)} [`,
+    `  ${quoteId(link.source)} -- ${quoteId(link.target)} [`,
     `    label="${dotEscape(style.label)}",`,
     `    color="${style.color}",`,
     `    fontcolor="${style.color}",`,
@@ -122,10 +96,9 @@ function edgeStatement(link: NetworkExposureLink) {
 function nodeLabel(node: NetworkExposureNode) {
   const meta = node.kind === "finding" ? `${node.assetCount} assets` : node.assetCount > 1 ? `${node.assetCount} assets` : undefined;
   return [
-    kindLabels[node.kind],
-    ...wrapText(node.label, 26, 2),
-    ...wrapText(node.subtitle ?? "", 32, 1),
-    node.riskTier ? `risk ${node.riskTier}` : undefined,
+    ...wrapText(node.label, 24, 2),
+    ...wrapText(node.subtitle ?? "", 26, 1),
+    node.riskTier ? `${kindLabels[node.kind]} · ${node.riskTier}` : kindLabels[node.kind],
     meta
   ]
     .filter(Boolean)

@@ -61,15 +61,19 @@ describe("buildNetworkExposureDot", () => {
   it("emits Graphviz nodes with meaningful shapes and edge labels", () => {
     const dot = buildNetworkExposureDot(graph);
 
-    expect(dot).toContain("rankdir=LR");
-    expect(dot).toContain("shape=component");
+    expect(dot).toContain("graph NetworkExposure");
+    expect(dot).toContain("layout=sfdp");
+    expect(dot).toContain("splines=true");
     expect(dot).toContain("shape=box3d");
+    expect(dot).toContain("shape=component");
     expect(dot).toContain("shape=note");
     expect(dot).toContain("shape=octagon");
     expect(dot).toContain('label="exposes"');
     expect(dot).toContain('label="presents"');
     expect(dot).toContain('label="has finding"');
     expect(dot).toContain('style="dashed"');
+    expect(dot).toContain('"target:10" -- "endpoint:10:TCP:443"');
+    expect(dot).not.toContain("rank=same");
   });
 
   it("round-trips app node URLs", () => {

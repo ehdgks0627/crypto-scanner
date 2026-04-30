@@ -51,7 +51,7 @@
 
 .network-graph-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 230px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
 }
@@ -59,7 +59,7 @@
 .network-graph-stage {
   position: relative;
   min-width: 0;
-  height: clamp(520px, 55vh, 700px);
+  height: clamp(440px, 48vh, 600px);
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -74,7 +74,11 @@
 }
 
 .network-graph-svg {
+  display: grid;
+  place-items: center;
   min-width: 920px;
+  min-height: 100%;
+  box-sizing: border-box;
   padding: 18px;
 }
 
@@ -129,6 +133,7 @@
 
 .network-graph-inspector {
   display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) minmax(260px, 1.2fr);
   align-content: start;
   gap: 14px;
   min-width: 0;
