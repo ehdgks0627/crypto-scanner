@@ -123,6 +123,7 @@ export function NetworkExposureGraph3DView({
               nodes={nodes}
               edges={edges}
               layoutType="forceDirected3d"
+              cameraMode="rotate"
               sizingType="default"
               labelType="all"
               edgeLabelPosition="inline"
