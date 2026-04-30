@@ -2,14 +2,18 @@ import { Database } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { Select } from "../../components/ui/form";
+import type { Schema } from "../../api/types";
 import { formatDateTime } from "../../lib/format";
 import { useSelectedSnapshot } from "./useSelectedSnapshot";
+
+type SnapshotOption = Pick<Schema<"CbomSnapshot">, "id" | "created_at">;
 
 export function GlobalSnapshotSelector() {
   const navigate = useNavigate();
   const location = useLocation();
   const { snapshots, snapshotItems, selectedSnapshotId, setSelectedSnapshotId } = useSelectedSnapshot();
   const disabled = snapshots.isLoading || snapshots.isError || snapshotItems.length === 0;
+  const latestSnapshotId = getLatestSnapshotId(snapshotItems);
 
   function selectSnapshot(snapshotId: number) {
     setSelectedSnapshotId(snapshotId);
@@ -35,7 +39,7 @@ export function GlobalSnapshotSelector() {
         {disabled ? <option value="">{snapshotSelectorPlaceholder(snapshots.status)}</option> : null}
         {snapshotItems.map((snapshot) => (
           <option key={snapshot.id} value={snapshot.id}>
-            #{snapshot.id} · {formatDateTime(snapshot.created_at)}
+            {formatSnapshotOptionLabel(snapshot, latestSnapshotId)}
           </option>
         ))}
       </Select>
@@ -58,6 +62,32 @@ export function getSnapshotSelectionPath(pathname: string, snapshotId: number) {
     return `/snapshots/${snapshotId}/diff`;
   }
   return "/snapshots";
+}
+
+export function getLatestSnapshotId(snapshots: SnapshotOption[]) {
+  let latest: SnapshotOption | null = null;
+  for (const snapshot of snapshots) {
+    if (!latest || compareSnapshotRecency(snapshot, latest) > 0) {
+      latest = snapshot;
+    }
+  }
+  return latest?.id ?? null;
+}
+
+export function formatSnapshotOptionLabel(snapshot: SnapshotOption, latestSnapshotId: number | null) {
+  const prefix = snapshot.id === latestSnapshotId ? "최신 · " : "";
+  return `${prefix}#${snapshot.id} · ${formatDateTime(snapshot.created_at)}`;
+}
+
+function compareSnapshotRecency(a: SnapshotOption, b: SnapshotOption) {
+  const aTime = Date.parse(a.created_at);
+  const bTime = Date.parse(b.created_at);
+  const aRank = Number.isFinite(aTime) ? aTime : 0;
+  const bRank = Number.isFinite(bTime) ? bTime : 0;
+  if (aRank !== bRank) {
+    return aRank - bRank;
+  }
+  return a.id - b.id;
 }
 
 function snapshotSelectorPlaceholder(status: "pending" | "error" | "success") {
