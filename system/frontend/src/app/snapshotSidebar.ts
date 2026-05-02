@@ -30,9 +30,9 @@ export function getSnapshotSidebarState(pathname: string): SnapshotSidebarState 
 
   return {
     snapshotPath,
-    migrationPath: snapshotId ? `${snapshotPath}/migration` : "/snapshots",
-    riskPath: snapshotId ? `${snapshotPath}/risk` : "/snapshots",
-    performancePath: snapshotId ? `${snapshotPath}/performance` : "/snapshots",
+    migrationPath: snapshotId ? `${snapshotPath}/migration` : "/migration",
+    riskPath: snapshotId ? `${snapshotPath}/risk` : "/risk",
+    performancePath: snapshotId ? `${snapshotPath}/performance` : "/performance",
     activeSection
   };
 }

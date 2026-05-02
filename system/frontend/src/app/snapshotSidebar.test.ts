@@ -9,9 +9,9 @@ describe("snapshot sidebar state", () => {
       {
         activeSection: "snapshot",
         snapshotPath: "/snapshots",
-        migrationPath: "/snapshots",
-        riskPath: "/snapshots",
-        performancePath: "/snapshots"
+        migrationPath: "/migration",
+        riskPath: "/risk",
+        performancePath: "/performance"
       }
     ],
     [
@@ -59,9 +59,9 @@ describe("snapshot sidebar state", () => {
       {
         activeSection: null,
         snapshotPath: "/snapshots",
-        migrationPath: "/snapshots",
-        riskPath: "/snapshots",
-        performancePath: "/snapshots"
+        migrationPath: "/migration",
+        riskPath: "/risk",
+        performancePath: "/performance"
       }
     ]
   ])("returns the expected sidebar state for %s", (pathname, expected) => {
