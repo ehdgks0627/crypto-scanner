@@ -20,6 +20,7 @@ import { isActiveJobStatus } from "../../domain/jobStatus";
 import { areRiskWeightsValid, updateRiskWeight } from "../../domain/riskWeights";
 import { formatDateTime, formatScore } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
+import { RiskFormulaHelp, riskWeightLabel } from "./RiskFormulaHelp";
 
 export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
   const navigate = useNavigate();
@@ -137,6 +138,7 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
             {riskWeights.isError ? <ErrorState error={riskWeights.error} onRetry={() => void riskWeights.refetch()} /> : null}
             {riskWeights.data ? <span className="muted">업데이트 {formatDateTime(riskWeights.data.updated_at)}</span> : null}
             {recomputeJob.data ? <p className="muted" role="status" aria-live="polite">재계산 #{recomputeJob.data.id}: {statusLabel(recomputeJob.data.status)}</p> : null}
+            <RiskFormulaHelp />
             {!areRiskWeightsValid(weights) ? <div className="callout state-view--error" role="alert">가중치는 0.5부터 2.0 사이 숫자여야 합니다.</div> : null}
             <div className="form-grid">
               {(Object.keys(weights) as Array<keyof RiskWeightsInput>).map((key) => (
@@ -220,17 +222,6 @@ function RiskTable({ risks, onAssetClick }: { risks: Schema<"RiskScore">[]; onAs
       ]}
     />
   );
-}
-
-function riskWeightLabel(key: keyof RiskWeightsInput) {
-  const labels: Record<keyof RiskWeightsInput, string> = {
-    wA: "A 가중치",
-    wD: "D 가중치",
-    wE: "E 가중치",
-    wL: "L 가중치",
-    wC: "C 가중치"
-  };
-  return labels[key];
 }
 
 function formatFactor(value: number) {

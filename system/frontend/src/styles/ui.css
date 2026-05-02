@@ -785,6 +785,28 @@
   background: var(--fill-1);
 }
 
+.risk-formula-help {
+  display: grid;
+  gap: 8px;
+}
+
+.risk-formula-help__title,
+.risk-formula-help__formula,
+.risk-formula-help__note {
+  margin: 0;
+}
+
+.risk-formula-help__formula {
+  min-width: 0;
+  padding: 7px 9px;
+  overflow-x: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--panel);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .migration-playbook-list {
   display: grid;
   gap: 12px;

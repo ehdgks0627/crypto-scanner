@@ -16,6 +16,7 @@ import { DataTable } from "../../components/ui/table";
 import { yesNoLabel } from "../../domain/displayLabels";
 import { areRiskWeightsValid, updateRiskWeight } from "../../domain/riskWeights";
 import { useUiStore } from "../../stores/uiStore";
+import { RiskFormulaHelp, riskWeightLabel } from "../risk/RiskFormulaHelp";
 
 type AlgorithmRiskRow = Schema<"AlgorithmRiskTable">["items"][number];
 
@@ -92,6 +93,7 @@ export function SettingsView() {
           <CardContent>
             {riskWeights.isLoading ? <LoadingState /> : null}
             {riskWeights.isError ? <ErrorState error={riskWeights.error} onRetry={() => void riskWeights.refetch()} /> : null}
+            <RiskFormulaHelp />
             {!areRiskWeightsValid(weights) ? <div className="callout state-view--error" role="alert">가중치는 0.5부터 2.0 사이 숫자여야 합니다.</div> : null}
             <div className="form-grid">
               {(Object.keys(weights) as Array<keyof RiskWeightsInput>).map((key) => (
@@ -145,15 +147,4 @@ export function SettingsView() {
       </Card>
     </Section>
   );
-}
-
-function riskWeightLabel(key: keyof RiskWeightsInput) {
-  const labels: Record<keyof RiskWeightsInput, string> = {
-    wA: "A 가중치",
-    wD: "D 가중치",
-    wE: "E 가중치",
-    wL: "L 가중치",
-    wC: "C 가중치"
-  };
-  return labels[key];
 }
