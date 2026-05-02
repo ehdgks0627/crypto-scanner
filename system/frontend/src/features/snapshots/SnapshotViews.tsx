@@ -8,11 +8,9 @@ import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
 import type { Schema } from "../../api/types";
 import { RiskTierBadge } from "../../components/common/Badges";
-import { JsonPreview } from "../../components/common/JsonPreview";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { MetricCard } from "../../components/charts/MetricCard";
-import { AssetGraph } from "../../components/graph/AssetGraph";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -217,8 +215,6 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
     return <ErrorState error={asset.error} onRetry={() => void asset.refetch()} />;
   }
 
-  const dependencies = asset.data.dependencies ?? { dependsOn: [], dependedBy: [] };
-
   return (
     <Section>
       <PageHeader
@@ -298,24 +294,6 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
               ]}
             />
           ) : null}
-        </CardContent>
-      </Card>
-      <div className="content-grid">
-        <Card>
-          <CardHeader>
-            <CardTitle>Dependencies</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AssetGraph dependencies={dependencies} onAssetSelect={(nextAssetId) => navigate(`/snapshots/${snapshotId}/assets/${nextAssetId}`)} />
-          </CardContent>
-        </Card>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Properties</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <JsonPreview value={{ crypto_properties: asset.data.crypto_properties, properties: asset.data.properties, history: asset.data.history }} />
         </CardContent>
       </Card>
     </Section>
