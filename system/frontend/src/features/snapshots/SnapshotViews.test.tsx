@@ -6,7 +6,7 @@ import { services } from "../../api/services";
 import type { Schema } from "../../api/types";
 import { useSnapshotSelectionStore } from "../../stores/snapshotSelectionStore";
 import { renderWithApp } from "../../test/test-utils";
-import { SnapshotDiffView, SnapshotsView } from "./SnapshotViews";
+import { AssetDetailView, SnapshotDiffView, SnapshotsView } from "./SnapshotViews";
 
 const snapshots = [
   {
@@ -92,6 +92,29 @@ describe("SnapshotsView", () => {
 
     await waitFor(() => expect(assetsSpy).toHaveBeenCalledWith(2, expect.any(Object)));
     expect(await screen.findByText("web.testbed.local TLS leaf certificate")).toBeInTheDocument();
+  });
+});
+
+describe("AssetDetailView", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uses select empty options instead of override checkboxes in the context form", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(services.assets, "get").mockResolvedValue(makeAssetDetail());
+    vi.spyOn(services.performance, "history").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+
+    renderWithApp(<AssetDetailView snapshotId={2} assetId={84} />);
+
+    await screen.findByText("asset detail certificate");
+    await user.click(screen.getByRole("button", { name: /컨텍스트 수정/ }));
+
+    expect(screen.queryByRole("checkbox", { name: /override 사용/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("option", { name: "선택 안됨" })).toHaveLength(3);
+    expect(screen.getByLabelText("sensitivity override value")).not.toBeDisabled();
+    expect(screen.getByLabelText("lifespan_years override value")).toHaveAttribute("placeholder", "선택 안됨");
+    expect(screen.getByLabelText("service_role override value")).toHaveAttribute("placeholder", "선택 안됨");
   });
 });
 
@@ -206,4 +229,45 @@ function makeAsset(overrides: Partial<Schema<"AssetListItem">> & Pick<Schema<"As
     risk: null,
     ...overrides
   } satisfies Schema<"AssetListItem">;
+}
+
+function makeAssetDetail(overrides: Partial<Schema<"AssetDetail">> = {}) {
+  return {
+    id: 84,
+    snapshot_id: 2,
+    bom_ref: "tls:web:detail",
+    asset_class: "crypto",
+    asset_type: "certificate",
+    name: "asset detail certificate",
+    crypto_properties: { algorithm: "RSA-2048" },
+    properties: {},
+    discovered_at: "2026-05-01T00:00:00Z",
+    target: { id: 10, host: "web.testbed.local", port: 443 },
+    effective_context: {
+      sensitivity: "high",
+      lifespan_years: 10,
+      criticality: "high",
+      exposure: "internal_network",
+      service_role: "web"
+    },
+    context_override: {
+      sensitivity: null,
+      lifespan_years: null,
+      criticality: null,
+      exposure: null,
+      service_role: null
+    },
+    context_sources: {
+      sensitivity: "target",
+      lifespan_years: "target",
+      criticality: "target",
+      exposure: "target",
+      service_role: "target"
+    },
+    risk: null,
+    qualitative: null,
+    dependencies: { dependsOn: [], dependedBy: [] },
+    history: [],
+    ...overrides
+  } satisfies Schema<"AssetDetail">;
 }

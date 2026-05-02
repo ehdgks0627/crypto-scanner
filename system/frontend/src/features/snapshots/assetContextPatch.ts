@@ -1,7 +1,6 @@
 import type { Schema } from "../../api/types";
 
 export type AssetContextFormValues = Record<keyof Schema<"AssetContextValues">, string>;
-export type AssetContextEnabledFields = Record<keyof Schema<"AssetContextValues">, boolean>;
 
 const contextFields: Array<keyof Schema<"AssetContextValues">> = [
   "sensitivity",
@@ -13,10 +12,9 @@ const contextFields: Array<keyof Schema<"AssetContextValues">> = [
 
 export function buildAssetContextPatch(
   initialValue: Schema<"AssetContextValues">,
-  values: AssetContextFormValues,
-  enabled: AssetContextEnabledFields
+  values: AssetContextFormValues
 ): Schema<"AssetContextPatch"> {
-  const validationError = validateAssetContextPatchValues(values, enabled);
+  const validationError = validateAssetContextPatchValues(values);
   if (validationError) {
     throw new Error(validationError);
   }
@@ -24,24 +22,24 @@ export function buildAssetContextPatch(
   const payload: Schema<"AssetContextPatch"> = {};
 
   contextFields.forEach((field) => {
-    if (enabled[field]) {
-      if (field === "lifespan_years") {
-        payload[field] = values[field] === "" ? null : Number(values[field]);
-        return;
+    if (field === "lifespan_years") {
+      const nextValue = values[field] === "" ? null : Number(values[field]);
+      if (initialValue[field] !== nextValue) {
+        payload[field] = nextValue;
       }
-      payload[field] = (values[field] || null) as never;
       return;
     }
-    if (initialValue[field] !== null) {
-      payload[field] = null as never;
+    const nextValue = values[field] || null;
+    if (initialValue[field] !== nextValue) {
+      payload[field] = nextValue as never;
     }
   });
 
   return payload;
 }
 
-export function validateAssetContextPatchValues(values: AssetContextFormValues, enabled: AssetContextEnabledFields): string | null {
-  if (!enabled.lifespan_years || values.lifespan_years === "") {
+export function validateAssetContextPatchValues(values: AssetContextFormValues): string | null {
+  if (values.lifespan_years === "") {
     return null;
   }
   const parsed = Number(values.lifespan_years);
@@ -58,16 +56,6 @@ export function assetContextToFormValues(initialValue: Schema<"AssetContextValue
     criticality: initialValue.criticality ?? "",
     exposure: initialValue.exposure ?? "",
     service_role: initialValue.service_role ?? ""
-  };
-}
-
-export function assetContextEnabledFields(initialValue: Schema<"AssetContextValues">): AssetContextEnabledFields {
-  return {
-    sensitivity: initialValue.sensitivity !== null,
-    lifespan_years: initialValue.lifespan_years !== null,
-    criticality: initialValue.criticality !== null,
-    exposure: initialValue.exposure !== null,
-    service_role: initialValue.service_role !== null
   };
 }
 

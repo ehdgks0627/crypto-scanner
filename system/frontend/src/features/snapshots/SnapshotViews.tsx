@@ -24,11 +24,9 @@ import { formatDateTime, formatNumber, formatScore } from "../../lib/format";
 import { downloadJson } from "../../lib/download";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import {
-  assetContextEnabledFields,
   assetContextToFormValues,
   buildAssetContextPatch,
-  validateAssetContextPatchValues,
-  type AssetContextEnabledFields
+  validateAssetContextPatchValues
 } from "./assetContextPatch";
 import { useSelectedSnapshot } from "./useSelectedSnapshot";
 
@@ -176,14 +174,6 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
     queryKey: queryKeys.performance.history(assetId),
     queryFn: () => services.performance.history(assetId)
   });
-  const qualitative = useMutation({
-    mutationFn: () => services.assets.qualitative(assetId),
-    onSuccess: async () => {
-      toast.success("정성 평가를 생성했습니다.");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.assets.detail(assetId) });
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "정성 평가 실패")
-  });
   const patchContext = useMutation({
     mutationFn: (payload: Schema<"AssetContextPatch">) => services.assets.patchContext(assetId, payload),
     onSuccess: async (result) => {
@@ -235,14 +225,9 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
         title={asset.data.name}
         description={`${asset.data.asset_class} · ${asset.data.asset_type}`}
         actions={
-          <>
-            <Button type="button" disabled={qualitative.isPending} onClick={() => !qualitative.isPending && qualitative.mutate()}>
-              {qualitative.isPending ? "평가 중" : "정성 평가"}
-            </Button>
-            <Button type="button" variant="primary" onClick={() => setEditing((value) => !value)}>
-              <Save size={15} />컨텍스트 수정
-            </Button>
-          </>
+          <Button type="button" variant="primary" onClick={() => setEditing((value) => !value)}>
+            <Save size={15} />컨텍스트 수정
+          </Button>
         }
       />
       {recomputeJob.data ? <div className="callout" role="status" aria-live="polite">Recompute #{recomputeJob.data.id}: {recomputeJob.data.status}</div> : null}
@@ -324,22 +309,6 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
             <AssetGraph dependencies={dependencies} onAssetSelect={(nextAssetId) => navigate(`/snapshots/${snapshotId}/assets/${nextAssetId}`)} />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Qualitative Assessment</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {asset.data.qualitative ? (
-              <div className="section-stack">
-                <strong>{asset.data.qualitative.summary}</strong>
-                <p>{asset.data.qualitative.migration_recommendation}</p>
-                <span className="muted">confidence {asset.data.qualitative.confidence}</span>
-              </div>
-            ) : (
-              <EmptyState title="정성 평가가 없습니다" />
-            )}
-          </CardContent>
-        </Card>
       </div>
       <Card>
         <CardHeader>
@@ -376,8 +345,7 @@ function AssetContextForm({
   onCancel: () => void;
 }) {
   const [values, setValues] = useState(() => assetContextToFormValues(initialValue));
-  const [enabled, setEnabled] = useState<AssetContextEnabledFields>(() => assetContextEnabledFields(initialValue));
-  const validationError = validateAssetContextPatchValues(values, enabled);
+  const validationError = validateAssetContextPatchValues(values);
   return (
     <form
       onSubmit={(event) => {
@@ -385,7 +353,7 @@ function AssetContextForm({
         if (validationError) {
           return;
         }
-        onSubmit(buildAssetContextPatch(initialValue, values, enabled));
+        onSubmit(buildAssetContextPatch(initialValue, values));
       }}
     >
       <fieldset className="form-fieldset" disabled={isSubmitting}>
@@ -393,56 +361,30 @@ function AssetContextForm({
           {(["sensitivity", "criticality"] as const).map((field) => (
             <Field key={field}>
               <FieldLabel>{field}</FieldLabel>
-              <span className="inline-actions">
-                <Checkbox
-                  checked={enabled[field]}
-                  onChange={(event) => setEnabled((current) => ({ ...current, [field]: event.target.checked }))}
-                  aria-label={`${field} override 사용`}
-                />
-              <Select aria-label={`${field} override value`} disabled={!enabled[field]} value={values[field]} onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value }))}>
-                  {["", "low", "medium", "high", "critical"].map((item) => (
-                    <option key={item || "empty"} value={item}>{item || "clear"}</option>
-                  ))}
-                </Select>
-              </span>
+              <Select aria-label={`${field} override value`} value={values[field]} onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value }))}>
+                <option value="">선택 안됨</option>
+                {["low", "medium", "high", "critical"].map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </Select>
             </Field>
           ))}
           <Field>
             <FieldLabel>Exposure</FieldLabel>
-            <span className="inline-actions">
-              <Checkbox
-                checked={enabled.exposure}
-                onChange={(event) => setEnabled((current) => ({ ...current, exposure: event.target.checked }))}
-                aria-label="exposure override 사용"
-              />
-              <Select aria-label="exposure override value" disabled={!enabled.exposure} value={values.exposure} onChange={(event) => setValues((current) => ({ ...current, exposure: event.target.value }))}>
-                {["", "public_internet", "dmz", "internal_network", "air_gapped"].map((item) => (
-                  <option key={item || "empty"} value={item}>{item || "clear"}</option>
-                ))}
-              </Select>
-            </span>
+            <Select aria-label="exposure override value" value={values.exposure} onChange={(event) => setValues((current) => ({ ...current, exposure: event.target.value }))}>
+              <option value="">선택 안됨</option>
+              {["public_internet", "dmz", "internal_network", "air_gapped"].map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </Select>
           </Field>
           <Field>
             <FieldLabel>Lifespan Years</FieldLabel>
-            <span className="inline-actions">
-              <Checkbox
-                checked={enabled.lifespan_years}
-                onChange={(event) => setEnabled((current) => ({ ...current, lifespan_years: event.target.checked }))}
-                aria-label="lifespan_years override 사용"
-              />
-              <Input aria-label="lifespan_years override value" type="number" min="0" step="1" disabled={!enabled.lifespan_years} value={values.lifespan_years} onChange={(event) => setValues((current) => ({ ...current, lifespan_years: event.target.value }))} />
-            </span>
+            <Input aria-label="lifespan_years override value" type="number" min="0" step="1" placeholder="선택 안됨" value={values.lifespan_years} onChange={(event) => setValues((current) => ({ ...current, lifespan_years: event.target.value }))} />
           </Field>
           <Field className="is-wide">
             <FieldLabel>Service Role</FieldLabel>
-            <span className="inline-actions">
-              <Checkbox
-                checked={enabled.service_role}
-                onChange={(event) => setEnabled((current) => ({ ...current, service_role: event.target.checked }))}
-                aria-label="service_role override 사용"
-              />
-              <Input aria-label="service_role override value" disabled={!enabled.service_role} value={values.service_role} onChange={(event) => setValues((current) => ({ ...current, service_role: event.target.value }))} />
-            </span>
+            <Input aria-label="service_role override value" placeholder="선택 안됨" value={values.service_role} onChange={(event) => setValues((current) => ({ ...current, service_role: event.target.value }))} />
           </Field>
         </div>
         {validationError ? <div className="callout state-view--error" role="alert">{validationError}</div> : null}

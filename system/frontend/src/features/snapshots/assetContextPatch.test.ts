@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assetContextEnabledFields, assetContextToFormValues, buildAssetContextPatch, validateAssetContextPatchValues } from "./assetContextPatch";
+import { assetContextToFormValues, buildAssetContextPatch, validateAssetContextPatchValues } from "./assetContextPatch";
 
 const initial = {
   sensitivity: "high",
@@ -11,46 +11,40 @@ const initial = {
 } as const;
 
 describe("buildAssetContextPatch", () => {
-  it("sends only changed enabled fields and clear requests", () => {
+  it("uses blank form values as clear requests and sends changed values only", () => {
     const values = assetContextToFormValues(initial);
-    const enabled = assetContextEnabledFields(initial);
-    enabled.sensitivity = false;
-    enabled.criticality = true;
+    values.sensitivity = "";
     values.criticality = "critical";
 
-    expect(buildAssetContextPatch(initial, values, enabled)).toEqual({
+    expect(buildAssetContextPatch(initial, values)).toEqual({
       sensitivity: null,
-      lifespan_years: 0,
-      criticality: "critical",
-      exposure: "internal_network"
+      criticality: "critical"
     });
   });
 
-  it("preserves zero lifespan and treats blank enabled values as null", () => {
+  it("preserves zero lifespan and treats blank text values as null", () => {
     const values = assetContextToFormValues(initial);
-    const enabled = assetContextEnabledFields(initial);
-    enabled.service_role = true;
+    values.lifespan_years = "1";
+    values.lifespan_years = "0";
     values.service_role = "";
 
-    expect(buildAssetContextPatch(initial, values, enabled)).toMatchObject({
-      lifespan_years: 0,
-      service_role: null
-    });
+    expect(buildAssetContextPatch(initial, values)).toEqual({});
+
+    values.lifespan_years = "";
+    expect(buildAssetContextPatch(initial, values)).toEqual({ lifespan_years: null });
   });
 
   it("rejects negative, decimal, and non-numeric lifespan values", () => {
     const values = assetContextToFormValues(initial);
-    const enabled = assetContextEnabledFields(initial);
-    enabled.lifespan_years = true;
 
     values.lifespan_years = "-1";
-    expect(validateAssetContextPatchValues(values, enabled)).toBe("Lifespan years는 0 이상의 정수여야 합니다.");
-    expect(() => buildAssetContextPatch(initial, values, enabled)).toThrow(/Lifespan years/);
+    expect(validateAssetContextPatchValues(values)).toBe("Lifespan years는 0 이상의 정수여야 합니다.");
+    expect(() => buildAssetContextPatch(initial, values)).toThrow(/Lifespan years/);
 
     values.lifespan_years = "1.5";
-    expect(validateAssetContextPatchValues(values, enabled)).toBe("Lifespan years는 0 이상의 정수여야 합니다.");
+    expect(validateAssetContextPatchValues(values)).toBe("Lifespan years는 0 이상의 정수여야 합니다.");
 
     values.lifespan_years = "abc";
-    expect(validateAssetContextPatchValues(values, enabled)).toBe("Lifespan years는 0 이상의 정수여야 합니다.");
+    expect(validateAssetContextPatchValues(values)).toBe("Lifespan years는 0 이상의 정수여야 합니다.");
   });
 });
