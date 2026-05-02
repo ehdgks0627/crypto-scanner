@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
 import { Progress } from "../../components/ui/progress";
 import { DataTable } from "../../components/ui/table";
+import { statusLabel, yesNoLabel } from "../../domain/displayLabels";
 import { canCancelJob, isActiveJobStatus, pageHasActiveJob } from "../../domain/jobStatus";
 import { JobProgressModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
@@ -65,15 +66,15 @@ export function DiscoveriesView() {
         <CardContent>
           <div className="toolbar">
             <div className="toolbar__filters">
-              <Select aria-label="Discovery status filter" value={status} onChange={(event) => setStatus(event.target.value as JobStatus | "")}>
-                <option value="">All statuses</option>
+              <Select aria-label="디스커버리 상태 필터" value={status} onChange={(event) => setStatus(event.target.value as JobStatus | "")}>
+                <option value="">전체 상태</option>
                 {["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"].map((item) => (
                   <option key={item} value={item}>
-                    {item}
+                    {statusLabel(item)}
                   </option>
                 ))}
               </Select>
-              <span className="muted">Total {discoveries.data?.total ?? 0}</span>
+              <span className="muted">전체 {discoveries.data?.total ?? 0}</span>
             </div>
             <span className="inline-actions">
               <span className="muted">선택 {selectedDiscoveryIds.length}개</span>
@@ -98,7 +99,7 @@ export function DiscoveriesView() {
                   key: "select",
                   header: (
                     <Checkbox
-                      aria-label="현재 표시된 Discovery 전체 선택"
+                      aria-label="현재 표시된 디스커버리 전체 선택"
                       checked={allVisibleSelected}
                       disabled={visibleDiscoveryIds.length === 0}
                       onChange={(event) => setSelectedDiscoveryIds(event.target.checked ? visibleDiscoveryIds : [])}
@@ -106,7 +107,7 @@ export function DiscoveriesView() {
                   ),
                   render: (item) => (
                     <Checkbox
-                      aria-label={`Discovery #${item.id} 선택`}
+                      aria-label={`디스커버리 #${item.id} 선택`}
                       checked={selectedDiscoveryIds.includes(item.id)}
                       onChange={(event) => toggleDiscovery(item.id, event.target.checked)}
                     />
@@ -114,9 +115,9 @@ export function DiscoveriesView() {
                 },
                 { key: "id", header: "ID", render: (item) => <button className="link-button" onClick={() => navigate(`/discoveries/${item.id}`)}>#{item.id}</button> },
                 { key: "cidr", header: "CIDR", render: (item) => item.cidr },
-                { key: "ports", header: "Ports", render: (item) => item.port_list.join(", ") || "default" },
-                { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-                { key: "created", header: "Created", render: (item) => formatDateTime(item.created_at) }
+                { key: "ports", header: "포트", render: (item) => item.port_list.join(", ") || "기본값" },
+                { key: "status", header: "상태", render: (item) => <StatusBadge status={item.status} /> },
+                { key: "created", header: "생성", render: (item) => formatDateTime(item.created_at) }
               ]}
             />
           </CardContent>
@@ -140,7 +141,7 @@ export function DiscoveryNewView() {
   const createDiscovery = useMutation({
     mutationFn: () => services.discoveries.create(createPayload.payload!),
     onSuccess: async (job) => {
-      toast.success(`Discovery job #${job.id} 생성`);
+      toast.success(`디스커버리 작업 #${job.id} 생성`);
       trackJob(job.id);
       await queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
@@ -171,11 +172,11 @@ export function DiscoveryNewView() {
                   <Input required value={cidr} onChange={(event) => setCidr(event.target.value)} />
                 </Field>
                 <Field>
-                  <FieldLabel>Ports</FieldLabel>
+                  <FieldLabel>포트</FieldLabel>
                   <Input value={ports} onChange={(event) => setPorts(event.target.value)} placeholder="443,22,500" />
                 </Field>
                 <Field className="is-wide">
-                  <FieldLabel>Default Ports</FieldLabel>
+                  <FieldLabel>기본 포트</FieldLabel>
                   <span className="inline-actions">
                     <Checkbox checked={includeDefaultPorts} onChange={(event) => setIncludeDefaultPorts(event.target.checked)} />
                     <span>프로토콜 기본 포트 포함</span>
@@ -286,7 +287,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
   return (
     <Section>
       <PageHeader
-        title={`Discovery #${discovery.data.id}`}
+        title={`디스커버리 #${discovery.data.id}`}
         description={discovery.data.cidr}
         actions={
           <>
@@ -301,8 +302,8 @@ export function DiscoveryDetailView({ id }: { id: number }) {
       />
       <ConfirmDialog
         open={confirmCancelOpen}
-        title="Discovery 취소"
-        description={`Discovery #${discovery.data.id} 취소를 요청합니다. 이미 발견된 endpoint는 partial 결과로 남습니다.`}
+        title="디스커버리 취소"
+        description={`디스커버리 #${discovery.data.id} 취소를 요청합니다. 이미 발견된 엔드포인트는 부분 결과로 남습니다.`}
         confirmLabel="취소 요청"
         pending={cancel.isPending}
         onCancel={() => setConfirmCancelOpen(false)}
@@ -311,7 +312,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
       <ConfirmDialog
         open={confirmPromoteOpen}
         title="스캔 대상 승인"
-        description={`선택한 endpoint ${selected.length}개를 스캔 대상으로 추가합니다.`}
+        description={`선택한 엔드포인트 ${selected.length}개를 스캔 대상으로 추가합니다.`}
         confirmLabel="승인"
         confirmVariant="primary"
         pending={promote.isPending}
@@ -325,10 +326,10 @@ export function DiscoveryDetailView({ id }: { id: number }) {
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div><dt>Status</dt><dd><StatusBadge status={discovery.data.status} /></dd></div>
-              <div><dt>Created</dt><dd>{formatDateTime(discovery.data.created_at)}</dd></div>
-              <div><dt>Started</dt><dd>{formatDateTime(discovery.data.started_at)}</dd></div>
-              <div><dt>Finished</dt><dd>{formatDateTime(discovery.data.finished_at)}</dd></div>
+              <div><dt>상태</dt><dd><StatusBadge status={discovery.data.status} /></dd></div>
+              <div><dt>생성</dt><dd>{formatDateTime(discovery.data.created_at)}</dd></div>
+              <div><dt>시작</dt><dd>{formatDateTime(discovery.data.started_at)}</dd></div>
+              <div><dt>종료</dt><dd>{formatDateTime(discovery.data.finished_at)}</dd></div>
             </dl>
             <div className="callout">
               <Progress value={progress.percent()} />
@@ -341,7 +342,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
             <CardTitle>스캔 대상 승인</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="muted">승인할 endpoint를 명시적으로 선택하세요. 선택하지 않은 endpoint는 스캔 대상으로 추가하지 않습니다.</p>
+            <p className="muted">승인할 엔드포인트를 명시적으로 선택하세요. 선택하지 않은 엔드포인트는 스캔 대상으로 추가하지 않습니다.</p>
             <div className="inline-actions">
               <Button type="button" onClick={() => setSelected(promotableIds)} disabled={promotableIds.length === 0}>
                 전체 선택
@@ -381,10 +382,10 @@ export function DiscoveryDetailView({ id }: { id: number }) {
                     />
                   )
                 },
-                { key: "host", header: "Host/IP", render: (endpoint) => endpoint.suggested_host ?? endpoint.ip },
-                { key: "port", header: "Port", render: (endpoint) => endpoint.port },
-                { key: "protocol", header: "Protocol", render: (endpoint) => endpoint.suggested_protocol_hint ?? endpoint.detected_protocol ?? "-" },
-                { key: "promoted", header: "Promoted", render: (endpoint) => (endpoint.promoted ? "yes" : "no") },
+                { key: "host", header: "호스트/IP", render: (endpoint) => endpoint.suggested_host ?? endpoint.ip },
+                { key: "port", header: "포트", render: (endpoint) => endpoint.port },
+                { key: "protocol", header: "프로토콜", render: (endpoint) => endpoint.suggested_protocol_hint ?? endpoint.detected_protocol ?? "-" },
+                { key: "promoted", header: "승인 여부", render: (endpoint) => yesNoLabel(endpoint.promoted) },
                 { key: "target", header: "스캔 대상", render: (endpoint) => endpoint.target_id ? `#${endpoint.target_id}` : "-" }
               ]}
             />

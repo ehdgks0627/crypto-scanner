@@ -44,22 +44,22 @@ describe("MigrationReportBuilder", () => {
       new Date("2026-04-29T00:00:00Z")
     ).buildMarkdown();
 
-    expect(report).toContain("# PQC Migration Report - Snapshot #56");
-    expect(report).toContain("Selected assets: 1");
-    expect(report).toContain("- Hosts: api.testbed.local");
+    expect(report).toContain("# PQC 마이그레이션 보고서 - 스냅샷 #56");
+    expect(report).toContain("선택 자산: 1");
+    expect(report).toContain("- 호스트: api.testbed.local");
     expect(report).toContain("### 1. cert-leaf-web-rsa2048");
-    expect(report).toContain("- Current: RSA/2048bit (quantum-vulnerable)");
-    expect(report).toContain("- Recommendation: hybrid -> ML-DSA-65 + ECDSA-P256");
-    expect(report).toContain("- Agility: 45/100 (MEDIUM)");
-    expect(report).toContain("- Playbook: 1. Enable hybrid transition: Deploy hybrid certificate.");
+    expect(report).toContain("- 현재: RSA/2048bit (양자취약)");
+    expect(report).toContain("- 권고: hybrid -> ML-DSA-65 + ECDSA-P256");
+    expect(report).toContain("- 민첩성: 45/100 (보통)");
+    expect(report).toContain("- 플레이북: 1. Enable hybrid transition: Deploy hybrid certificate.");
     expect(report).toContain("replace -> ML-DSA-65");
   });
 
   it("renders fallback sections when selection and impact are absent", () => {
     const report = new MigrationReportBuilder(7, [], undefined, new Date("2026-04-29T00:00:00Z")).buildMarkdown();
 
-    expect(report).toContain("Impact analysis was not available");
-    expect(report).toContain("No assets were selected.");
+    expect(report).toContain("보고서 생성 시점에 영향도 분석을 사용할 수 없었습니다.");
+    expect(report).toContain("선택한 자산이 없습니다.");
   });
 
   it("renders alternative fallback for assets without alternatives", () => {
@@ -94,8 +94,8 @@ describe("MigrationReportBuilder", () => {
       new Date("2026-04-29T00:00:00Z")
     ).buildMarkdown();
 
-    expect(report).toContain("- Current: ML-KEM (quantum-safe)");
-    expect(report).toContain("- Alternatives: -");
+    expect(report).toContain("- 현재: ML-KEM (양자안전)");
+    expect(report).toContain("- 대안: -");
   });
 });
 

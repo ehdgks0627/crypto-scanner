@@ -49,7 +49,7 @@ export function AssetGraph({
         </ReactFlow>
       </div>
       {linkedAssets.length > 0 ? (
-        <div className="inline-actions" aria-label="Dependency navigation">
+        <div className="inline-actions" aria-label="의존성 탐색">
           {linkedAssets.map((asset) => (
             <button key={`${asset.semantic}-${asset.id}`} type="button" className="link-button" onClick={() => onAssetSelect?.(asset.id)}>
               {asset.name}

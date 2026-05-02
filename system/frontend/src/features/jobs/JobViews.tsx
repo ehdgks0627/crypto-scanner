@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Checkbox, Select } from "../../components/ui/form";
 import { Progress } from "../../components/ui/progress";
 import { DataTable } from "../../components/ui/table";
+import { jobKindLabel, resourceKindLabel, statusLabel, yesNoLabel } from "../../domain/displayLabels";
 import { canCancelJob, pageHasActiveJob } from "../../domain/jobStatus";
 import { JobProgressModel, TargetModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
@@ -72,15 +73,15 @@ export function JobsView() {
       <Card>
         <CardContent>
           <div className="toolbar">
-            <Select aria-label="Job status filter" value={status} onChange={(event) => setSearchParams(event.target.value ? { status: event.target.value } : {})}>
-              <option value="">All statuses</option>
+            <Select aria-label="작업 상태 필터" value={status} onChange={(event) => setSearchParams(event.target.value ? { status: event.target.value } : {})}>
+              <option value="">전체 상태</option>
               {["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"].map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {statusLabel(item)}
                 </option>
               ))}
             </Select>
-            <span className="muted">Total {jobs.data?.total ?? 0}</span>
+            <span className="muted">전체 {jobs.data?.total ?? 0}</span>
           </div>
         </CardContent>
       </Card>
@@ -94,12 +95,12 @@ export function JobsView() {
               getRowKey={(job) => job.id}
               empty={<EmptyState title="스캔 실행 이력이 없습니다" />}
               columns={[
-                { key: "id", header: "Job", render: (job) => <button className="link-button" onClick={() => navigate(`/scans/${job.id}`)}>#{job.id}</button> },
-                { key: "kind", header: "Kind", render: (job) => job.kind },
-                { key: "status", header: "Status", render: (job) => <StatusBadge status={job.status} /> },
-                { key: "resource", header: "Resource", render: (job) => `${job.resource.kind} #${job.resource.id}` },
-                { key: "started", header: "Started", render: (job) => formatDateTime(job.started_at) },
-                { key: "finished", header: "Finished", render: (job) => formatDateTime(job.finished_at) }
+                { key: "id", header: "작업", render: (job) => <button className="link-button" onClick={() => navigate(`/scans/${job.id}`)}>#{job.id}</button> },
+                { key: "kind", header: "종류", render: (job) => jobKindLabel(job.kind) },
+                { key: "status", header: "상태", render: (job) => <StatusBadge status={job.status} /> },
+                { key: "resource", header: "리소스", render: (job) => `${resourceKindLabel(job.resource.kind)} #${job.resource.id}` },
+                { key: "started", header: "시작", render: (job) => formatDateTime(job.started_at) },
+                { key: "finished", header: "종료", render: (job) => formatDateTime(job.finished_at) }
               ]}
             />
           </CardContent>
@@ -128,7 +129,7 @@ export function ScanNewView() {
   const createJob = useMutation({
     mutationFn: () => services.jobs.create({ target_ids: targetIds, scanners }),
     onSuccess: async (job) => {
-      toast.success(`Scan job #${job.id} 생성`);
+      toast.success(`스캔 작업 #${job.id} 생성`);
       trackJob(job.id);
       await queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
@@ -183,9 +184,9 @@ export function ScanNewView() {
                     )
                   },
                   { key: "target", header: "스캔 대상", render: (target) => new TargetModel(target).displayName() },
-                  { key: "host", header: "Host", render: (target) => target.host },
-                  { key: "endpoint", header: "Endpoint", render: (target) => `${target.transport}/${target.port}` },
-                  { key: "agent", header: "Agent", render: (target) => (target.agent_enabled ? "yes" : "no") }
+                  { key: "host", header: "호스트", render: (target) => target.host },
+                  { key: "endpoint", header: "엔드포인트", render: (target) => `${target.transport}/${target.port}` },
+                  { key: "agent", header: "에이전트", render: (target) => yesNoLabel(target.agent_enabled) }
                 ]}
               />
             ) : null}
@@ -193,7 +194,7 @@ export function ScanNewView() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Scanners</CardTitle>
+            <CardTitle>스캐너</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="section-stack">
@@ -209,7 +210,7 @@ export function ScanNewView() {
                     }
                   />
                   <span>{scanner.label}</span>
-                  {scanner.requires_agent ? <span className="muted">agent</span> : null}
+                  {scanner.requires_agent ? <span className="muted">에이전트 필요</span> : null}
                 </label>
               ))}
               <div className="callout">
@@ -288,8 +289,8 @@ export function JobDetailView({ id }: { id: number }) {
   return (
     <Section>
       <PageHeader
-        title={`Job #${job.data.id}`}
-        description={`${job.data.kind} · resource #${job.data.resource.id}`}
+        title={`작업 #${job.data.id}`}
+        description={`${jobKindLabel(job.data.kind)} · ${resourceKindLabel(job.data.resource.kind)} #${job.data.resource.id}`}
         actions={
           <Button type="button" variant="danger" disabled={!canCancel || cancel.isPending} onClick={() => setConfirmCancelOpen(true)}>
             <XCircle size={15} />취소
@@ -298,8 +299,8 @@ export function JobDetailView({ id }: { id: number }) {
       />
       <ConfirmDialog
         open={confirmCancelOpen}
-        title="Job 취소"
-        description={`Job #${job.data.id} 취소를 요청합니다. 이미 실행된 작업 결과는 되돌리지 않습니다.`}
+        title="작업 취소"
+        description={`작업 #${job.data.id} 취소를 요청합니다. 이미 실행된 작업 결과는 되돌리지 않습니다.`}
         confirmLabel="취소 요청"
         pending={cancel.isPending}
         onCancel={() => setConfirmCancelOpen(false)}
@@ -312,10 +313,10 @@ export function JobDetailView({ id }: { id: number }) {
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div><dt>Status</dt><dd><StatusBadge status={job.data.status} /></dd></div>
-              <div><dt>Started</dt><dd>{formatDateTime(job.data.started_at)}</dd></div>
-              <div><dt>Cancel Requested</dt><dd>{formatDateTime(job.data.cancel_requested_at)}</dd></div>
-              <div><dt>Finished</dt><dd>{formatDateTime(job.data.finished_at)}</dd></div>
+              <div><dt>상태</dt><dd><StatusBadge status={job.data.status} /></dd></div>
+              <div><dt>시작</dt><dd>{formatDateTime(job.data.started_at)}</dd></div>
+              <div><dt>취소 요청</dt><dd>{formatDateTime(job.data.cancel_requested_at)}</dd></div>
+              <div><dt>종료</dt><dd>{formatDateTime(job.data.finished_at)}</dd></div>
             </dl>
             <div className="callout" role="status" aria-live="polite">
               <Progress value={progress.percent()} />
@@ -326,12 +327,12 @@ export function JobDetailView({ id }: { id: number }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Result</CardTitle>
+            <CardTitle>결과</CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
               <div>
-                <dt>Snapshot</dt>
+                <dt>스냅샷</dt>
                 <dd>
                   {job.data.result?.snapshot_id ? (
                     <button className="link-button" type="button" onClick={() => navigate(`/snapshots/${job.data.result?.snapshot_id}`)}>
@@ -343,7 +344,7 @@ export function JobDetailView({ id }: { id: number }) {
                 </dd>
               </div>
               <div>
-                <dt>Discovery</dt>
+                <dt>디스커버리</dt>
                 <dd>
                   {job.data.result?.discovery_id ? (
                     <button className="link-button" type="button" onClick={() => navigate(`/discoveries/${job.data.result?.discovery_id}`)}>
@@ -354,14 +355,14 @@ export function JobDetailView({ id }: { id: number }) {
                   )}
                 </dd>
               </div>
-              <div><dt>Updated Scores</dt><dd>{job.data.result?.updated_scores_count ?? "-"}</dd></div>
+              <div><dt>업데이트 점수</dt><dd>{job.data.result?.updated_scores_count ?? "-"}</dd></div>
             </dl>
           </CardContent>
         </Card>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Run Logs</CardTitle>
+          <CardTitle>실행 로그</CardTitle>
         </CardHeader>
         <CardContent>
           {logs.isLoading ? <LoadingState /> : null}
@@ -373,11 +374,11 @@ export function JobDetailView({ id }: { id: number }) {
               empty={<EmptyState title="로그가 없습니다" />}
               columns={[
                 { key: "target", header: "스캔 대상", render: (log) => log.target_label },
-                { key: "scanner", header: "Scanner", render: (log) => log.scanner_kind },
-                { key: "status", header: "Status", render: (log) => <StatusBadge status={log.status} /> },
-                { key: "findings", header: "Findings", render: (log) => log.findings_count },
-                { key: "started", header: "Started", render: (log) => formatDateTime(log.started_at) },
-                { key: "error", header: "Error", render: (log) => formatJobError(log.error) ?? "-" }
+                { key: "scanner", header: "스캐너", render: (log) => log.scanner_kind },
+                { key: "status", header: "상태", render: (log) => <StatusBadge status={log.status} /> },
+                { key: "findings", header: "발견 항목", render: (log) => log.findings_count },
+                { key: "started", header: "시작", render: (log) => formatDateTime(log.started_at) },
+                { key: "error", header: "오류", render: (log) => formatJobError(log.error) ?? "-" }
               ]}
             />
           ) : null}

@@ -15,6 +15,7 @@ import { Card, CardContent } from "../../components/ui/card";
 import { Dialog } from "../../components/ui/dialog";
 import { Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
+import { enabledLabel } from "../../domain/displayLabels";
 import { TargetModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
 import { TargetForm } from "./TargetForms";
@@ -55,7 +56,7 @@ export function TargetsView() {
     <Section>
       <PageHeader
         title="스캔 대상"
-        description="디스커버리 결과를 승인하거나 알려진 host:port를 수동으로 추가해 스캔 범위를 관리합니다."
+        description="디스커버리 결과를 승인하거나 알려진 호스트:포트를 수동으로 추가해 스캔 범위를 관리합니다."
         actions={
           <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
             <Plus size={15} />수동 대상 추가
@@ -66,9 +67,9 @@ export function TargetsView() {
         <CardContent>
           <div className="toolbar">
             <div className="toolbar__filters">
-              <Input aria-label="Target host filter" value={host} onChange={(event) => setHost(event.target.value)} placeholder="host filter" />
-              <Select aria-label="Target protocol filter" value={protocol} onChange={(event) => setProtocol(event.target.value)}>
-                <option value="">All protocols</option>
+              <Input aria-label="스캔 대상 호스트 필터" value={host} onChange={(event) => setHost(event.target.value)} placeholder="호스트 검색" />
+              <Select aria-label="스캔 대상 프로토콜 필터" value={protocol} onChange={(event) => setProtocol(event.target.value)}>
+                <option value="">전체 프로토콜</option>
                 {["TLS", "SSH", "IKE", "SMTP", "IMAP", "POP3", "UNKNOWN"].map((item) => (
                   <option key={item} value={item}>
                     {item}
@@ -76,7 +77,7 @@ export function TargetsView() {
                 ))}
               </Select>
             </div>
-            <span className="muted">Total {targets.data?.total ?? 0}</span>
+            <span className="muted">전체 {targets.data?.total ?? 0}</span>
           </div>
         </CardContent>
       </Card>
@@ -99,12 +100,12 @@ export function TargetsView() {
                     return <button className="link-button" onClick={() => navigate(`/targets/${target.id}`)}>{model.displayName()}</button>;
                   }
                 },
-                { key: "host", header: "Host", render: (target) => target.host },
-                { key: "endpoint", header: "Endpoint", render: (target) => `${target.transport}/${target.port}` },
-                { key: "protocol", header: "Protocol", render: (target) => target.protocol_hint },
-                { key: "agent", header: "Agent", render: (target) => (target.agent_enabled ? "enabled" : "disabled") },
-                { key: "role", header: "Role", render: (target) => target.context.service_role ?? "-" },
-                { key: "created", header: "Created", render: (target) => formatDateTime(target.created_at) },
+                { key: "host", header: "호스트", render: (target) => target.host },
+                { key: "endpoint", header: "엔드포인트", render: (target) => `${target.transport}/${target.port}` },
+                { key: "protocol", header: "프로토콜", render: (target) => target.protocol_hint },
+                { key: "agent", header: "에이전트", render: (target) => enabledLabel(target.agent_enabled) },
+                { key: "role", header: "역할", render: (target) => target.context.service_role ?? "-" },
+                { key: "created", header: "생성", render: (target) => formatDateTime(target.created_at) },
                 {
                   key: "actions",
                   header: "",

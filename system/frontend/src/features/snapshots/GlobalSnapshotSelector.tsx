@@ -27,10 +27,10 @@ export function GlobalSnapshotSelector() {
     <label className="global-snapshot-selector">
       <span className="global-snapshot-selector__label">
         <Database size={14} />
-        Snapshot
+        스냅샷
       </span>
       <Select
-        aria-label="전역 Snapshot 선택"
+        aria-label="전역 스냅샷 선택"
         className="global-snapshot-selector__select"
         disabled={disabled}
         value={disabled ? "" : selectedSnapshotId ?? ""}

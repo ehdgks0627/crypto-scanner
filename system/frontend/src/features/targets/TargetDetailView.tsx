@@ -12,6 +12,7 @@ import { ErrorState, LoadingState, Section } from "../../components/common/State
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { contextFieldLabel, contextValueLabel, enabledLabel, statusLabel } from "../../domain/displayLabels";
 import { isTerminalJobStatus } from "../../domain/jobStatus";
 import { TargetModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
@@ -31,7 +32,7 @@ export function TargetDetailView({ id }: { id: number }) {
   const patchTarget = useMutation({
     mutationFn: (payload: Schema<"TargetPatch">) => services.targets.patch(id, payload),
     onSuccess: async (result) => {
-      toast.success(result.recompute_job_id ? `저장했습니다. Recompute job #${result.recompute_job_id}` : "저장했습니다.");
+      toast.success(result.recompute_job_id ? `저장했습니다. 재계산 작업 #${result.recompute_job_id}` : "저장했습니다.");
       setEditing(false);
       setRecomputeJobId(result.recompute_job_id);
       if (result.recompute_job_id) {
@@ -108,7 +109,7 @@ export function TargetDetailView({ id }: { id: number }) {
       ) : null}
 
       <div className="content-grid">
-        {recomputeJob.data ? <div className="callout is-wide" role="status" aria-live="polite">Recompute #{recomputeJob.data.id}: {recomputeJob.data.status}</div> : null}
+        {recomputeJob.data ? <div className="callout is-wide" role="status" aria-live="polite">재계산 #{recomputeJob.data.id}: {statusLabel(recomputeJob.data.status)}</div> : null}
         <Card>
           <CardHeader>
             <CardTitle>기본 정보</CardTitle>
@@ -116,13 +117,13 @@ export function TargetDetailView({ id }: { id: number }) {
           <CardContent>
             <dl className="detail-list">
               <div><dt>ID</dt><dd>#{target.data.id}</dd></div>
-              <div><dt>Host</dt><dd>{target.data.host}</dd></div>
-              <div><dt>Display Name</dt><dd>{target.data.display_name ?? "-"}</dd></div>
+              <div><dt>호스트</dt><dd>{target.data.host}</dd></div>
+              <div><dt>표시 이름</dt><dd>{target.data.display_name ?? "-"}</dd></div>
               <div><dt>IP</dt><dd>{target.data.ip ?? "-"}</dd></div>
               <div><dt>SNI</dt><dd>{target.data.sni ?? "-"}</dd></div>
-              <div><dt>Agent</dt><dd><Badge tone={target.data.agent_enabled ? "green" : "neutral"}>{target.data.agent_enabled ? "enabled" : "disabled"}</Badge></dd></div>
-              <div><dt>Created</dt><dd>{formatDateTime(target.data.created_at)}</dd></div>
-              <div><dt>Updated</dt><dd>{formatDateTime(target.data.updated_at)}</dd></div>
+              <div><dt>에이전트</dt><dd><Badge tone={target.data.agent_enabled ? "green" : "neutral"}>{enabledLabel(target.data.agent_enabled)}</Badge></dd></div>
+              <div><dt>생성</dt><dd>{formatDateTime(target.data.created_at)}</dd></div>
+              <div><dt>수정</dt><dd>{formatDateTime(target.data.updated_at)}</dd></div>
             </dl>
           </CardContent>
         </Card>
@@ -132,11 +133,11 @@ export function TargetDetailView({ id }: { id: number }) {
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div><dt>Sensitivity</dt><dd>{target.data.context.sensitivity ?? "-"}</dd></div>
-              <div><dt>Lifespan</dt><dd>{target.data.context.lifespan_years ?? "-"}</dd></div>
-              <div><dt>Criticality</dt><dd>{target.data.context.criticality ?? "-"}</dd></div>
-              <div><dt>Exposure</dt><dd>{target.data.context.exposure ?? "-"}</dd></div>
-              <div><dt>Service Role</dt><dd>{target.data.context.service_role ?? "-"}</dd></div>
+              <div><dt>{contextFieldLabel("sensitivity")}</dt><dd>{contextValueLabel("sensitivity", target.data.context.sensitivity)}</dd></div>
+              <div><dt>{contextFieldLabel("lifespan_years")}</dt><dd>{contextValueLabel("lifespan_years", target.data.context.lifespan_years)}</dd></div>
+              <div><dt>{contextFieldLabel("criticality")}</dt><dd>{contextValueLabel("criticality", target.data.context.criticality)}</dd></div>
+              <div><dt>{contextFieldLabel("exposure")}</dt><dd>{contextValueLabel("exposure", target.data.context.exposure)}</dd></div>
+              <div><dt>{contextFieldLabel("service_role")}</dt><dd>{contextValueLabel("service_role", target.data.context.service_role)}</dd></div>
             </dl>
           </CardContent>
         </Card>

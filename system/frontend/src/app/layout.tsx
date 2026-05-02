@@ -150,22 +150,22 @@ export function AppLayout() {
       <header className="app-header">
         <button className="brand" type="button" onClick={() => navigate("/")}>
           <ShieldAlert size={20} />
-          <span>PQC Risk Assessment</span>
+          <span>PQC 위험 평가</span>
         </button>
         <div className="app-header__actions">
           <GlobalSnapshotSelector />
-          <Button type="button" variant="ghost" onClick={() => navigate("/scans")} aria-label={`활성 Job: ${activeCount}`}>
+          <Button type="button" variant="ghost" onClick={() => navigate("/scans")} aria-label={`활성 작업: ${activeCount}`}>
             <RefreshCw size={15} />
-            활성 Job: {activeCount}
+            활성 작업: {activeCount}
           </Button>
-          <span className={`health-dot health-dot--${healthStatus}`} title={`health: ${healthStatus}`} />
+          <span className={`health-dot health-dot--${healthStatus}`} title={`상태: ${healthStatus}`} />
           <Button type="button" variant="ghost" size="icon" onClick={toggleTheme} aria-label="테마 변경">
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </Button>
         </div>
       </header>
       <aside className="app-sidebar">
-        <nav aria-label="Primary navigation">
+        <nav aria-label="기본 탐색">
           <SidebarSection title="보고 / 조회" items={reportNavItems} snapshotSidebarState={snapshotSidebarState} />
           <SidebarSection title="운영 / 설정" items={operationNavItems} snapshotSidebarState={snapshotSidebarState} />
         </nav>

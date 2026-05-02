@@ -67,7 +67,7 @@ describe("PerformanceEvaluationView", () => {
 
     renderWithApp(<PerformanceEvaluationView snapshotId={3} />);
 
-    expect(await screen.findByText("Snapshot #3 Performance")).toBeInTheDocument();
+    expect(await screen.findByText("스냅샷 #3 성능평가")).toBeInTheDocument();
     expect(await screen.findByText("tls:web:leaf")).toBeInTheDocument();
     expect(screen.getByText("post_migration")).toBeInTheDocument();
     expect(screen.getByText("118.2 ms")).toBeInTheDocument();

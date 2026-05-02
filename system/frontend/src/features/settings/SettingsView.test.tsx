@@ -33,17 +33,17 @@ describe("SettingsView", () => {
 
     const table = await screen.findByRole("table");
     expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
-      "Algorithm",
-      "Factor A",
-      "Quantum Vulnerable",
-      "Notes"
+      "알고리즘",
+      "A 계수",
+      "양자 취약 여부",
+      "비고"
     ]);
     expect(screen.getByText("RSA-2048")).toBeInTheDocument();
     expect(screen.getByText("1.5")).toBeInTheDocument();
     expect(screen.getByText("0.75")).toBeInTheDocument();
     expect(screen.getByText("Post-quantum ready")).toBeInTheDocument();
-    expect(screen.getByText("Yes")).toBeInTheDocument();
-    expect(screen.getAllByText("No")).toHaveLength(2);
+    expect(screen.getByText("예")).toBeInTheDocument();
+    expect(screen.getAllByText("아니오")).toHaveLength(2);
     expect(screen.getAllByText("-")).toHaveLength(2);
     expect(screen.queryByText(/"items"/)).not.toBeInTheDocument();
   });

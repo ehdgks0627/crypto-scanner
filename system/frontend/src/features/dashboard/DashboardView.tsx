@@ -14,13 +14,14 @@ import { NetworkExposureGraphViz } from "../../components/graph/NetworkExposureG
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { DataTable } from "../../components/ui/table";
+import { assetTypeLabel, jobKindLabel, riskTierLabel } from "../../domain/displayLabels";
 import type { NetworkExposureNode } from "../../domain/networkExposureGraph";
 import { buildNetworkExposureGraph } from "../../domain/networkExposureGraph";
 import { formatDateTime, formatNumber } from "../../lib/format";
 import { useSelectedSnapshot } from "../snapshots/useSelectedSnapshot";
 
-function objectToChartData(value: Record<string, number> | undefined) {
-  return Object.entries(value ?? {}).map(([name, count]) => ({ name, value: count }));
+function objectToChartData(value: Record<string, number> | undefined, labeler: (name: string) => string = (name) => name) {
+  return Object.entries(value ?? {}).map(([name, count]) => ({ name: labeler(name), value: count }));
 }
 
 const GRAPH_REFRESH_MS = 15_000;
@@ -49,11 +50,11 @@ export function DashboardView() {
     refetchInterval: GRAPH_REFRESH_MS * 2
   });
 
-  const tierData = useMemo(() => objectToChartData(summary.data?.by_tier), [summary.data?.by_tier]);
-  const assetTypeData = useMemo(() => objectToChartData(summary.data?.by_asset_type), [summary.data?.by_asset_type]);
+  const tierData = useMemo(() => objectToChartData(summary.data?.by_tier, riskTierLabel), [summary.data?.by_tier]);
+  const assetTypeData = useMemo(() => objectToChartData(summary.data?.by_asset_type, assetTypeLabel), [summary.data?.by_asset_type]);
   const algorithmData = useMemo(() => objectToChartData(summary.data?.by_algorithm_family), [summary.data?.by_algorithm_family]);
   const quantumData = useMemo(
-    () => objectToChartData(summary.data?.quantum_vulnerable_ratio),
+    () => objectToChartData(summary.data?.quantum_vulnerable_ratio, quantumStatusLabel),
     [summary.data?.quantum_vulnerable_ratio]
   );
   const trend = useMemo(
@@ -120,7 +121,7 @@ export function DashboardView() {
     <Section>
       <PageHeader
         title="대시보드"
-        eyebrow="DASHBOARD"
+        eyebrow="대시보드"
         actions={
           <Button type="button" variant="primary" onClick={() => navigate("/scans/new")}>
             <Plus size={15} />새 스캔
@@ -131,19 +132,19 @@ export function DashboardView() {
       <div className="content-grid content-grid--4">
         <MetricCard label="자산수" value={formatNumber(dashboardSnapshot.asset_count)} onClick={() => navigate("/snapshots")} />
         <MetricCard
-          label="Critical"
+          label="치명 위험"
           value={formatNumber(summary.data.by_tier.CRITICAL ?? 0)}
           onClick={() => navigate("/snapshots?tier=CRITICAL")}
         />
         <MetricCard
           label="양자취약"
           value={formatNumber(summary.data.quantum_vulnerable_ratio.vulnerable)}
-          meta={`Safe ${summary.data.quantum_vulnerable_ratio.safe}`}
+          meta={`안전 ${summary.data.quantum_vulnerable_ratio.safe}`}
         />
         <MetricCard
-          label="Agents"
+          label="에이전트"
           value={`${summary.data.agents_status.active}/${summary.data.agents_status.total}`}
-          meta={`stale ${summary.data.agents_status.stale}`}
+          meta={`지연 ${summary.data.agents_status.stale}`}
           onClick={() => navigate("/agents")}
         />
       </div>
@@ -179,11 +180,11 @@ export function DashboardView() {
               items={summary.data.recent_jobs}
               getRowKey={(job) => job.id}
               columns={[
-                { key: "id", header: "Job", render: (job) => <button className="link-button" onClick={() => navigate(`/scans/${job.id}`)}>#{job.id}</button> },
-                { key: "kind", header: "Kind", render: (job) => job.kind },
-                { key: "status", header: "Status", render: (job) => <StatusBadge status={job.status} /> },
-                { key: "started", header: "Started", render: (job) => formatDateTime(job.started_at) },
-                { key: "finished", header: "Finished", render: (job) => formatDateTime(job.finished_at) }
+                { key: "id", header: "작업", render: (job) => <button className="link-button" onClick={() => navigate(`/scans/${job.id}`)}>#{job.id}</button> },
+                { key: "kind", header: "종류", render: (job) => jobKindLabel(job.kind) },
+                { key: "status", header: "상태", render: (job) => <StatusBadge status={job.status} /> },
+                { key: "started", header: "시작", render: (job) => formatDateTime(job.started_at) },
+                { key: "finished", header: "종료", render: (job) => formatDateTime(job.finished_at) }
               ]}
             />
           </CardContent>
@@ -192,4 +193,12 @@ export function DashboardView() {
       </div>
     </Section>
   );
+}
+
+function quantumStatusLabel(name: string) {
+  const labels: Record<string, string> = {
+    vulnerable: "양자취약",
+    safe: "안전"
+  };
+  return labels[name] ?? name;
 }

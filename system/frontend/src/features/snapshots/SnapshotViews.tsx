@@ -16,9 +16,20 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
+import {
+  assetClassLabel,
+  assetTypeLabel,
+  contextFieldLabel,
+  contextValueLabel,
+  exposureLabel,
+  levelLabel,
+  performanceStatusLabel,
+  riskTierLabel,
+  statusLabel
+} from "../../domain/displayLabels";
 import { parseRiskTierParam, riskTierOptions } from "../../domain/filterOptions";
 import { isTerminalJobStatus } from "../../domain/jobStatus";
-import { formatDateTime, formatNumber, formatScore } from "../../lib/format";
+import { formatDateTime, formatScore } from "../../lib/format";
 import { downloadJson } from "../../lib/download";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import {
@@ -40,8 +51,8 @@ export function SnapshotsView() {
   if (!selectedSnapshotId) {
     return (
       <Section>
-        <PageHeader title="식별 자산" description="헤더에서 선택한 Snapshot 기준으로 식별 자산을 조회합니다." />
-        <EmptyState title="식별 자산이 없습니다" description="스캔이 완료되면 최신 Snapshot의 자산 목록이 이곳에 표시됩니다." />
+        <PageHeader title="식별 자산" description="헤더에서 선택한 스냅샷 기준으로 식별 자산을 조회합니다." />
+        <EmptyState title="식별 자산이 없습니다" description="스캔이 완료되면 최신 스냅샷의 자산 목록이 이곳에 표시됩니다." />
       </Section>
     );
   }
@@ -93,35 +104,35 @@ function SnapshotAssetsView({ id, snapshotHint }: { id: number; snapshotHint?: S
     <Section>
       <PageHeader
         title="식별 자산"
-        description={`Snapshot #${snapshot.data.id} · ${formatDateTime(snapshot.data.created_at)}`}
+        description={`스냅샷 #${snapshot.data.id} · ${formatDateTime(snapshot.data.created_at)}`}
         actions={
           <>
             <Button type="button" disabled={exportingCbom} onClick={() => void exportCbom()}>
               <Download size={15} />CBOM JSON
             </Button>
-            <Button type="button" onClick={() => navigate(`/snapshots/${id}/diff`)}>Diff</Button>
-            <Button type="button" onClick={() => navigate(`/snapshots/${id}/risk`)}>Risk</Button>
-            <Button type="button" onClick={() => navigate(`/snapshots/${id}/migration`)}>Migration</Button>
-            <Button type="button" onClick={() => navigate(`/snapshots/${id}/performance`)}>Performance</Button>
+            <Button type="button" onClick={() => navigate(`/snapshots/${id}/diff`)}>비교</Button>
+            <Button type="button" onClick={() => navigate(`/snapshots/${id}/risk`)}>위험평가</Button>
+            <Button type="button" onClick={() => navigate(`/snapshots/${id}/migration`)}>마이그레이션</Button>
+            <Button type="button" onClick={() => navigate(`/snapshots/${id}/performance`)}>성능평가</Button>
           </>
         }
       />
       <div className="content-grid content-grid--4">
         <MetricCard label="식별 자산" value={snapshot.data.asset_count} />
-        <MetricCard label="Critical" value={snapshot.data.summary.by_tier?.CRITICAL ?? 0} />
-        <MetricCard label="High" value={snapshot.data.summary.by_tier?.HIGH ?? 0} />
-        <MetricCard label="Validation Errors" value={snapshot.data.validation_errors.length} />
+        <MetricCard label="치명 위험" value={snapshot.data.summary.by_tier?.CRITICAL ?? 0} />
+        <MetricCard label="높은 위험" value={snapshot.data.summary.by_tier?.HIGH ?? 0} />
+        <MetricCard label="검증 오류" value={snapshot.data.validation_errors.length} />
       </div>
       <Card>
         <CardContent>
           <div className="toolbar toolbar--asset-filters">
             <div className="toolbar__filters">
-              <Input className="asset-filter-search" aria-label="Asset search" value={q} onChange={(event) => setSearchParams({ ...(tier ? { tier } : {}), ...(event.target.value ? { q: event.target.value } : {}) })} placeholder="asset search" />
-              <Select className="asset-filter-tier" aria-label="Asset risk tier filter" value={tier ?? ""} onChange={(event) => setSearchParams({ ...(event.target.value ? { tier: event.target.value } : {}), ...(q ? { q } : {}) })}>
-                <option value="">All tiers</option>
+              <Input className="asset-filter-search" aria-label="자산 검색" value={q} onChange={(event) => setSearchParams({ ...(tier ? { tier } : {}), ...(event.target.value ? { q: event.target.value } : {}) })} placeholder="자산 검색" />
+              <Select className="asset-filter-tier" aria-label="자산 위험도 필터" value={tier ?? ""} onChange={(event) => setSearchParams({ ...(event.target.value ? { tier: event.target.value } : {}), ...(q ? { q } : {}) })}>
+                <option value="">전체 등급</option>
                 {riskTierOptions.map((item) => (
                   <option key={item} value={item}>
-                    {item}
+                    {riskTierLabel(item)}
                   </option>
                 ))}
               </Select>
@@ -143,12 +154,12 @@ function SnapshotAssetsView({ id, snapshotHint }: { id: number; snapshotHint?: S
               getRowKey={(asset) => asset.id}
               empty={<EmptyState title="식별 자산이 없습니다" />}
               columns={[
-                { key: "name", header: "Name", render: (asset) => <button className="link-button" onClick={() => navigate(`/snapshots/${id}/assets/${asset.id}`)}>{asset.name}</button> },
-                { key: "class", header: "Class", render: (asset) => asset.asset_class },
-                { key: "type", header: "Type", render: (asset) => asset.asset_type },
+                { key: "name", header: "이름", render: (asset) => <button className="link-button" onClick={() => navigate(`/snapshots/${id}/assets/${asset.id}`)}>{asset.name}</button> },
+                { key: "class", header: "분류", render: (asset) => assetClassLabel(asset.asset_class) },
+                { key: "type", header: "타입", render: (asset) => assetTypeLabel(asset.asset_type) },
                 { key: "target", header: "스캔 대상", render: (asset) => asset.target_label ?? (asset.target_id ? `#${asset.target_id}` : "-") },
-                { key: "score", header: "Score", render: (asset) => formatScore(asset.risk?.score) },
-                { key: "tier", header: "Tier", render: (asset) => <RiskTierBadge tier={asset.risk?.tier} /> }
+                { key: "score", header: "점수", render: (asset) => formatScore(asset.risk?.score) },
+                { key: "tier", header: "등급", render: (asset) => <RiskTierBadge tier={asset.risk?.tier} /> }
               ]}
             />
           ) : null}
@@ -175,7 +186,7 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
   const patchContext = useMutation({
     mutationFn: (payload: Schema<"AssetContextPatch">) => services.assets.patchContext(assetId, payload),
     onSuccess: async (result) => {
-      toast.success(`저장했습니다. Recompute job #${result.recompute_job_id}`);
+      toast.success(`저장했습니다. 재계산 작업 #${result.recompute_job_id}`);
       setEditing(false);
       setRecomputeJobId(result.recompute_job_id);
       trackJob(result.recompute_job_id);
@@ -199,11 +210,11 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
       void queryClient.invalidateQueries({ queryKey: queryKeys.risk.top(snapshotId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.migration.planPrefix(snapshotId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
-      toast.success("Asset context recompute 완료");
+      toast.success("자산 컨텍스트 재계산 완료");
       setRecomputeJobId(null);
     }
     if (recomputeJob.data?.status && isTerminalJobStatus(recomputeJob.data.status) && recomputeJob.data.status !== "COMPLETED") {
-      toast.error(recomputeJob.data.status === "CANCELLED" ? "Asset context recompute 취소됨" : "Asset context recompute 실패");
+      toast.error(recomputeJob.data.status === "CANCELLED" ? "자산 컨텍스트 재계산 취소됨" : "자산 컨텍스트 재계산 실패");
       setRecomputeJobId(null);
     }
   }, [assetId, queryClient, recomputeJob.data?.status, snapshotId]);
@@ -219,14 +230,14 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
     <Section>
       <PageHeader
         title={asset.data.name}
-        description={`${asset.data.asset_class} · ${asset.data.asset_type}`}
+        description={`${assetClassLabel(asset.data.asset_class)} · ${assetTypeLabel(asset.data.asset_type)}`}
         actions={
           <Button type="button" variant="primary" onClick={() => setEditing((value) => !value)}>
             <Save size={15} />컨텍스트 수정
           </Button>
         }
       />
-      {recomputeJob.data ? <div className="callout" role="status" aria-live="polite">Recompute #{recomputeJob.data.id}: {recomputeJob.data.status}</div> : null}
+      {recomputeJob.data ? <div className="callout" role="status" aria-live="polite">재계산 #{recomputeJob.data.id}: {statusLabel(recomputeJob.data.status)}</div> : null}
       <div className="content-grid">
         <Card>
           <CardHeader>
@@ -235,22 +246,22 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
           <CardContent>
             <dl className="detail-list">
               <div><dt>ID</dt><dd>#{asset.data.id}</dd></div>
-              <div><dt>BOM Ref</dt><dd className="mono">{asset.data.bom_ref ?? "-"}</dd></div>
+              <div><dt>BOM 참조</dt><dd className="mono">{asset.data.bom_ref ?? "-"}</dd></div>
               <div><dt>스캔 대상</dt><dd>{asset.data.target?.host ?? "-"}</dd></div>
-              <div><dt>Risk</dt><dd>{asset.data.risk ? <RiskTierBadge tier={asset.data.risk.tier} /> : "-"}</dd></div>
+              <div><dt>위험도</dt><dd>{asset.data.risk ? <RiskTierBadge tier={asset.data.risk.tier} /> : "-"}</dd></div>
             </dl>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Effective Context</CardTitle>
+            <CardTitle>평가 기준 컨텍스트</CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
               {Object.entries(asset.data.effective_context).map(([key, value]) => (
                 <div key={key}>
-                  <dt>{key}</dt>
-                  <dd>{String(value ?? "-")}</dd>
+                  <dt>{contextFieldLabel(key)}</dt>
+                  <dd>{contextValueLabel(key, value)}</dd>
                 </div>
               ))}
             </dl>
@@ -260,7 +271,7 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Context Override</CardTitle>
+            <CardTitle>컨텍스트 재정의</CardTitle>
           </CardHeader>
           <CardContent>
             <AssetContextForm
@@ -274,7 +285,7 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
       ) : null}
       <Card>
         <CardHeader>
-          <CardTitle>Performance History</CardTitle>
+          <CardTitle>성능평가 이력</CardTitle>
         </CardHeader>
         <CardContent>
           {performanceHistory.isLoading ? <LoadingState /> : null}
@@ -285,12 +296,12 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
               getRowKey={(item) => item.id}
               empty={<EmptyState title="성능평가 이력이 없습니다" />}
               columns={[
-                { key: "run", header: "Run", render: (item) => `#${item.run_id}` },
-                { key: "status", header: "Status", render: (item) => item.status },
-                { key: "algorithm", header: "Negotiated", render: (item) => item.negotiated_algorithm || "-" },
-                { key: "handshake", header: "Handshake p95", align: "right", render: (item) => formatAssetPerfMs(item.metrics.handshake_ms?.p95) },
-                { key: "delta", header: "Handshake Δ", align: "right", render: (item) => formatAssetPerfDelta(item.deltas.handshake_p95_percent) },
-                { key: "measured", header: "Measured", render: (item) => formatDateTime(item.measured_at) }
+                { key: "run", header: "실행", render: (item) => `#${item.run_id}` },
+                { key: "status", header: "상태", render: (item) => performanceStatusLabel(item.status) },
+                { key: "algorithm", header: "협상 알고리즘", render: (item) => item.negotiated_algorithm || "-" },
+                { key: "handshake", header: "핸드셰이크 p95", align: "right", render: (item) => formatAssetPerfMs(item.metrics.handshake_ms?.p95) },
+                { key: "delta", header: "핸드셰이크 변화율", align: "right", render: (item) => formatAssetPerfDelta(item.deltas.handshake_p95_percent) },
+                { key: "measured", header: "측정 시각", render: (item) => formatDateTime(item.measured_at) }
               ]}
             />
           ) : null}
@@ -338,31 +349,31 @@ function AssetContextForm({
         <div className="form-grid">
           {(["sensitivity", "criticality"] as const).map((field) => (
             <Field key={field}>
-              <FieldLabel>{field}</FieldLabel>
-              <Select aria-label={`${field} override value`} value={values[field]} onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value }))}>
+              <FieldLabel>{contextFieldLabel(field)}</FieldLabel>
+              <Select aria-label={`${contextFieldLabel(field)} 재정의 값`} value={values[field]} onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value }))}>
                 <option value="">선택 안됨</option>
                 {["low", "medium", "high", "critical"].map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                  <option key={item} value={item}>{levelLabel(item)}</option>
                 ))}
               </Select>
             </Field>
           ))}
           <Field>
-            <FieldLabel>Exposure</FieldLabel>
-            <Select aria-label="exposure override value" value={values.exposure} onChange={(event) => setValues((current) => ({ ...current, exposure: event.target.value }))}>
+            <FieldLabel>{contextFieldLabel("exposure")}</FieldLabel>
+            <Select aria-label="노출 범위 재정의 값" value={values.exposure} onChange={(event) => setValues((current) => ({ ...current, exposure: event.target.value }))}>
               <option value="">선택 안됨</option>
               {["public_internet", "dmz", "internal_network", "air_gapped"].map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>{exposureLabel(item)}</option>
               ))}
             </Select>
           </Field>
           <Field>
-            <FieldLabel>Lifespan Years</FieldLabel>
-            <Input aria-label="lifespan_years override value" type="number" min="0" step="1" placeholder="선택 안됨" value={values.lifespan_years} onChange={(event) => setValues((current) => ({ ...current, lifespan_years: event.target.value }))} />
+            <FieldLabel>{contextFieldLabel("lifespan_years")}</FieldLabel>
+            <Input aria-label="보호 기간 재정의 값" type="number" min="0" step="1" placeholder="선택 안됨" value={values.lifespan_years} onChange={(event) => setValues((current) => ({ ...current, lifespan_years: event.target.value }))} />
           </Field>
           <Field className="is-wide">
-            <FieldLabel>Service Role</FieldLabel>
-            <Input aria-label="service_role override value" placeholder="선택 안됨" value={values.service_role} onChange={(event) => setValues((current) => ({ ...current, service_role: event.target.value }))} />
+            <FieldLabel>{contextFieldLabel("service_role")}</FieldLabel>
+            <Input aria-label="서비스 역할 재정의 값" placeholder="선택 안됨" value={values.service_role} onChange={(event) => setValues((current) => ({ ...current, service_role: event.target.value }))} />
           </Field>
         </div>
         {validationError ? <div className="callout state-view--error" role="alert">{validationError}</div> : null}
@@ -429,12 +440,12 @@ export function SnapshotDiffView({ id }: { id: number }) {
 
   return (
     <Section>
-      <PageHeader title={`Snapshot #${id} Diff`} description="기준 스냅샷과 비교할 이전 스냅샷을 선택합니다." />
+      <PageHeader title={`스냅샷 #${id} 비교`} description="기준 스냅샷과 비교할 이전 스냅샷을 선택합니다." />
       <Card>
         <CardContent>
           <div className="snapshot-diff-controls">
             <Field className="snapshot-diff-controls__select">
-              <FieldLabel>Compare with</FieldLabel>
+              <FieldLabel>비교 대상</FieldLabel>
               <Select
                 value={otherId ?? ""}
                 onChange={(event) => setSearchParams(event.target.value ? { other: event.target.value } : {})}
@@ -466,10 +477,10 @@ export function SnapshotDiffView({ id }: { id: number }) {
       {diff.data ? (
         <div className="section-stack">
           <div className="content-grid content-grid--4">
-            <MetricCard label="Added" value={diff.data.added.length} />
-            <MetricCard label="Removed" value={diff.data.removed.length} />
-            <MetricCard label="Modified" value={diff.data.modified.length} />
-            <MetricCard label="Unchanged" value={diff.data.unchanged_count} />
+            <MetricCard label="추가" value={diff.data.added.length} />
+            <MetricCard label="삭제" value={diff.data.removed.length} />
+            <MetricCard label="변경" value={diff.data.modified.length} />
+            <MetricCard label="동일" value={diff.data.unchanged_count} />
           </div>
           <SelectedAssetComparison
             snapshotA={diff.data.snapshot_a}
@@ -483,7 +494,7 @@ export function SnapshotDiffView({ id }: { id: number }) {
           />
           <div className="snapshot-diff-grid">
             <DiffAssetTable
-              title={`Snapshot #${diff.data.snapshot_a}`}
+              title={`스냅샷 #${diff.data.snapshot_a}`}
               side="previous"
               rows={pairedRows}
               diffIndex={diffIndex}
@@ -491,7 +502,7 @@ export function SnapshotDiffView({ id }: { id: number }) {
               onSelect={setSelectedBomRef}
             />
             <DiffAssetTable
-              title={`Snapshot #${diff.data.snapshot_b}`}
+              title={`스냅샷 #${diff.data.snapshot_b}`}
               latest
               side="current"
               rows={pairedRows}
@@ -563,11 +574,11 @@ function DiffAssetTable({
             { key: "status", header: "상태", render: (row) => <DiffSideStatus row={row} side={side} diffIndex={diffIndex} /> },
             {
               key: "bom_ref",
-              header: "BOM Ref",
+              header: "BOM 참조",
               render: (row) => <DiffSideBomRef row={row} side={side} selectedBomRef={selectedBomRef} onSelect={onSelect} />
             },
-            { key: "name", header: "Name", render: (row) => getDiffPairAsset(row, side)?.name ?? <span className="muted">-</span> },
-            { key: "type", header: "Type", render: (row) => getDiffPairAsset(row, side)?.asset_type ?? <span className="muted">-</span> }
+            { key: "name", header: "이름", render: (row) => getDiffPairAsset(row, side)?.name ?? <span className="muted">-</span> },
+            { key: "type", header: "타입", render: (row) => assetTypeLabel(getDiffPairAsset(row, side)?.asset_type) }
           ]}
         />
       </CardContent>
@@ -636,7 +647,7 @@ function SelectedAssetComparison({
         <CardTitle>선택 자산 비교</CardTitle>
       </CardHeader>
       <CardContent>
-        {!selectedBomRef ? <EmptyState title="비교할 자산을 선택하세요" description="좌측 또는 우측 테이블에서 BOM Ref를 선택합니다." /> : null}
+        {!selectedBomRef ? <EmptyState title="비교할 자산을 선택하세요" description="좌측 또는 우측 테이블에서 BOM 참조를 선택합니다." /> : null}
         {selectedBomRef ? (
           <div className="snapshot-diff-detail">
             <div className="snapshot-diff-detail__header">
@@ -644,8 +655,8 @@ function SelectedAssetComparison({
               <DiffStatusBadge status={status} />
             </div>
             <div className="snapshot-diff-detail__assets">
-              <DiffAssetSummary title={`Snapshot #${snapshotA}`} asset={previousAsset} emptyLabel="이전 Snapshot에 없음" />
-              <DiffAssetSummary title={`Snapshot #${snapshotB}`} latest={currentIsLatest} asset={currentAsset} emptyLabel="현재 Snapshot에 없음" />
+              <DiffAssetSummary title={`스냅샷 #${snapshotA}`} asset={previousAsset} emptyLabel="이전 스냅샷에 없음" />
+              <DiffAssetSummary title={`스냅샷 #${snapshotB}`} latest={currentIsLatest} asset={currentAsset} emptyLabel="현재 스냅샷에 없음" />
             </div>
             <div className="snapshot-diff-detail__changes">
               <h3>변경 필드</h3>
@@ -669,12 +680,12 @@ function DiffAssetSummary({ title, latest = false, asset, emptyLabel }: { title:
       </h3>
       {asset ? (
         <dl className="detail-list">
-          <div><dt>Name</dt><dd>{asset.name}</dd></div>
-          <div><dt>Type</dt><dd>{asset.asset_type}</dd></div>
-          <div><dt>Target</dt><dd>{asset.target_label ?? (asset.target_id ? `#${asset.target_id}` : "-")}</dd></div>
-          <div><dt>Risk</dt><dd>{asset.risk ? <RiskTierBadge tier={asset.risk.tier} /> : "-"}</dd></div>
-          <div><dt>Algorithm</dt><dd>{formatDiffValue(asset.summary.algorithm)}</dd></div>
-          <div><dt>Family</dt><dd>{formatDiffValue(asset.summary.algorithm_family)}</dd></div>
+          <div><dt>이름</dt><dd>{asset.name}</dd></div>
+          <div><dt>타입</dt><dd>{assetTypeLabel(asset.asset_type)}</dd></div>
+          <div><dt>스캔 대상</dt><dd>{asset.target_label ?? (asset.target_id ? `#${asset.target_id}` : "-")}</dd></div>
+          <div><dt>위험도</dt><dd>{asset.risk ? <RiskTierBadge tier={asset.risk.tier} /> : "-"}</dd></div>
+          <div><dt>알고리즘</dt><dd>{formatDiffValue(asset.summary.algorithm)}</dd></div>
+          <div><dt>패밀리</dt><dd>{formatDiffValue(asset.summary.algorithm_family)}</dd></div>
         </dl>
       ) : (
         <EmptyState title={emptyLabel} />
@@ -695,10 +706,10 @@ function DiffFieldChanges({
   modifiedAsset: Schema<"CbomDiffModifiedAsset"> | null;
 }) {
   if (status === "added") {
-    return <span>Snapshot #{snapshotB}에만 존재합니다.</span>;
+    return <span>스냅샷 #{snapshotB}에만 존재합니다.</span>;
   }
   if (status === "removed") {
-    return <span>Snapshot #{snapshotA}에만 존재합니다.</span>;
+    return <span>스냅샷 #{snapshotA}에만 존재합니다.</span>;
   }
   if (status === "unchanged") {
     return <span>선택한 자산의 비교 대상 필드는 동일합니다.</span>;
@@ -728,10 +739,10 @@ function DiffChangeSummary({ fieldChanges }: { fieldChanges: Record<string, unkn
     <div className="diff-change-list">
       {changes.map(([field, values]) => (
         <div key={field} className="diff-change-list__item">
-          <span className="diff-change-list__field">{field}</span>
-          <span className="diff-change-list__value">{formatDiffValue(values[0])}</span>
+          <span className="diff-change-list__field">{diffFieldLabel(field)}</span>
+          <span className="diff-change-list__value">{formatDiffFieldValue(field, values[0])}</span>
           <span className="diff-change-list__arrow">→</span>
-          <span className="diff-change-list__value">{formatDiffValue(values[1])}</span>
+          <span className="diff-change-list__value">{formatDiffFieldValue(field, values[1])}</span>
         </div>
       ))}
     </div>
@@ -829,4 +840,35 @@ function formatDiffValue(value: unknown) {
     return String(value);
   }
   return JSON.stringify(value);
+}
+
+function formatDiffFieldValue(field: string, value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+  if (field === "asset_class") {
+    return assetClassLabel(String(value));
+  }
+  if (field === "asset_type") {
+    return assetTypeLabel(String(value));
+  }
+  if (field === "risk_tier") {
+    return riskTierLabel(String(value));
+  }
+  return contextValueLabel(field, value) === "-" ? formatDiffValue(value) : contextValueLabel(field, value);
+}
+
+function diffFieldLabel(field: string) {
+  const labels: Record<string, string> = {
+    name: "이름",
+    asset_class: "분류",
+    asset_type: "타입",
+    risk_score: "위험 점수",
+    risk_tier: "위험 등급",
+    algorithm: "알고리즘",
+    algorithm_family: "알고리즘 패밀리",
+    target_label: "스캔 대상",
+    target_id: "스캔 대상 ID"
+  };
+  return labels[field] ?? contextFieldLabel(field);
 }

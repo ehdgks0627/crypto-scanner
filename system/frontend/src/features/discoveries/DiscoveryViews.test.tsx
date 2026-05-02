@@ -45,7 +45,7 @@ describe("DiscoveriesView", () => {
 
     renderWithApp(<DiscoveriesView />);
 
-    const discoverySixCheckbox = await screen.findByLabelText("Discovery #6 선택");
+    const discoverySixCheckbox = await screen.findByLabelText("디스커버리 #6 선택");
     expect(discoverySixCheckbox).not.toBeChecked();
     expect(screen.getByText("선택 0개")).toBeInTheDocument();
 

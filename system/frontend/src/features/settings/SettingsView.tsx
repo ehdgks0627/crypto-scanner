@@ -13,6 +13,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Field, FieldHint, FieldLabel, Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
+import { yesNoLabel } from "../../domain/displayLabels";
 import { areRiskWeightsValid, updateRiskWeight } from "../../domain/riskWeights";
 import { useUiStore } from "../../stores/uiStore";
 
@@ -61,24 +62,24 @@ export function SettingsView() {
 
   return (
     <Section>
-      <PageHeader title="설정" description="UI 테마, Bootstrap token, Risk 기본 가중치를 관리합니다." />
+      <PageHeader title="설정" description="화면 테마, 부트스트랩 토큰, 위험평가 기본 가중치를 관리합니다." />
       <div className="content-grid">
         <Card>
           <CardHeader>
-            <CardTitle>UI</CardTitle>
+            <CardTitle>화면</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="form-grid">
               <Field>
-                <FieldLabel>Theme</FieldLabel>
+                <FieldLabel>테마</FieldLabel>
                 <Select value={theme} onChange={(event) => setTheme(event.target.value as "light" | "dark")}>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
+                  <option value="light">라이트</option>
+                  <option value="dark">다크</option>
                 </Select>
               </Field>
               <Field>
-                <FieldLabel>Bootstrap Token</FieldLabel>
-                <Input value="****" readOnly aria-label="Bootstrap Token masked" />
+                <FieldLabel>부트스트랩 토큰</FieldLabel>
+                <Input value="****" readOnly aria-label="부트스트랩 토큰 마스킹" />
                 <FieldHint>변경은 docker env에서만 수행합니다.</FieldHint>
               </Field>
             </div>
@@ -86,7 +87,7 @@ export function SettingsView() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Risk Weights</CardTitle>
+            <CardTitle>위험 가중치</CardTitle>
           </CardHeader>
           <CardContent>
             {riskWeights.isLoading ? <LoadingState /> : null}
@@ -95,7 +96,7 @@ export function SettingsView() {
             <div className="form-grid">
               {(Object.keys(weights) as Array<keyof RiskWeightsInput>).map((key) => (
                 <Field key={key}>
-                  <FieldLabel>{key}</FieldLabel>
+                  <FieldLabel>{riskWeightLabel(key)}</FieldLabel>
                   <Input
                     type="number"
                     min="0.5"
@@ -117,7 +118,7 @@ export function SettingsView() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Algorithm Risk Table</CardTitle>
+          <CardTitle>알고리즘 위험도 테이블</CardTitle>
         </CardHeader>
         <CardContent>
           {algorithmRiskTable.isLoading ? <LoadingState /> : null}
@@ -128,15 +129,15 @@ export function SettingsView() {
               getRowKey={(row, index) => `${row.algorithm}-${index}`}
               empty="설정된 규칙이 없습니다"
               columns={[
-                { key: "algorithm", header: "Algorithm", render: (row) => row.algorithm },
-                { key: "factor_a", header: "Factor A", align: "right", render: (row) => formatFactorA(row.factor_a) },
+                { key: "algorithm", header: "알고리즘", render: (row) => row.algorithm },
+                { key: "factor_a", header: "A 계수", align: "right", render: (row) => formatFactorA(row.factor_a) },
                 {
                   key: "quantum_vulnerable",
-                  header: "Quantum Vulnerable",
+                  header: "양자 취약 여부",
                   align: "center",
-                  render: (row) => <Badge tone={row.quantum_vulnerable ? "red" : "green"}>{row.quantum_vulnerable ? "Yes" : "No"}</Badge>
+                  render: (row) => <Badge tone={row.quantum_vulnerable ? "red" : "green"}>{yesNoLabel(row.quantum_vulnerable)}</Badge>
                 },
-                { key: "notes", header: "Notes", render: (row) => formatNotes(row.notes) }
+                { key: "notes", header: "비고", render: (row) => formatNotes(row.notes) }
               ]}
             />
           ) : null}
@@ -144,4 +145,15 @@ export function SettingsView() {
       </Card>
     </Section>
   );
+}
+
+function riskWeightLabel(key: keyof RiskWeightsInput) {
+  const labels: Record<keyof RiskWeightsInput, string> = {
+    wA: "A 가중치",
+    wD: "D 가중치",
+    wE: "E 가중치",
+    wL: "L 가중치",
+    wC: "C 가중치"
+  };
+  return labels[key];
 }

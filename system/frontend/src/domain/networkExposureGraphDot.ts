@@ -1,11 +1,12 @@
 import type { RiskTier } from "../api/types";
+import { relationLabel, riskTierLabel } from "./displayLabels";
 import type { NetworkExposureGraph, NetworkExposureLink, NetworkExposureLinkKind, NetworkExposureNode, NetworkExposureNodeKind } from "./networkExposureGraph";
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
-  target: "Scan target",
-  endpoint: "Endpoint",
-  asset: "Crypto asset",
-  finding: "Finding"
+  target: "스캔 대상",
+  endpoint: "엔드포인트",
+  asset: "암호 자산",
+  finding: "위험 발견"
 };
 
 const kindShapes: Record<NetworkExposureNodeKind, string> = {
@@ -24,11 +25,11 @@ const riskStyles: Record<RiskTier | "UNKNOWN", { border: string; fill: string; t
 };
 
 const edgeStyles: Record<NetworkExposureLinkKind, { color: string; label: string; style: string }> = {
-  exposes: { color: "#4b8ca8", label: "exposes", style: "solid" },
-  presents: { color: "#6d5a9a", label: "presents", style: "solid" },
-  supports: { color: "#5d8a5a", label: "supports", style: "solid" },
-  uses: { color: "#8a8a8a", label: "uses", style: "solid" },
-  has_finding: { color: "#c4413a", label: "has finding", style: "dashed" }
+  exposes: { color: "#4b8ca8", label: relationLabel("exposes"), style: "solid" },
+  presents: { color: "#6d5a9a", label: relationLabel("presents"), style: "solid" },
+  supports: { color: "#5d8a5a", label: relationLabel("supports"), style: "solid" },
+  uses: { color: "#8a8a8a", label: relationLabel("uses"), style: "solid" },
+  has_finding: { color: "#c4413a", label: relationLabel("has_finding"), style: "dashed" }
 };
 
 export function buildNetworkExposureDot(graph: NetworkExposureGraph) {
@@ -94,11 +95,11 @@ function edgeStatement(link: NetworkExposureLink) {
 }
 
 function nodeLabel(node: NetworkExposureNode) {
-  const meta = node.kind === "finding" ? `${node.assetCount} assets` : node.assetCount > 1 ? `${node.assetCount} assets` : undefined;
+  const meta = node.kind === "finding" ? `${node.assetCount}개 자산` : node.assetCount > 1 ? `${node.assetCount}개 자산` : undefined;
   return [
     ...wrapText(node.label, 24, 2),
     ...wrapText(node.subtitle ?? "", 26, 1),
-    node.riskTier ? `${kindLabels[node.kind]} · ${node.riskTier}` : kindLabels[node.kind],
+    node.riskTier ? `${kindLabels[node.kind]} · ${riskTierLabel(node.riskTier)}` : kindLabels[node.kind],
     meta
   ]
     .filter(Boolean)

@@ -3,18 +3,18 @@ import type { JobStatus, RiskTier, Schema } from "../api/types";
 export const riskTierOrder: RiskTier[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 
 export const riskTierLabels: Record<RiskTier, string> = {
-  CRITICAL: "Critical",
-  HIGH: "High",
-  MEDIUM: "Medium",
-  LOW: "Low"
+  CRITICAL: "치명",
+  HIGH: "높음",
+  MEDIUM: "보통",
+  LOW: "낮음"
 };
 
 export const statusLabels: Record<JobStatus, string> = {
-  PENDING: "Pending",
-  RUNNING: "Running",
-  COMPLETED: "Completed",
-  FAILED: "Failed",
-  CANCELLED: "Cancelled"
+  PENDING: "대기",
+  RUNNING: "실행 중",
+  COMPLETED: "완료",
+  FAILED: "실패",
+  CANCELLED: "취소됨"
 };
 
 export class JobProgressModel {

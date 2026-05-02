@@ -15,6 +15,7 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
+import { agilityLevelLabel, assetTypeLabel, riskTierLabel } from "../../domain/displayLabels";
 import { parseRiskTierParam, riskTierOptions } from "../../domain/filterOptions";
 import { downloadText } from "../../lib/download";
 import { formatNumber, formatScore } from "../../lib/format";
@@ -99,7 +100,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
   return (
     <Section>
       <PageHeader
-        title={`Snapshot #${snapshotId} Migration`}
+        title={`스냅샷 #${snapshotId} 마이그레이션`}
         description="위험 자산의 PQC 전환 우선순위와 영향도를 확인합니다."
         actions={
           <Button type="button" disabled={!reportSelectionAvailable || impact.isFetching} onClick={downloadReport}>
@@ -110,25 +111,25 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
       <div className="split-pane">
         <Card>
           <CardHeader>
-            <CardTitle>Migration Plan</CardTitle>
+            <CardTitle>마이그레이션 계획</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="toolbar">
               <div className="toolbar__filters">
-                <Select aria-label="Migration tier filter" value={tier} onChange={(event) => setFilter("tier", event.target.value)}>
-                  <option value="">All tiers</option>
+                <Select aria-label="마이그레이션 위험도 필터" value={tier} onChange={(event) => setFilter("tier", event.target.value)}>
+                  <option value="">전체 등급</option>
                   {riskTierOptions.map((item) => (
-                    <option key={item} value={item}>{item}</option>
+                    <option key={item} value={item}>{riskTierLabel(item)}</option>
                   ))}
                 </Select>
-                <Select aria-label="Migration asset type filter" value={assetType} onChange={(event) => setFilter("asset_type", event.target.value)}>
-                  <option value="">All asset types</option>
+                <Select aria-label="마이그레이션 자산 타입 필터" value={assetType} onChange={(event) => setFilter("asset_type", event.target.value)}>
+                  <option value="">전체 자산 타입</option>
                   {assetTypeOptions.map((item) => (
-                    <option key={item} value={item}>{item}</option>
+                    <option key={item} value={item}>{assetTypeLabel(item)}</option>
                   ))}
                 </Select>
                 <Field className="field-inline">
-                  <FieldLabel>Min</FieldLabel>
+                  <FieldLabel>최소 점수</FieldLabel>
                   <Input type="number" min="0" max="100" value={minScore} onChange={(event) => setFilter("min_score", event.target.value)} />
                 </Field>
               </div>
@@ -139,10 +140,10 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                   disabled={rows.length === 0}
                   onChange={(event) => toggleVisibleRows(event.target.checked)}
                 />
-                <span className="muted">visible {rows.length} · selected {selectedItems.length}</span>
+                <span className="muted">표시 {rows.length} · 선택 {selectedItems.length}</span>
               </span>
             </div>
-            {!minScoreValid ? <div className="callout state-view--error" role="alert">Min score는 0부터 100 사이의 정수여야 합니다.</div> : null}
+            {!minScoreValid ? <div className="callout state-view--error" role="alert">최소 점수는 0부터 100 사이의 정수여야 합니다.</div> : null}
             {minScoreValid && plan.isLoading ? <LoadingState /> : null}
             {minScoreValid && plan.isError ? <ErrorState error={plan.error} onRetry={() => void plan.refetch()} /> : null}
             {minScoreValid && plan.data ? (
@@ -161,14 +162,14 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                         aria-label={`${item.asset_name} 선택`}
                       />
                   },
-                  { key: "asset", header: "Asset", render: (item) => item.asset_name ?? item.current?.algorithm ?? "-" },
-                  { key: "current", header: "Current", render: (item) => item.current.algorithm ?? "-" },
-                  { key: "strategy", header: "Strategy", render: (item) => item.recommendation.strategy },
-                  { key: "phase", header: "Phase", render: (item) => item.recommendation.phase },
-                  { key: "target", header: "Target", render: (item) => item.recommendation.target_algorithm },
-                  { key: "agility", header: "Agility", render: (item) => <AgilityBadge agility={item.agility} /> },
-                  { key: "score", header: "Score", render: (item) => formatScore(item.risk_score) },
-                  { key: "tier", header: "Tier", render: (item) => <RiskTierBadge tier={item.tier} /> }
+                  { key: "asset", header: "자산", render: (item) => item.asset_name ?? item.current?.algorithm ?? "-" },
+                  { key: "current", header: "현재 알고리즘", render: (item) => item.current.algorithm ?? "-" },
+                  { key: "strategy", header: "전략", render: (item) => item.recommendation.strategy },
+                  { key: "phase", header: "단계", render: (item) => item.recommendation.phase },
+                  { key: "target", header: "목표 알고리즘", render: (item) => item.recommendation.target_algorithm },
+                  { key: "agility", header: "민첩성", render: (item) => <AgilityBadge agility={item.agility} /> },
+                  { key: "score", header: "점수", render: (item) => formatScore(item.risk_score) },
+                  { key: "tier", header: "등급", render: (item) => <RiskTierBadge tier={item.tier} /> }
                 ]}
               />
             ) : null}
@@ -176,7 +177,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Impact</CardTitle>
+            <CardTitle>영향도</CardTitle>
           </CardHeader>
           <CardContent>
             {!reportSelectionAvailable ? <EmptyState title="자산을 선택하세요" description="선택한 자산 기준으로 예상 작업량을 계산합니다." /> : null}
@@ -194,18 +195,18 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
       {reportSelectionAvailable ? (
         <Card>
           <CardHeader>
-            <CardTitle>Report Selection</CardTitle>
+            <CardTitle>보고서 선택 항목</CardTitle>
           </CardHeader>
           <CardContent>
             <DataTable
               items={selectedItems}
               getRowKey={(item) => item.asset_id}
               columns={[
-                { key: "asset", header: "Asset", render: (item) => item.asset_name },
-                { key: "risk", header: "Risk", render: (item) => `${formatScore(item.risk_score)} / ${item.tier}` },
-                { key: "recommendation", header: "Recommendation", render: (item) => `${item.recommendation.strategy} -> ${item.recommendation.target_algorithm}` },
-                { key: "agility", header: "Agility", render: (item) => `${item.agility.score} / ${item.agility.level}` },
-                { key: "rationale", header: "Rationale", render: (item) => item.recommendation.rationale },
+                { key: "asset", header: "자산", render: (item) => item.asset_name },
+                { key: "risk", header: "위험도", render: (item) => `${formatScore(item.risk_score)} / ${riskTierLabel(item.tier)}` },
+                { key: "recommendation", header: "권고", render: (item) => `${item.recommendation.strategy} → ${item.recommendation.target_algorithm}` },
+                { key: "agility", header: "민첩성", render: (item) => `${item.agility.score} / ${agilityLevelLabel(item.agility.level)}` },
+                { key: "rationale", header: "근거", render: (item) => item.recommendation.rationale },
                 {
                   key: "remove",
                   header: "",
@@ -224,7 +225,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
       {selectedItems.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Crypto Agility Playbook</CardTitle>
+            <CardTitle>암호 민첩성 플레이북</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="migration-playbook-list">
@@ -235,9 +236,9 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                     <AgilityBadge agility={item.agility} />
                   </div>
                   <dl className="detail-list">
-                    <div><dt>Blockers</dt><dd>{item.agility.blockers.length ? item.agility.blockers.join(", ") : "-"}</dd></div>
-                    <div><dt>Rollback</dt><dd>{item.recommendation.rollback}</dd></div>
-                    <div><dt>Validation</dt><dd>{item.recommendation.validation.join(", ")}</dd></div>
+                    <div><dt>차단 요인</dt><dd>{item.agility.blockers.length ? item.agility.blockers.join(", ") : "-"}</dd></div>
+                    <div><dt>롤백</dt><dd>{item.recommendation.rollback}</dd></div>
+                    <div><dt>검증</dt><dd>{item.recommendation.validation.join(", ")}</dd></div>
                   </dl>
                   <ol className="migration-playbook-steps">
                     {item.playbook.map((step) => (
@@ -260,11 +261,11 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
 
 function MigrationImpactSummary({ impact }: { impact: Schema<"MigrationImpact"> }) {
   const workloadRows = [
-    { label: "Selected assets", value: formatNumber(impact.selected_count) },
-    { label: "Certificate reissues", value: formatNumber(impact.cert_reissues) },
-    { label: "Config changes", value: formatNumber(impact.config_changes) },
-    { label: "Key regenerations", value: formatNumber(impact.key_regens) },
-    { label: "Estimated downtime", value: `${formatNumber(impact.estimated_downtime_min)} min` }
+    { label: "선택 자산", value: formatNumber(impact.selected_count) },
+    { label: "인증서 재발급", value: formatNumber(impact.cert_reissues) },
+    { label: "설정 변경", value: formatNumber(impact.config_changes) },
+    { label: "키 재생성", value: formatNumber(impact.key_regens) },
+    { label: "예상 다운타임", value: `${formatNumber(impact.estimated_downtime_min)}분` }
   ];
   const endpointRows = buildImpactEndpointRows(impact);
 
@@ -274,8 +275,8 @@ function MigrationImpactSummary({ impact }: { impact: Schema<"MigrationImpact"> 
         items={workloadRows}
         getRowKey={(item) => item.label}
         columns={[
-          { key: "label", header: "Work item", render: (item) => item.label },
-          { key: "value", header: "Estimate", align: "right", render: (item) => item.value }
+          { key: "label", header: "작업 항목", render: (item) => item.label },
+          { key: "value", header: "예상치", align: "right", render: (item) => item.value }
         ]}
       />
       <DataTable
@@ -283,8 +284,8 @@ function MigrationImpactSummary({ impact }: { impact: Schema<"MigrationImpact"> 
         getRowKey={(item, index) => `${item.host}:${item.service}:${index}`}
         empty={<EmptyState title="영향 대상이 없습니다" />}
         columns={[
-          { key: "host", header: "Host", render: (item) => item.host },
-          { key: "service", header: "Service", render: (item) => item.service }
+          { key: "host", header: "호스트", render: (item) => item.host },
+          { key: "service", header: "서비스", render: (item) => item.service }
         ]}
       />
     </div>
@@ -301,5 +302,5 @@ function buildImpactEndpointRows(impact: Schema<"MigrationImpact">) {
 
 function AgilityBadge({ agility }: { agility: Schema<"MigrationAgility"> }) {
   const tone = agility.level === "HIGH" ? "green" : agility.level === "MEDIUM" ? "yellow" : "red";
-  return <Badge tone={tone}>{agility.score} · {agility.level}</Badge>;
+  return <Badge tone={tone}>{agility.score} · {agilityLevelLabel(agility.level)}</Badge>;
 }

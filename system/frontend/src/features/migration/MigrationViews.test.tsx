@@ -66,14 +66,14 @@ describe("MigrationPlanView", () => {
 
     expect(await screen.findByText("cert-leaf-web-rsa2048")).toBeInTheDocument();
     expect(screen.getByText("hybrid_first")).toBeInTheDocument();
-    expect(screen.getByText("36 · LOW")).toBeInTheDocument();
+    expect(screen.getByText("36 · 낮음")).toBeInTheDocument();
 
     await user.click(screen.getByRole("checkbox", { name: "cert-leaf-web-rsa2048 선택" }));
 
-    expect(await screen.findByText("Crypto Agility Playbook")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Work item" })).toBeInTheDocument();
-    expect(screen.getByText("Certificate reissues")).toBeInTheDocument();
-    expect(screen.getByText("15 min")).toBeInTheDocument();
+    expect(await screen.findByText("암호 민첩성 플레이북")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "작업 항목" })).toBeInTheDocument();
+    expect(screen.getByText("인증서 재발급")).toBeInTheDocument();
+    expect(screen.getByText("15분")).toBeInTheDocument();
     expect(screen.getByText("web.testbed.local:443")).toBeInTheDocument();
     expect(screen.queryByText("selected_count")).not.toBeInTheDocument();
     expect(screen.getByText("runtime_capability_unknown")).toBeInTheDocument();

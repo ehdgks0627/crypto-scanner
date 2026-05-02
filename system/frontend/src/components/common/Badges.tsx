@@ -1,5 +1,6 @@
 import type { JobStatus, RiskTier } from "../../api/types";
 import { riskTierLabels, statusLabels } from "../../domain/models";
+import { statusLabel } from "../../domain/displayLabels";
 import { Badge } from "../ui/badge";
 
 export function RiskTierBadge({ tier }: { tier?: RiskTier | string | null }) {
@@ -20,5 +21,5 @@ export function StatusBadge({ status }: { status?: JobStatus | string | null }) 
           : normalized === "CANCELLED"
             ? "yellow"
             : "neutral";
-  return <Badge tone={tone}>{statusLabels[normalized as JobStatus] ?? normalized}</Badge>;
+  return <Badge tone={tone}>{statusLabels[normalized as JobStatus] ?? statusLabel(normalized)}</Badge>;
 }

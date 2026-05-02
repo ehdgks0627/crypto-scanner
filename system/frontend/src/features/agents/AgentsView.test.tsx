@@ -108,7 +108,7 @@ describe("AgentsView", () => {
 
     expect(await screen.findByText("inactive-agent.testbed.local")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Agent status filter"), "active");
+    await user.selectOptions(screen.getByLabelText("에이전트 상태 필터"), "active");
 
     await waitFor(() => expect(list).toHaveBeenLastCalledWith(true));
     expect(screen.queryByText("inactive-agent.testbed.local")).not.toBeInTheDocument();

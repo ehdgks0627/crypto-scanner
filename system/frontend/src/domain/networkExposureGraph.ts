@@ -1,4 +1,5 @@
 import type { RiskTier, Schema } from "../api/types";
+import { assetTypeLabel, relationLabel, riskTierLabel } from "./displayLabels";
 
 export type NetworkExposureNodeKind = "target" | "endpoint" | "asset" | "finding";
 export type NetworkExposureLinkKind = "exposes" | "presents" | "supports" | "uses" | "has_finding";
@@ -144,14 +145,14 @@ export function buildNetworkExposureGraph(
       source: targetNodeId,
       target: endpointNodeId,
       kind: "exposes",
-      label: "exposes"
+      label: relationLabel("exposes")
     });
     addLink({
       id: `${relation}:${endpointNodeId}:${assetNodeId}`,
       source: endpointNodeId,
       target: assetNodeId,
       kind: relation,
-      label: relation
+      label: relationLabel(relation)
     });
 
     if (tier) {
@@ -159,8 +160,8 @@ export function buildNetworkExposureGraph(
       addNode({
         id: findingNodeId,
         kind: "finding",
-        label: `${tier} finding`,
-        subtitle: "risk tier",
+        label: `${riskTierLabel(tier)} 위험`,
+        subtitle: "위험 등급",
         riskTier: tier,
         assetCount: 1
       });
@@ -169,7 +170,7 @@ export function buildNetworkExposureGraph(
         source: assetNodeId,
         target: findingNodeId,
         kind: "has_finding",
-        label: "has finding"
+        label: relationLabel("has_finding")
       });
     }
   }
@@ -214,20 +215,20 @@ function targetLabelFor(asset: Schema<"AssetListItem">, target?: Schema<"Target"
   if (target) {
     return target.display_name || target.host;
   }
-  return asset.target_label ?? "Unmapped target";
+  return asset.target_label ?? "매핑되지 않은 대상";
 }
 
 function endpointLabelFor(asset: Schema<"AssetListItem">, target?: Schema<"Target">) {
   if (target) {
     return `${target.host}:${target.port}/${target.protocol_hint}`;
   }
-  return asset.target_label ?? "Unmapped endpoint";
+  return asset.target_label ?? "매핑되지 않은 엔드포인트";
 }
 
 function assetSubtitle(asset: Schema<"AssetListItem">) {
   const algorithm = summaryString(asset.summary, "algorithm");
   const family = summaryString(asset.summary, "algorithm_family");
-  return [asset.asset_type, algorithm, family].filter(Boolean).join(" · ");
+  return [assetTypeLabel(asset.asset_type), algorithm, family].filter(Boolean).join(" · ");
 }
 
 function summaryString(summary: Record<string, unknown>, key: string) {

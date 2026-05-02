@@ -13,7 +13,7 @@ describe("badges", () => {
       </div>
     );
 
-    expect(screen.getByText("Critical")).toBeInTheDocument();
-    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.getByText("치명")).toBeInTheDocument();
+    expect(screen.getByText("실행 중")).toBeInTheDocument();
   });
 });

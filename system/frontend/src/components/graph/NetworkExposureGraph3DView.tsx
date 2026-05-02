@@ -4,16 +4,17 @@ import type { ReactNode } from "react";
 import { GraphCanvas, Svg, lightTheme } from "reagraph";
 import type { GraphCanvasRef, GraphEdge, GraphNode, InternalGraphNode, NodeRendererProps, Theme } from "reagraph";
 
+import { relationLabel as displayRelationLabel, riskTierLabel } from "../../domain/displayLabels";
 import type { NetworkExposureGraph, NetworkExposureLink, NetworkExposureNode, NetworkExposureNodeKind } from "../../domain/networkExposureGraph";
 import { Button } from "../ui/button";
 
 const graphRendererConfig = { preserveDrawingBuffer: true, antialias: true } as const;
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
-  target: "Scan Target",
-  endpoint: "Endpoint",
-  asset: "Crypto Asset",
-  finding: "Finding"
+  target: "스캔 대상",
+  endpoint: "엔드포인트",
+  asset: "암호 자산",
+  finding: "위험 발견"
 };
 
 const reagraphTheme: Theme = {
@@ -158,7 +159,7 @@ export function NetworkExposureGraph3DView({
       {hasGraph && !canUseWebGl ? <GraphOverlay label="이 브라우저에서는 3D WebGL 그래프를 사용할 수 없습니다" /> : null}
       {isLoading ? <GraphOverlay label="네트워크 그래프 불러오는 중" /> : null}
       {error ? <GraphErrorOverlay onRetry={onRetry} /> : null}
-      {isFetching && !isLoading ? <span className="network-graph-refresh">syncing</span> : null}
+      {isFetching && !isLoading ? <span className="network-graph-refresh">동기화 중</span> : null}
     </div>
   );
 }
@@ -206,11 +207,11 @@ function nodeKindFor(node: InternalGraphNode): NetworkExposureNodeKind {
 }
 
 function nodeSubLabel(node: NetworkExposureNode) {
-  return [kindLabels[node.kind], node.subtitle, node.riskTier].filter(Boolean).join(" · ");
+  return [kindLabels[node.kind], node.subtitle, node.riskTier ? riskTierLabel(node.riskTier) : undefined].filter(Boolean).join(" · ");
 }
 
 function relationLabel(label: string) {
-  return label.replace("_", " ");
+  return displayRelationLabel(label);
 }
 
 function GraphOverlay({ label, icon }: { label: string; icon?: ReactNode }) {

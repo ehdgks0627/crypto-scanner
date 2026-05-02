@@ -77,10 +77,10 @@ describe("SnapshotsView", () => {
 
     renderWithApp(<SnapshotsView />);
 
-    const search = await screen.findByLabelText("Asset search");
+    const search = await screen.findByLabelText("자산 검색");
     expect(search.closest(".toolbar")).toHaveClass("toolbar--asset-filters");
     expect(search).toHaveClass("asset-filter-search");
-    expect(screen.getByLabelText("Asset risk tier filter")).toHaveClass("asset-filter-tier");
+    expect(screen.getByLabelText("자산 위험도 필터")).toHaveClass("asset-filter-tier");
   });
 
   it("defaults to the latest snapshot when no global snapshot was selected", async () => {
@@ -112,9 +112,9 @@ describe("AssetDetailView", () => {
 
     expect(screen.queryByRole("checkbox", { name: /override 사용/ })).not.toBeInTheDocument();
     expect(screen.getAllByRole("option", { name: "선택 안됨" })).toHaveLength(3);
-    expect(screen.getByLabelText("sensitivity override value")).not.toBeDisabled();
-    expect(screen.getByLabelText("lifespan_years override value")).toHaveAttribute("placeholder", "선택 안됨");
-    expect(screen.getByLabelText("service_role override value")).toHaveAttribute("placeholder", "선택 안됨");
+    expect(screen.getByLabelText("민감도 재정의 값")).not.toBeDisabled();
+    expect(screen.getByLabelText("보호 기간 재정의 값")).toHaveAttribute("placeholder", "선택 안됨");
+    expect(screen.getByLabelText("서비스 역할 재정의 값")).toHaveAttribute("placeholder", "선택 안됨");
   });
 });
 
@@ -166,8 +166,8 @@ describe("SnapshotDiffView", () => {
     await screen.findByRole("option", { name: /#1/ });
     await user.selectOptions(await screen.findByRole("combobox"), "1");
 
-    expect((await screen.findAllByText("Snapshot #1")).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Snapshot #2").length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText("스냅샷 #1")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("스냅샷 #2").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("최신").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("cert:added")).toBeInTheDocument();
     expect(screen.getByText("cert:removed")).toBeInTheDocument();
@@ -203,7 +203,7 @@ describe("SnapshotDiffView", () => {
     expect(screen.getByRole("checkbox", { name: "전체보기" }).closest(".snapshot-diff-controls")).not.toBeNull();
 
     await user.click(previousRows[1]!);
-    expect(screen.getByText("Snapshot #2에만 존재합니다.")).toBeInTheDocument();
+    expect(screen.getByText("스냅샷 #2에만 존재합니다.")).toBeInTheDocument();
     const [rowSelectedPreviousRows, rowSelectedCurrentRows] = getDiffRows();
     expect(rowSelectedPreviousRows[1]).toHaveClass("is-selected");
     expect(rowSelectedCurrentRows[1]).toHaveClass("is-selected");

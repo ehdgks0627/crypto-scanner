@@ -37,10 +37,10 @@ describe("RiskAssessmentView", () => {
 
     renderWithApp(<RiskAssessmentView snapshotId={3} />);
 
-    expect(await screen.findByText("Snapshot #3 Risk")).toBeInTheDocument();
+    expect(await screen.findByText("스냅샷 #3 위험평가")).toBeInTheDocument();
     expect((await screen.findAllByText("web.testbed.local TLS leaf certificate")).length).toBeGreaterThanOrEqual(1);
     for (const header of ["A", "D", "E", "L", "C"]) {
-      expect(screen.getAllByRole("columnheader", { name: header }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByRole("columnheader", { name: `${header} 계수` }).length).toBeGreaterThanOrEqual(1);
     }
     expect(screen.getAllByText("0.95").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("1.00").length).toBeGreaterThanOrEqual(1);

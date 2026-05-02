@@ -14,6 +14,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
+import { assetTypeLabel, riskTierLabel, statusLabel } from "../../domain/displayLabels";
 import { parseRiskTierParam, riskTierOptions } from "../../domain/filterOptions";
 import { isActiveJobStatus } from "../../domain/jobStatus";
 import { areRiskWeightsValid, updateRiskWeight } from "../../domain/riskWeights";
@@ -54,7 +55,7 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
     onSuccess: (job) => {
       setRecomputeRequest({ id: job.id, persist });
       trackJob(job.id);
-      toast.success(`Recompute job #${job.id} 생성`);
+      toast.success(`재계산 작업 #${job.id} 생성`);
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "재계산 요청 실패")
   });
@@ -91,11 +92,11 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
       if (recomputeRequest?.persist) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.risk.weights });
       }
-      toast.success("Risk recompute 완료");
+      toast.success("위험평가 재계산 완료");
       setRecomputeRequest(null);
     }
     if (recomputeJob.data?.status === "FAILED" || recomputeJob.data?.status === "CANCELLED") {
-      toast.error(recomputeJob.data.status === "FAILED" ? "Risk recompute 실패" : "Risk recompute 취소됨");
+      toast.error(recomputeJob.data.status === "FAILED" ? "위험평가 재계산 실패" : "위험평가 재계산 취소됨");
       setRecomputeRequest(null);
     }
   }, [queryClient, recomputeJob.data?.status, recomputeRequest?.persist, snapshotId]);
@@ -103,7 +104,7 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
   return (
     <Section>
       <PageHeader
-        title={`Snapshot #${snapshotId} Risk`}
+        title={`스냅샷 #${snapshotId} 위험평가`}
         description="위험 점수와 가중치를 조정하고 재계산합니다."
         actions={
           <>
@@ -119,7 +120,7 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
       <div className="split-pane">
         <Card>
           <CardHeader>
-            <CardTitle>Top Risks</CardTitle>
+            <CardTitle>상위 위험 자산</CardTitle>
           </CardHeader>
           <CardContent>
             {topRisks.isLoading ? <LoadingState /> : null}
@@ -129,18 +130,18 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Weights</CardTitle>
+            <CardTitle>위험 가중치</CardTitle>
           </CardHeader>
           <CardContent>
             {riskWeights.isLoading ? <LoadingState /> : null}
             {riskWeights.isError ? <ErrorState error={riskWeights.error} onRetry={() => void riskWeights.refetch()} /> : null}
-            {riskWeights.data ? <span className="muted">Updated {formatDateTime(riskWeights.data.updated_at)}</span> : null}
-            {recomputeJob.data ? <p className="muted" role="status" aria-live="polite">Recompute #{recomputeJob.data.id}: {recomputeJob.data.status}</p> : null}
+            {riskWeights.data ? <span className="muted">업데이트 {formatDateTime(riskWeights.data.updated_at)}</span> : null}
+            {recomputeJob.data ? <p className="muted" role="status" aria-live="polite">재계산 #{recomputeJob.data.id}: {statusLabel(recomputeJob.data.status)}</p> : null}
             {!areRiskWeightsValid(weights) ? <div className="callout state-view--error" role="alert">가중치는 0.5부터 2.0 사이 숫자여야 합니다.</div> : null}
             <div className="form-grid">
               {(Object.keys(weights) as Array<keyof RiskWeightsInput>).map((key) => (
                 <Field key={key}>
-                  <FieldLabel>{key}</FieldLabel>
+                  <FieldLabel>{riskWeightLabel(key)}</FieldLabel>
                   <Input
                     type="number"
                     step="0.1"
@@ -152,7 +153,7 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
                 </Field>
               ))}
               <Field className="is-wide">
-                <FieldLabel>Persist</FieldLabel>
+                <FieldLabel>기본값 저장</FieldLabel>
                 <span className="inline-actions">
                   <Checkbox checked={persist} onChange={(event) => setPersist(event.target.checked)} />
                   <span>재계산 가중치를 기본값으로 저장</span>
@@ -164,18 +165,18 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Risk Scores</CardTitle>
+          <CardTitle>위험 점수</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="toolbar">
             <Select
-              aria-label="Risk tier filter"
+              aria-label="위험도 등급 필터"
               value={tier}
               onChange={(event) => setSearchParams(event.target.value ? { tier: event.target.value } : {})}
             >
-              <option value="">All tiers</option>
+              <option value="">전체 등급</option>
               {riskTierOptions.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>{riskTierLabel(item)}</option>
               ))}
             </Select>
           </div>
@@ -197,7 +198,7 @@ function RiskTable({ risks, onAssetClick }: { risks: Schema<"RiskScore">[]; onAs
       columns={[
         {
           key: "asset",
-          header: "Asset",
+          header: "자산",
           render: (risk) =>
             onAssetClick ? (
               <button className="link-button" type="button" onClick={() => onAssetClick(risk.asset_id)}>
@@ -207,18 +208,29 @@ function RiskTable({ risks, onAssetClick }: { risks: Schema<"RiskScore">[]; onAs
               risk.asset_name ?? `#${risk.asset_id}`
             )
         },
-        { key: "type", header: "Type", render: (risk) => risk.asset_type ?? "-" },
-        { key: "score", header: "Score", render: (risk) => formatScore(risk.score) },
-        { key: "tier", header: "Tier", render: (risk) => <RiskTierBadge tier={risk.tier} /> },
-        { key: "factor-a", header: "A", render: (risk) => formatFactor(risk.factors.a), align: "right" },
-        { key: "factor-d", header: "D", render: (risk) => formatFactor(risk.factors.d), align: "right" },
-        { key: "factor-e", header: "E", render: (risk) => formatFactor(risk.factors.e), align: "right" },
-        { key: "factor-l", header: "L", render: (risk) => formatFactor(risk.factors.l), align: "right" },
-        { key: "factor-c", header: "C", render: (risk) => formatFactor(risk.factors.c), align: "right" },
-        { key: "computed", header: "Computed", render: (risk) => formatDateTime(risk.computed_at) }
+        { key: "type", header: "타입", render: (risk) => assetTypeLabel(risk.asset_type) },
+        { key: "score", header: "점수", render: (risk) => formatScore(risk.score) },
+        { key: "tier", header: "등급", render: (risk) => <RiskTierBadge tier={risk.tier} /> },
+        { key: "factor-a", header: "A 계수", render: (risk) => formatFactor(risk.factors.a), align: "right" },
+        { key: "factor-d", header: "D 계수", render: (risk) => formatFactor(risk.factors.d), align: "right" },
+        { key: "factor-e", header: "E 계수", render: (risk) => formatFactor(risk.factors.e), align: "right" },
+        { key: "factor-l", header: "L 계수", render: (risk) => formatFactor(risk.factors.l), align: "right" },
+        { key: "factor-c", header: "C 계수", render: (risk) => formatFactor(risk.factors.c), align: "right" },
+        { key: "computed", header: "계산 시각", render: (risk) => formatDateTime(risk.computed_at) }
       ]}
     />
   );
+}
+
+function riskWeightLabel(key: keyof RiskWeightsInput) {
+  const labels: Record<keyof RiskWeightsInput, string> = {
+    wA: "A 가중치",
+    wD: "D 가중치",
+    wE: "E 가중치",
+    wL: "L 가중치",
+    wC: "C 가중치"
+  };
+  return labels[key];
 }
 
 function formatFactor(value: number) {

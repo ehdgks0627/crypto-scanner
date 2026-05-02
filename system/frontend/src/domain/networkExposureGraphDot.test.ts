@@ -68,9 +68,9 @@ describe("buildNetworkExposureDot", () => {
     expect(dot).toContain("shape=component");
     expect(dot).toContain("shape=note");
     expect(dot).toContain("shape=octagon");
-    expect(dot).toContain('label="exposes"');
-    expect(dot).toContain('label="presents"');
-    expect(dot).toContain('label="has finding"');
+    expect(dot).toContain('label="노출"');
+    expect(dot).toContain('label="제공"');
+    expect(dot).toContain('label="위험 발견"');
     expect(dot).toContain('style="dashed"');
     expect(dot).toContain('"target:10" -- "endpoint:10:TCP:443"');
     expect(dot).not.toContain("rank=same");

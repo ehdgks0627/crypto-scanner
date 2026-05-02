@@ -10,12 +10,12 @@ const todoTitles: Record<string, string> = {
 
 export function TodoPage() {
   const location = useLocation();
-  const title = todoTitles[location.pathname] ?? "TODO";
+  const title = todoTitles[location.pathname] ?? "준비 중";
 
   return (
     <Section>
-      <PageHeader title={title} eyebrow="TODO" />
-      <EmptyState title="TODO" description="이 화면은 아직 구현 예정입니다." />
+      <PageHeader title={title} eyebrow="준비 중" />
+      <EmptyState title="준비 중" description="이 화면은 아직 구현 예정입니다." />
     </Section>
   );
 }

@@ -28,7 +28,7 @@ describe("JobDetailView", () => {
 
     renderWithApp(<JobDetailView id={7} />);
 
-    expect(await screen.findByText("Job #7")).toBeInTheDocument();
+    expect(await screen.findByText("작업 #7")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /취소/ })).toBeDisabled();
     expect(await screen.findByRole("alert")).toHaveTextContent("Logs failed");
   });

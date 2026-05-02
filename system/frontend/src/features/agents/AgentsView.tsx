@@ -94,7 +94,7 @@ export function AgentsView() {
   return (
     <Section>
       <PageHeader
-        title="Agents"
+        title="에이전트"
         description="호스트 내부 스캐너 에이전트 등록 상태를 관리합니다."
       />
       <Card>
@@ -102,7 +102,7 @@ export function AgentsView() {
           <div className="toolbar">
             <div className="toolbar__filters">
               <Select
-                aria-label="Agent status filter"
+                aria-label="에이전트 상태 필터"
                 value={activeFilter}
                 onChange={(event) => setActiveFilter(event.target.value as AgentActiveFilter)}
               >
@@ -111,7 +111,7 @@ export function AgentsView() {
                 <option value="inactive">비활성</option>
               </Select>
             </div>
-            <span className="muted">Total {agents.data?.total ?? 0}</span>
+            <span className="muted">전체 {agents.data?.total ?? 0}</span>
           </div>
         </CardContent>
       </Card>
@@ -123,13 +123,13 @@ export function AgentsView() {
             <DataTable
               items={agents.data.items}
               getRowKey={(agent) => agent.id}
-              empty={<EmptyState title="등록된 Agent가 없습니다" />}
+              empty={<EmptyState title="등록된 에이전트가 없습니다" />}
               columns={[
-                { key: "host", header: "Hostname", render: (agent) => agent.hostname },
+                { key: "host", header: "호스트명", render: (agent) => agent.hostname },
                 { key: "url", header: "URL", render: (agent) => agent.agent_url },
                 {
                   key: "active",
-                  header: "Status",
+                  header: "상태",
                   render: (agent) => {
                     if (deactivate.isPending && deactivate.variables === agent.id) {
                       return <Badge tone="yellow">비활성화 중</Badge>;
@@ -139,16 +139,16 @@ export function AgentsView() {
                 },
                 {
                   key: "stale",
-                  header: "Heartbeat",
+                  header: "하트비트",
                   render: (agent) => (
                     <Badge tone={!agent.active ? "neutral" : agent.is_stale ? "yellow" : "green"}>
                       {!agent.active ? "중지" : agent.is_stale ? "지연" : "정상"}
                     </Badge>
                   )
                 },
-                { key: "caps", header: "Capabilities", render: (agent) => agent.capabilities.join(", ") },
-                { key: "last", header: "Last Seen", render: (agent) => formatRelative(agent.last_seen) },
-                { key: "registered", header: "Registered", render: (agent) => formatDateTime(agent.registered_at) },
+                { key: "caps", header: "기능", render: (agent) => agent.capabilities.join(", ") },
+                { key: "last", header: "마지막 확인", render: (agent) => formatRelative(agent.last_seen) },
+                { key: "registered", header: "등록", render: (agent) => formatDateTime(agent.registered_at) },
                 {
                   key: "actions",
                   header: "",
@@ -179,8 +179,8 @@ export function AgentsView() {
       ) : null}
       <ConfirmDialog
         open={Boolean(pendingDeactivate)}
-        title="Agent 비활성화"
-        description={pendingDeactivate ? `${pendingDeactivate.hostname} Agent를 비활성화합니다. 이후 해당 Agent 기반 scanner는 skip될 수 있습니다.` : ""}
+        title="에이전트 비활성화"
+        description={pendingDeactivate ? `${pendingDeactivate.hostname} 에이전트를 비활성화합니다. 이후 해당 에이전트 기반 스캐너는 건너뛸 수 있습니다.` : ""}
         confirmLabel={deactivateError ? "다시 시도" : "비활성화"}
         pending={deactivate.isPending}
         error={deactivateError}
