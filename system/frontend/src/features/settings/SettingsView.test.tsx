@@ -35,6 +35,9 @@ describe("SettingsView", () => {
     expect(screen.getByText("위험 점수 계산식")).toBeInTheDocument();
     expect(screen.getByText("점수 = round(100 × A^wA × D^wD × E^wE × L^wL × C^wC)")).toBeInTheDocument();
     expect(screen.getByText("계산 결과는 0~100으로 제한하며, 등급은 치명 80 이상, 높음 60 이상, 보통 30 이상, 낮음 30 미만입니다.")).toBeInTheDocument();
+    const weightGroup = screen.getByRole("group", { name: "위험 가중치 입력" });
+    expect(weightGroup).toHaveClass("risk-weight-grid");
+    expect(within(weightGroup).getAllByRole("spinbutton")).toHaveLength(5);
     expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
       "알고리즘",
       "A 계수",

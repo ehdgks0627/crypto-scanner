@@ -95,7 +95,7 @@ export function SettingsView() {
             {riskWeights.isError ? <ErrorState error={riskWeights.error} onRetry={() => void riskWeights.refetch()} /> : null}
             <RiskFormulaHelp />
             {!areRiskWeightsValid(weights) ? <div className="callout state-view--error" role="alert">가중치는 0.5부터 2.0 사이 숫자여야 합니다.</div> : null}
-            <div className="form-grid">
+            <div className="form-grid risk-weight-grid" role="group" aria-label="위험 가중치 입력">
               {(Object.keys(weights) as Array<keyof RiskWeightsInput>).map((key) => (
                 <Field key={key}>
                   <FieldLabel>{riskWeightLabel(key)}</FieldLabel>

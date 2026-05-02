@@ -140,7 +140,7 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
             {recomputeJob.data ? <p className="muted" role="status" aria-live="polite">재계산 #{recomputeJob.data.id}: {statusLabel(recomputeJob.data.status)}</p> : null}
             <RiskFormulaHelp />
             {!areRiskWeightsValid(weights) ? <div className="callout state-view--error" role="alert">가중치는 0.5부터 2.0 사이 숫자여야 합니다.</div> : null}
-            <div className="form-grid">
+            <div className="form-grid risk-weight-grid" role="group" aria-label="위험 가중치 입력">
               {(Object.keys(weights) as Array<keyof RiskWeightsInput>).map((key) => (
                 <Field key={key}>
                   <FieldLabel>{riskWeightLabel(key)}</FieldLabel>
@@ -154,14 +154,14 @@ export function RiskAssessmentView({ snapshotId }: { snapshotId: number }) {
                   />
                 </Field>
               ))}
-              <Field className="is-wide">
-                <FieldLabel>기본값 저장</FieldLabel>
-                <span className="inline-actions">
-                  <Checkbox checked={persist} onChange={(event) => setPersist(event.target.checked)} />
-                  <span>재계산 가중치를 기본값으로 저장</span>
-                </span>
-              </Field>
             </div>
+            <Field className="risk-weight-persist">
+              <FieldLabel>기본값 저장</FieldLabel>
+              <span className="inline-actions">
+                <Checkbox checked={persist} onChange={(event) => setPersist(event.target.checked)} />
+                <span>재계산 가중치를 기본값으로 저장</span>
+              </span>
+            </Field>
           </CardContent>
         </Card>
       </div>

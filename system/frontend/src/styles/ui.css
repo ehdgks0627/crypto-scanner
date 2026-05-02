@@ -198,6 +198,14 @@
   grid-column: 1 / -1;
 }
 
+.risk-weight-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.risk-weight-persist {
+  margin-top: 10px;
+}
+
 .form-fieldset {
   min-width: 0;
   padding: 0;

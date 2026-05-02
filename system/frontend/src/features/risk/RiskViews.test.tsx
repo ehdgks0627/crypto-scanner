@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { services } from "../../api/services";
@@ -40,6 +40,9 @@ describe("RiskAssessmentView", () => {
     expect(await screen.findByText("스냅샷 #3 위험평가")).toBeInTheDocument();
     expect(screen.getByText("위험 점수 계산식")).toBeInTheDocument();
     expect(screen.getByText("점수 = round(100 × A^wA × D^wD × E^wE × L^wL × C^wC)")).toBeInTheDocument();
+    const weightGroup = screen.getByRole("group", { name: "위험 가중치 입력" });
+    expect(weightGroup).toHaveClass("risk-weight-grid");
+    expect(within(weightGroup).getAllByRole("spinbutton")).toHaveLength(5);
     expect((await screen.findAllByText("web.testbed.local TLS leaf certificate")).length).toBeGreaterThanOrEqual(1);
     for (const header of ["A", "D", "E", "L", "C"]) {
       expect(screen.getAllByRole("columnheader", { name: `${header} 계수` }).length).toBeGreaterThanOrEqual(1);
