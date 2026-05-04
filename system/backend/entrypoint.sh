@@ -15,14 +15,14 @@ if fixture.exists():
     for row in json.loads(fixture.read_text()):
         fields = row["fields"]
         Target.objects.update_or_create(
-            pk=row["pk"],
+            host=fields["host"],
+            port=fields["port"],
+            transport=fields["transport"],
             defaults={
-                "host": fields["host"],
+                "display_name": fields.get("display_name"),
                 "ip": fields["ip"],
-                "port": fields["port"],
                 "protocol_hint": fields["protocol_hint"],
                 "sni": fields["sni"],
-                "transport": fields["transport"],
                 "agent_enabled": fields["agent_enabled"],
                 "agent_url": fields["agent_url"],
                 "context": fields["context"],
