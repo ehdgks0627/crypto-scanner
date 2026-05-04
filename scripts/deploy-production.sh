@@ -10,6 +10,10 @@ COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-$COMPOSE_PROJECT_DIR/.env}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-https://pqc.sprout.kr/api/health}"
 HEALTHCHECK_RETRIES="${HEALTHCHECK_RETRIES:-30}"
 HEALTHCHECK_DELAY_SECONDS="${HEALTHCHECK_DELAY_SECONDS:-2}"
+DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-$HOME/.local/state/crypto-scanner-deploy}"
+SEED_TESTBED_DEMO_ON_DEPLOY="${SEED_TESTBED_DEMO_ON_DEPLOY:-1}"
+SEED_TESTBED_DEMO_FORCE="${SEED_TESTBED_DEMO_FORCE:-0}"
+SEED_TESTBED_DEMO_VERSION="${SEED_TESTBED_DEMO_VERSION:-20260504-production-testbed}"
 
 SAFE_UNTRACKED=()
 DOCKER_PREFIX=()
@@ -25,6 +29,13 @@ fail() {
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
+}
+
+is_truthy() {
+  case "$1" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 path_matches_target() {
@@ -108,6 +119,30 @@ healthcheck() {
   fail "health check failed: $HEALTHCHECK_URL"
 }
 
+seed_testbed_demo_if_needed() {
+  local marker
+
+  if ! is_truthy "$SEED_TESTBED_DEMO_ON_DEPLOY"; then
+    log "production testbed demo seed skipped: SEED_TESTBED_DEMO_ON_DEPLOY=$SEED_TESTBED_DEMO_ON_DEPLOY"
+    return
+  fi
+
+  mkdir -p "$DEPLOY_STATE_DIR"
+  marker="$DEPLOY_STATE_DIR/testbed-demo-seed-$SEED_TESTBED_DEMO_VERSION.done"
+  if [[ -f "$marker" ]] && ! is_truthy "$SEED_TESTBED_DEMO_FORCE"; then
+    log "production testbed demo seed already applied: $SEED_TESTBED_DEMO_VERSION"
+    return
+  fi
+
+  log "seeding production testbed demo data: $SEED_TESTBED_DEMO_VERSION"
+  compose run --rm --entrypoint python backend manage.py seed_testbed_demo --reset
+  {
+    printf 'version=%s\n' "$SEED_TESTBED_DEMO_VERSION"
+    printf 'sha=%s\n' "$DEPLOY_SHA"
+    date -u '+applied_at=%Y-%m-%dT%H:%M:%SZ'
+  } > "$marker"
+}
+
 main() {
   [[ -n "$DEPLOY_SHA" ]] || fail "DEPLOY_SHA is required"
 
@@ -149,6 +184,8 @@ main() {
 
   log "running django migrations"
   compose run --rm --entrypoint python backend manage.py migrate --noinput
+
+  seed_testbed_demo_if_needed
 
   log "starting services"
   compose up -d --remove-orphans
