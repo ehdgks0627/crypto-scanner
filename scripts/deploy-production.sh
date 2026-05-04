@@ -14,7 +14,7 @@ DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-$HOME/.local/state/crypto-scanner-deploy}"
 SEED_TESTBED_DEMO_ON_DEPLOY="${SEED_TESTBED_DEMO_ON_DEPLOY:-1}"
 SEED_TESTBED_DEMO_FORCE="${SEED_TESTBED_DEMO_FORCE:-0}"
 SEED_TESTBED_DEMO_RESET_DB="${SEED_TESTBED_DEMO_RESET_DB:-1}"
-SEED_TESTBED_DEMO_VERSION="${SEED_TESTBED_DEMO_VERSION:-20260504-production-testbed-reset}"
+SEED_TESTBED_DEMO_VERSION="${SEED_TESTBED_DEMO_VERSION:-20260504-production-testbed-reset-migrate}"
 
 SAFE_UNTRACKED=()
 DOCKER_PREFIX=()
@@ -138,6 +138,8 @@ seed_testbed_demo_if_needed() {
   if is_truthy "$SEED_TESTBED_DEMO_RESET_DB"; then
     log "flushing database before production testbed demo seed"
     compose run --rm --entrypoint python backend manage.py flush --noinput
+    log "running django migrations after database flush"
+    compose run --rm --entrypoint python backend manage.py migrate --noinput
   fi
 
   log "seeding production testbed demo data: $SEED_TESTBED_DEMO_VERSION"
