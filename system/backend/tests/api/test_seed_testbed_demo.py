@@ -2,6 +2,7 @@ import pytest
 from django.core.management import call_command
 
 from apps.agents.models import Agent
+from apps.core.management.commands.seed_testbed_demo import LATEST_ASSETS
 from apps.discoveries.models import Discovery
 from apps.risk.models import RiskScore
 from apps.snapshots.models import CbomSnapshot
@@ -16,8 +17,9 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
 
     latest = CbomSnapshot.objects.order_by("-id").first()
     assert latest.serial_number == "testbed-demo-latest"
-    assert latest.assets.count() == 21
-    assert RiskScore.objects.filter(snapshot=latest, tier="CRITICAL").count() == 4
+    assert latest.assets.count() == len(LATEST_ASSETS)
+    assert latest.assets.values("target").distinct().count() == Target.objects.count()
+    assert RiskScore.objects.filter(snapshot=latest, tier="CRITICAL").count() == 18
     assert Target.objects.count() == 31
     discovery = Discovery.objects.get(cidr="172.20.0.0/16")
     assert discovery.endpoints.count() == 33
@@ -28,10 +30,10 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert response.status_code == 200
     body = response.json()
     assert body["snapshot"]["id"] == latest.id
-    assert body["snapshot"]["asset_count"] == 21
-    assert body["by_tier"]["CRITICAL"] == 4
-    assert body["by_tier"]["HIGH"] == 11
-    assert body["quantum_vulnerable_ratio"]["vulnerable"] == 17
+    assert body["snapshot"]["asset_count"] == len(LATEST_ASSETS)
+    assert body["by_tier"]["CRITICAL"] == 18
+    assert body["by_tier"]["HIGH"] == 31
+    assert body["quantum_vulnerable_ratio"]["vulnerable"] == 52
     assert body["agents_status"]["total"] == 11
     assert len(body["recent_jobs"]) == 5
     assert {job["status"] for job in body["recent_jobs"]} >= {"COMPLETED", "FAILED", "CANCELLED"}

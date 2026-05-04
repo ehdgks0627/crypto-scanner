@@ -25,7 +25,7 @@ def test_pr_openapi_002_recent_contract_schema_fields_are_declared():
     contract = Path(__file__).resolve().parents[4] / "docs" / "api" / "openapi.yaml"
     text = contract.read_text()
 
-    assert "required: [id, job_id, scope_type, scope_value, cidr, port_list, status, created_at, started_at]" in text
+    assert "required: [id, job_id, scope_type, scope_value, cidr, executor_type, agent_id, agent_hostname, port_list, status, created_at, started_at]" in text
     assert "scan_job_id:\n          type: integer\n          nullable: true" in text
     assert "quantum_vulnerable_ratio:" in text
     assert "application/*+json" not in text
