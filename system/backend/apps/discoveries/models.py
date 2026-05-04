@@ -3,7 +3,9 @@ from django.db import models
 
 class Discovery(models.Model):
     async_job = models.OneToOneField("jobs.AsyncJob", on_delete=models.CASCADE, related_name="discovery")
-    cidr = models.CharField(max_length=64)
+    scope_type = models.CharField(max_length=16, default="cidr")
+    scope_value = models.CharField(max_length=253, default="")
+    cidr = models.CharField(max_length=253)
     ports = models.JSONField(default=list)
     include_default_ports = models.BooleanField(default=False)
     status = models.CharField(max_length=20, default="PENDING")
@@ -14,8 +16,12 @@ class Discovery(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(scope_type__in=["cidr", "ip", "domain"]), name="discovery_scope_type_valid"),
+        ]
         indexes = [
             models.Index(fields=["status", "-created_at"], name="discovery_status_created_idx"),
+            models.Index(fields=["scope_type", "-created_at"], name="discovery_scope_created_idx"),
         ]
 
 

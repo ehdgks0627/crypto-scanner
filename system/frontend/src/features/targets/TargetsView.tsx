@@ -56,7 +56,7 @@ export function TargetsView() {
     <Section>
       <PageHeader
         title="스캔 대상"
-        description="디스커버리 결과를 승인하거나 알려진 호스트:포트를 수동으로 추가해 스캔 범위를 관리합니다."
+        description="탐색 대상 결과를 승인하거나 알려진 호스트:포트를 수동으로 추가해 스캔 범위를 관리합니다."
         actions={
           <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
             <Plus size={15} />수동 대상 추가
@@ -90,7 +90,7 @@ export function TargetsView() {
             <DataTable
               items={targets.data.items}
               getRowKey={(target) => target.id}
-              empty={<EmptyState title="스캔 대상이 없습니다" description="CIDR 디스커버리 결과를 스캔 대상으로 승인하거나 수동으로 추가하세요." />}
+              empty={<EmptyState title="스캔 대상이 없습니다" description="탐색 대상 결과를 스캔 대상으로 승인하거나 수동으로 추가하세요." />}
               columns={[
                 {
                   key: "target",

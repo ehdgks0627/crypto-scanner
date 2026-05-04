@@ -824,9 +824,18 @@ export interface components {
             offset: number;
             limit: number;
         };
+        /** @enum {string} */
+        DiscoveryScopeType: "cidr" | "ip" | "domain";
         DiscoveryCreate: {
-            /** @example 172.31.240.0/24 */
-            cidr: string;
+            scope_type: components["schemas"]["DiscoveryScopeType"];
+            /** @example app.example.com */
+            scope_value: string;
+            /**
+             * @deprecated
+             * @description Legacy alias for CIDR-only clients. New clients should send scope_type and scope_value.
+             * @example 172.31.240.0/24
+             */
+            cidr?: string;
             ports?: number[];
             /** @description Defaults to true when omitted. */
             include_default_ports?: boolean;
@@ -835,6 +844,8 @@ export interface components {
             id: number;
             /** @description API-visible AsyncJob id used for polling or cancellation. */
             job_id: number;
+            scope_type: components["schemas"]["DiscoveryScopeType"];
+            scope_value: string;
             cidr: string;
             port_list: number[];
             status: components["schemas"]["JobStatus"];

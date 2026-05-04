@@ -31,7 +31,7 @@ describe("DashboardView", () => {
     renderWithApp(<DashboardView />);
 
     expect(await screen.findByText("아직 스냅샷이 없습니다")).toBeInTheDocument();
-    expect(screen.getByText("디스커버리 시작")).toBeInTheDocument();
+    expect(screen.getByText("탐색 대상 추가")).toBeInTheDocument();
   });
 
   it("requests summary for the globally selected snapshot", async () => {

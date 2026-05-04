@@ -18,6 +18,8 @@ describe("DiscoveriesView", () => {
         {
           id: 5,
           job_id: 105,
+          scope_type: "cidr",
+          scope_value: "172.20.5.0/24",
           cidr: "172.20.5.0/24",
           port_list: [443],
           status: "COMPLETED",
@@ -29,6 +31,8 @@ describe("DiscoveriesView", () => {
         {
           id: 6,
           job_id: 106,
+          scope_type: "cidr",
+          scope_value: "172.20.6.0/24",
           cidr: "172.20.6.0/24",
           port_list: [22, 443],
           status: "COMPLETED",
@@ -45,7 +49,7 @@ describe("DiscoveriesView", () => {
 
     renderWithApp(<DiscoveriesView />);
 
-    const discoverySixCheckbox = await screen.findByLabelText("디스커버리 #6 선택");
+    const discoverySixCheckbox = await screen.findByLabelText("탐색 작업 #6 선택");
     expect(discoverySixCheckbox).not.toBeChecked();
     expect(screen.getByText("선택 0개")).toBeInTheDocument();
 

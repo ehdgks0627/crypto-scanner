@@ -14,6 +14,8 @@ def create_discovery(**overrides):
     async_job = overrides.pop("async_job", None) or create_async_job(kind="discovery")
     values = {
         "async_job": async_job,
+        "scope_type": "cidr",
+        "scope_value": "10.0.0.0/24",
         "cidr": "10.0.0.0/24",
         "status": async_job.status,
         "started_at": async_job.started_at,
@@ -64,6 +66,8 @@ def test_api_dsc_002b_create_discovery_defaults_default_ports_to_true(client):
     discovery = Discovery.objects.get(id=response.json()["resource"]["id"])
     assert discovery.include_default_ports is True
     assert discovery.ports == []
+    assert discovery.scope_type == "cidr"
+    assert discovery.scope_value == "10.0.1.0/24"
 
 
 def test_api_dsc_002c_create_discovery_rejects_invalid_ports_and_status_filter(client):
@@ -79,6 +83,60 @@ def test_api_dsc_002c_create_discovery_rejects_invalid_ports_and_status_filter(c
     assert invalid_status.status_code == 422
 
 
+def test_api_dsc_002d_create_discovery_accepts_ip_and_domain_scopes(client):
+    from apps.discoveries.models import Discovery
+    from apps.jobs.models import QueuedTask
+
+    ip_response = client.post(
+        "/api/discoveries",
+        data={"scope_type": "ip", "scope_value": "10.0.1.8", "ports": [443]},
+        content_type="application/json",
+    )
+    domain_response = client.post(
+        "/api/discoveries",
+        data={"scope_type": "domain", "scope_value": "App.Testbed.Local", "ports": [443]},
+        content_type="application/json",
+    )
+
+    assert ip_response.status_code == 202
+    assert domain_response.status_code == 202
+
+    ip_discovery = Discovery.objects.get(id=ip_response.json()["resource"]["id"])
+    domain_discovery = Discovery.objects.get(id=domain_response.json()["resource"]["id"])
+    assert ip_discovery.scope_type == "ip"
+    assert ip_discovery.scope_value == "10.0.1.8"
+    assert ip_discovery.cidr == "10.0.1.8"
+    assert domain_discovery.scope_type == "domain"
+    assert domain_discovery.scope_value == "app.testbed.local"
+    assert domain_discovery.cidr == "app.testbed.local"
+
+    ip_task = QueuedTask.objects.get(async_job=ip_discovery.async_job)
+    assert ip_task.payload["scope_type"] == "ip"
+    assert ip_task.payload["scope_value"] == "10.0.1.8"
+
+
+def test_api_dsc_002e_create_discovery_rejects_invalid_scope_values(client):
+    invalid_ip = client.post(
+        "/api/discoveries",
+        data={"scope_type": "ip", "scope_value": "not-an-ip", "ports": [443]},
+        content_type="application/json",
+    )
+    invalid_cidr = client.post(
+        "/api/discoveries",
+        data={"scope_type": "cidr", "scope_value": "10.0.0.1", "ports": [443]},
+        content_type="application/json",
+    )
+    invalid_domain = client.post(
+        "/api/discoveries",
+        data={"scope_type": "domain", "scope_value": "bad/domain", "ports": [443]},
+        content_type="application/json",
+    )
+
+    assert invalid_ip.status_code == 422
+    assert invalid_cidr.status_code == 422
+    assert invalid_domain.status_code == 422
+
+
 def test_api_dsc_003_detail_separates_created_and_started_at(client):
     pending = create_discovery(status="PENDING", started_at=None)
     running = create_discovery(status="RUNNING", started_at=timezone.now())
@@ -89,6 +147,8 @@ def test_api_dsc_003_detail_separates_created_and_started_at(client):
     assert pending_response.status_code == 200
     assert pending_response.headers["Cache-Control"] == "no-store"
     assert pending_response.json()["created_at"] is not None
+    assert pending_response.json()["scope_type"] == "cidr"
+    assert pending_response.json()["scope_value"] == "10.0.0.0/24"
     assert pending_response.json()["started_at"] is None
     assert running_response.json()["started_at"] is not None
 

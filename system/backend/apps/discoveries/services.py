@@ -6,19 +6,29 @@ class EnqueueUnavailable(Exception):
 
 
 def enqueue_discovery(discovery) -> None:
+    scope_value = discovery.scope_value or discovery.cidr
     enqueue_task(
         "discovery",
-        {"discovery_id": discovery.id, "cidr": discovery.cidr, "ports": discovery.ports},
+        {
+            "discovery_id": discovery.id,
+            "scope_type": discovery.scope_type,
+            "scope_value": scope_value,
+            "cidr": discovery.cidr,
+            "ports": discovery.ports,
+        },
         async_job=discovery.async_job,
     )
 
 
 def serialize_discovery(discovery):
+    scope_value = discovery.scope_value or discovery.cidr
     return {
         "id": discovery.id,
         "job_id": discovery.async_job_id,
         "status": discovery.status,
         "progress": discovery.async_job.progress,
+        "scope_type": discovery.scope_type,
+        "scope_value": scope_value,
         "cidr": discovery.cidr,
         "port_list": discovery.ports,
         "ports": discovery.ports,

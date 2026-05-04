@@ -30,7 +30,7 @@ const reportNavItems: NavItem[] = [
 ];
 
 const operationNavItems: NavItem[] = [
-  { key: "discoveries", to: "/discoveries", label: "CIDR 디스커버리", icon: Radar },
+  { key: "discoveries", to: "/discoveries", label: "탐색 대상", icon: Radar },
   { key: "targets", to: "/targets", label: "스캔 대상", icon: Target },
   { key: "scans", to: "/scans", label: "스캔 실행", icon: Activity },
   { key: "agents", to: "/agents", label: "에이전트", icon: Bot },

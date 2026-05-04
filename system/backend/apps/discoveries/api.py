@@ -1,9 +1,11 @@
+import re
+from ipaddress import ip_address, ip_network
 from typing import Annotated, Literal
 
 from django.db import transaction
 from django.http import JsonResponse
 from ninja import Query, Router
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from apps.core.errors import error_response
 from apps.core.pagination import empty_page, page_envelope
@@ -19,12 +21,31 @@ router = Router(tags=["Discoveries"])
 
 JobStatusParam = Literal["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]
 PortNumber = Annotated[int, Field(ge=1, le=65535)]
+DiscoveryScopeType = Literal["cidr", "ip", "domain"]
+
+
+DOMAIN_LABEL_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 
 
 class DiscoveryCreate(StrictSchema):
-    cidr: str
+    scope_type: DiscoveryScopeType | None = None
+    scope_value: str | None = Field(default=None, max_length=253)
+    cidr: str | None = None
     ports: list[PortNumber] | None = None
     include_default_ports: bool = True
+
+    @model_validator(mode="after")
+    def normalize_scope(self):
+        scope_type = self.scope_type or "cidr"
+        scope_value = self.scope_value if self.scope_value is not None else self.cidr
+        if scope_value is None:
+            raise ValueError("scope_value is required.")
+
+        normalized_value = validate_scope(scope_type, scope_value)
+        self.scope_type = scope_type
+        self.scope_value = normalized_value
+        self.cidr = normalized_value
+        return self
 
 
 class PromotionContextPayload(StrictSchema):
@@ -45,6 +66,36 @@ class DiscoveryPromotionPayload(StrictSchema):
 
 class PromotePayload(StrictSchema):
     promotions: list[DiscoveryPromotionPayload] = Field(min_length=1)
+
+
+def validate_scope(scope_type: DiscoveryScopeType, scope_value: str) -> str:
+    value = scope_value.strip()
+    if not value:
+        raise ValueError("scope_value is required.")
+    if scope_type == "cidr":
+        if "/" not in value:
+            raise ValueError("CIDR scope must use CIDR notation.")
+        try:
+            ip_network(value, strict=False)
+        except ValueError as exc:
+            raise ValueError("scope_value must be a valid CIDR.") from exc
+        return value
+    if scope_type == "ip":
+        try:
+            ip_address(value)
+        except ValueError as exc:
+            raise ValueError("scope_value must be a valid IP address.") from exc
+        return value
+    if not is_valid_domain(value):
+        raise ValueError("scope_value must be a valid domain name.")
+    return value.lower()
+
+
+def is_valid_domain(value: str) -> bool:
+    domain = value.rstrip(".")
+    if not domain or len(domain) > 253 or "/" in domain or ":" in domain:
+        return False
+    return all(DOMAIN_LABEL_RE.match(label) for label in domain.split("."))
 
 
 @router.get("/discoveries")
@@ -71,10 +122,12 @@ def create_discovery(request, payload: DiscoveryCreate):
             async_job = AsyncJob.objects.create(
                 kind="discovery",
                 status=AsyncJob.PENDING,
-                request_payload=payload.model_dump(),
+                request_payload=payload.model_dump(exclude_none=True),
             )
             discovery = Discovery.objects.create(
                 async_job=async_job,
+                scope_type=payload.scope_type,
+                scope_value=payload.scope_value,
                 cidr=payload.cidr,
                 ports=payload.ports or [],
                 include_default_ports=payload.include_default_ports,

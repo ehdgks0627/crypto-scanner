@@ -1944,13 +1944,26 @@ components:
           type: integer
           minimum: 1
 
+    DiscoveryScopeType:
+      type: string
+      enum: [cidr, ip, domain]
+
     DiscoveryCreate:
       type: object
-      required: [cidr]
+      required: [scope_type, scope_value]
       properties:
+        scope_type:
+          $ref: '#/components/schemas/DiscoveryScopeType'
+        scope_value:
+          type: string
+          maxLength: 253
+          example: app.example.com
         cidr:
           type: string
+          maxLength: 253
           example: 172.31.240.0/24
+          deprecated: true
+          description: Legacy alias for CIDR-only clients. New clients should send scope_type and scope_value.
         ports:
           type: array
           items:
@@ -1963,13 +1976,17 @@ components:
 
     Discovery:
       type: object
-      required: [id, job_id, cidr, port_list, status, created_at, started_at]
+      required: [id, job_id, scope_type, scope_value, cidr, port_list, status, created_at, started_at]
       properties:
         id:
           type: integer
         job_id:
           type: integer
           description: API-visible AsyncJob id used for polling or cancellation.
+        scope_type:
+          $ref: '#/components/schemas/DiscoveryScopeType'
+        scope_value:
+          type: string
         cidr:
           type: string
         port_list:

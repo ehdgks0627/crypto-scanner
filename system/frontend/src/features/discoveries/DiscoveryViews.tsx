@@ -21,8 +21,24 @@ import { canCancelJob, isActiveJobStatus, pageHasActiveJob } from "../../domain/
 import { JobProgressModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
-import { buildDiscoveryCreatePayload } from "./discoveryCreatePayload";
+import { buildDiscoveryCreatePayload, type DiscoveryScopeType } from "./discoveryCreatePayload";
 import { DiscoveryPromotionModel } from "./discoveryPromotion";
+
+const discoveryScopeTypeLabels: Record<DiscoveryScopeType, string> = {
+  cidr: "CIDR",
+  ip: "IP",
+  domain: "도메인"
+};
+
+const discoveryScopePlaceholders: Record<DiscoveryScopeType, string> = {
+  cidr: "172.20.0.0/24",
+  ip: "172.20.0.10",
+  domain: "app.testbed.local"
+};
+
+function discoveryScopeLabel(discovery: Schema<"Discovery">) {
+  return discovery.scope_value || discovery.cidr;
+}
 
 export function DiscoveriesView() {
   const navigate = useNavigate();
@@ -54,11 +70,11 @@ export function DiscoveriesView() {
   return (
     <Section>
       <PageHeader
-        title="CIDR 디스커버리"
-        description="CIDR 기반으로 후보 엔드포인트를 찾고 스캔 대상으로 승인합니다."
+        title="탐색 대상"
+        description="CIDR, 특정 IP, 도메인을 기준으로 후보 엔드포인트를 찾고 스캔 대상으로 승인합니다."
         actions={
           <Button type="button" variant="primary" onClick={() => navigate("/discoveries/new")}>
-            <Plus size={15} />CIDR 추가
+            <Plus size={15} />탐색 대상 추가
           </Button>
         }
       />
@@ -66,7 +82,7 @@ export function DiscoveriesView() {
         <CardContent>
           <div className="toolbar">
             <div className="toolbar__filters">
-              <Select aria-label="디스커버리 상태 필터" value={status} onChange={(event) => setStatus(event.target.value as JobStatus | "")}>
+              <Select aria-label="탐색 작업 상태 필터" value={status} onChange={(event) => setStatus(event.target.value as JobStatus | "")}>
                 <option value="">전체 상태</option>
                 {["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"].map((item) => (
                   <option key={item} value={item}>
@@ -93,13 +109,13 @@ export function DiscoveriesView() {
             <DataTable
               items={discoveries.data.items}
               getRowKey={(item) => item.id}
-              empty={<EmptyState title="디스커버리 작업이 없습니다" />}
+              empty={<EmptyState title="탐색 대상 작업이 없습니다" />}
               columns={[
                 {
                   key: "select",
                   header: (
                     <Checkbox
-                      aria-label="현재 표시된 디스커버리 전체 선택"
+                      aria-label="현재 표시된 탐색 작업 전체 선택"
                       checked={allVisibleSelected}
                       disabled={visibleDiscoveryIds.length === 0}
                       onChange={(event) => setSelectedDiscoveryIds(event.target.checked ? visibleDiscoveryIds : [])}
@@ -107,14 +123,15 @@ export function DiscoveriesView() {
                   ),
                   render: (item) => (
                     <Checkbox
-                      aria-label={`디스커버리 #${item.id} 선택`}
+                      aria-label={`탐색 작업 #${item.id} 선택`}
                       checked={selectedDiscoveryIds.includes(item.id)}
                       onChange={(event) => toggleDiscovery(item.id, event.target.checked)}
                     />
                   )
                 },
                 { key: "id", header: "ID", render: (item) => <button className="link-button" onClick={() => navigate(`/discoveries/${item.id}`)}>#{item.id}</button> },
-                { key: "cidr", header: "CIDR", render: (item) => item.cidr },
+                { key: "scopeType", header: "유형", render: (item) => discoveryScopeTypeLabels[item.scope_type] ?? item.scope_type },
+                { key: "scopeValue", header: "탐색 값", render: (item) => discoveryScopeLabel(item) },
                 { key: "ports", header: "포트", render: (item) => item.port_list.join(", ") || "기본값" },
                 { key: "status", header: "상태", render: (item) => <StatusBadge status={item.status} /> },
                 { key: "created", header: "생성", render: (item) => formatDateTime(item.created_at) }
@@ -131,29 +148,30 @@ export function DiscoveryNewView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const trackJob = useJobWatchStore((state) => state.trackJob);
-  const [cidr, setCidr] = useState("172.20.0.0/24");
+  const [scopeType, setScopeType] = useState<DiscoveryScopeType>("cidr");
+  const [scopeValue, setScopeValue] = useState("172.20.0.0/24");
   const [ports, setPorts] = useState("443,22,500");
   const [includeDefaultPorts, setIncludeDefaultPorts] = useState(true);
   const createPayload = useMemo(
-    () => buildDiscoveryCreatePayload(cidr, ports, includeDefaultPorts),
-    [cidr, includeDefaultPorts, ports]
+    () => buildDiscoveryCreatePayload(scopeType, scopeValue, ports, includeDefaultPorts),
+    [includeDefaultPorts, ports, scopeType, scopeValue]
   );
   const createDiscovery = useMutation({
     mutationFn: () => services.discoveries.create(createPayload.payload!),
     onSuccess: async (job) => {
-      toast.success(`디스커버리 작업 #${job.id} 생성`);
+      toast.success(`탐색 작업 #${job.id} 생성`);
       trackJob(job.id);
       await queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       navigate(`/discoveries/${job.resource.id}`);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "디스커버리 시작 실패")
+    onError: (error) => toast.error(error instanceof Error ? error.message : "탐색 시작 실패")
   });
 
   return (
     <Section>
-      <PageHeader title="CIDR 디스커버리 시작" description="CIDR 대역에서 스캔 후보 엔드포인트를 찾습니다." />
+      <PageHeader title="탐색 대상 추가" description="CIDR, 특정 IP, 도메인 중 하나를 기준으로 후보 엔드포인트를 찾습니다." />
       <Card>
         <CardContent>
           <form
@@ -168,8 +186,28 @@ export function DiscoveryNewView() {
             <fieldset className="form-fieldset" disabled={createDiscovery.isPending}>
               <div className="form-grid">
                 <Field>
-                  <FieldLabel>CIDR</FieldLabel>
-                  <Input required value={cidr} onChange={(event) => setCidr(event.target.value)} />
+                  <FieldLabel>탐색 유형</FieldLabel>
+                  <Select
+                    value={scopeType}
+                    onChange={(event) => {
+                      const nextScopeType = event.target.value as DiscoveryScopeType;
+                      setScopeType(nextScopeType);
+                      setScopeValue(discoveryScopePlaceholders[nextScopeType]);
+                    }}
+                  >
+                    <option value="cidr">CIDR</option>
+                    <option value="ip">특정 IP</option>
+                    <option value="domain">도메인</option>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel>탐색 값</FieldLabel>
+                  <Input
+                    required
+                    value={scopeValue}
+                    onChange={(event) => setScopeValue(event.target.value)}
+                    placeholder={discoveryScopePlaceholders[scopeType]}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>포트</FieldLabel>
@@ -241,7 +279,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
   const cancel = useMutation({
     mutationFn: () => services.jobs.cancel(discoveryJobId!),
     onSuccess: async (job) => {
-      toast.success("디스커버리 취소 요청을 보냈습니다.");
+      toast.success("탐색 작업 취소 요청을 보냈습니다.");
       setCancelRequested(true);
       queryClient.setQueryData(queryKeys.jobs.detail(job.id), job);
       queryClient.setQueryData(queryKeys.discoveries.detail(id), (current: Schema<"Discovery"> | undefined) =>
@@ -287,8 +325,8 @@ export function DiscoveryDetailView({ id }: { id: number }) {
   return (
     <Section>
       <PageHeader
-        title={`디스커버리 #${discovery.data.id}`}
-        description={discovery.data.cidr}
+        title={`탐색 작업 #${discovery.data.id}`}
+        description={`${discoveryScopeTypeLabels[discovery.data.scope_type] ?? discovery.data.scope_type} ${discoveryScopeLabel(discovery.data)}`}
         actions={
           <>
             <Button type="button" variant="danger" disabled={!canCancel || cancel.isPending} onClick={() => setConfirmCancelOpen(true)}>
@@ -302,8 +340,8 @@ export function DiscoveryDetailView({ id }: { id: number }) {
       />
       <ConfirmDialog
         open={confirmCancelOpen}
-        title="디스커버리 취소"
-        description={`디스커버리 #${discovery.data.id} 취소를 요청합니다. 이미 발견된 엔드포인트는 부분 결과로 남습니다.`}
+        title="탐색 작업 취소"
+        description={`탐색 작업 #${discovery.data.id} 취소를 요청합니다. 이미 발견된 엔드포인트는 부분 결과로 남습니다.`}
         confirmLabel="취소 요청"
         pending={cancel.isPending}
         onCancel={() => setConfirmCancelOpen(false)}
@@ -326,6 +364,8 @@ export function DiscoveryDetailView({ id }: { id: number }) {
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
+              <div><dt>탐색 유형</dt><dd>{discoveryScopeTypeLabels[discovery.data.scope_type] ?? discovery.data.scope_type}</dd></div>
+              <div><dt>탐색 값</dt><dd>{discoveryScopeLabel(discovery.data)}</dd></div>
               <div><dt>상태</dt><dd><StatusBadge status={discovery.data.status} /></dd></div>
               <div><dt>생성</dt><dd>{formatDateTime(discovery.data.created_at)}</dd></div>
               <div><dt>시작</dt><dd>{formatDateTime(discovery.data.started_at)}</dd></div>

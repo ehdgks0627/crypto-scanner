@@ -25,7 +25,7 @@ const performanceStatusLabels: Record<string, string> = {
 
 const jobKindLabels: Record<string, string> = {
   scan_job: "스캔",
-  discovery: "디스커버리",
+  discovery: "탐색",
   recompute: "재계산"
 };
 
@@ -33,7 +33,7 @@ const resourceKindLabels: Record<string, string> = {
   job: "작업",
   snapshot: "스냅샷",
   target: "스캔 대상",
-  discovery: "디스커버리",
+  discovery: "탐색 작업",
   asset: "자산"
 };
 

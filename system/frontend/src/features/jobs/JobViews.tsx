@@ -344,7 +344,7 @@ export function JobDetailView({ id }: { id: number }) {
                 </dd>
               </div>
               <div>
-                <dt>디스커버리</dt>
+                <dt>탐색 작업</dt>
                 <dd>
                   {job.data.result?.discovery_id ? (
                     <button className="link-button" type="button" onClick={() => navigate(`/discoveries/${job.data.result?.discovery_id}`)}>
