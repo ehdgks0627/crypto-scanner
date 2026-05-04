@@ -53,7 +53,7 @@ export interface paths {
         /** List discovery jobs */
         get: operations["listDiscoveries"];
         put?: never;
-        /** Start CIDR discovery */
+        /** Start discovery */
         post: operations["createDiscovery"];
         delete?: never;
         options?: never;
@@ -826,6 +826,8 @@ export interface components {
         };
         /** @enum {string} */
         DiscoveryScopeType: "cidr" | "ip" | "domain";
+        /** @enum {string} */
+        DiscoveryExecutorType: "central" | "agent";
         DiscoveryCreate: {
             scope_type: components["schemas"]["DiscoveryScopeType"];
             /** @example app.example.com */
@@ -836,6 +838,13 @@ export interface components {
              * @example 172.31.240.0/24
              */
             cidr?: string;
+            /** @description Defaults to central when omitted. Use agent with agent_id to run from a Discovery Agent. */
+            executor_type?: components["schemas"]["DiscoveryExecutorType"];
+            /**
+             * Format: uuid
+             * @description Required when executor_type is agent.
+             */
+            agent_id?: string | null;
             ports?: number[];
             /** @description Defaults to true when omitted. */
             include_default_ports?: boolean;
@@ -847,6 +856,10 @@ export interface components {
             scope_type: components["schemas"]["DiscoveryScopeType"];
             scope_value: string;
             cidr: string;
+            executor_type: components["schemas"]["DiscoveryExecutorType"];
+            /** Format: uuid */
+            agent_id: string | null;
+            agent_hostname: string | null;
             port_list: number[];
             status: components["schemas"]["JobStatus"];
             progress?: components["schemas"]["JobProgress"] | null;
@@ -1357,9 +1370,13 @@ export interface components {
         AssetPerformanceResultPage: components["schemas"]["PageBase"] & {
             items: components["schemas"]["AssetPerformanceResult"][];
         };
+        /** @enum {string} */
+        AgentRole: "host" | "discovery";
         /** @description Uses X-Bootstrap-Token. New hostnames create an agent; existing hostnames update metadata and rotate the agent token. */
         AgentRegister: {
             hostname: string;
+            /** @description Defaults to host when omitted. Discovery Agents can execute network discovery from their segment. */
+            agent_role?: components["schemas"]["AgentRole"];
             /** Format: uri */
             agent_url?: string | null;
             capabilities: string[];
@@ -1379,6 +1396,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             hostname: string;
+            agent_role: components["schemas"]["AgentRole"];
             /** Format: uri */
             agent_url: string | null;
             capabilities: string[];
@@ -2665,6 +2683,7 @@ export interface operations {
         parameters: {
             query?: {
                 active?: boolean;
+                agent_role?: components["schemas"]["AgentRole"];
                 offset?: components["parameters"]["Offset"];
                 limit?: components["parameters"]["Limit"];
             };

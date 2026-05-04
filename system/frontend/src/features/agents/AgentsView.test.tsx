@@ -12,6 +12,7 @@ function agent(overrides: Partial<Schema<"Agent">> = {}): Schema<"Agent"> {
   return {
     id: "9ab79c7e-76e8-4e49-a8b4-40be4d5a2f54",
     hostname: "agent-a.testbed.local",
+    agent_role: "host",
     agent_url: "http://agent-a.testbed.local:9100/",
     capabilities: ["agent.cert_store"],
     os_distribution: "ubuntu-22.04",
@@ -110,7 +111,34 @@ describe("AgentsView", () => {
 
     await user.selectOptions(screen.getByLabelText("에이전트 상태 필터"), "active");
 
-    await waitFor(() => expect(list).toHaveBeenLastCalledWith(true));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(true, undefined));
     expect(screen.queryByText("inactive-agent.testbed.local")).not.toBeInTheDocument();
+  });
+
+  it("requests the selected role filter", async () => {
+    const user = userEvent.setup();
+    const list = vi.spyOn(services.agents, "list").mockImplementation(async (_active, role) => {
+      const hostAgent = agent();
+      const discoveryAgent = agent({
+        id: "2a189f55-b431-42ba-a7f0-52c4fdb0839c",
+        hostname: "probe.dmz.testbed.local",
+        agent_role: "discovery",
+        capabilities: ["agent.discovery"]
+      });
+      if (role === "discovery") {
+        return agentPage([discoveryAgent]);
+      }
+      return agentPage([hostAgent, discoveryAgent]);
+    });
+
+    renderWithApp(<AgentsView />);
+
+    expect(await screen.findByText("probe.dmz.testbed.local")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("에이전트 역할 필터"), "discovery");
+
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(undefined, "discovery"));
+    expect(screen.queryByText("agent-a.testbed.local")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Discovery Agent").length).toBeGreaterThan(0);
   });
 });

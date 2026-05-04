@@ -19,6 +19,7 @@ export type AssetType = Schema<"AssetType">;
 export type JobStatus = Schema<"JobStatus">;
 export type JobKind = Schema<"JobKind">;
 export type ScannerId = Schema<"ScannerId">;
+export type AgentRole = Schema<"AgentRole">;
 export type ProtocolHint = Schema<"ProtocolHint">;
 export type TargetContext = Schema<"TargetContext">;
 export type RiskWeightsInput = Schema<"RiskWeightsInput">;

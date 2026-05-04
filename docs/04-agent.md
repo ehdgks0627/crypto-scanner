@@ -2,7 +2,7 @@
 
 ## 4.1 개요
 
-Agent는 본 시스템의 **옵션 capability**다. 평가 대상 호스트에 협조적으로 배포될 수 있는 경우 한정으로 사용되며, Network Scanner로 식별 불가능한 자산(시스템 CA 저장소, 미사용 키, 설정 파일 정책 등)을 추가로 발견한다.
+Agent는 본 시스템의 **옵션 capability**다. 평가 대상 호스트에 협조적으로 배포될 수 있는 경우 한정으로 사용된다. Agent 역할은 두 가지다. Host Agent는 Network Scanner로 식별 불가능한 자산(시스템 CA 저장소, 미사용 키, 설정 파일 정책 등)을 추가로 발견하고, Discovery Agent는 특정 네트워크 세그먼트 안에서 CIDR/IP/domain 탐색을 실행한다.
 
 ```mermaid
 flowchart LR
@@ -26,6 +26,11 @@ flowchart LR
 | 호환성 | Linux x86_64 (Debian/Ubuntu/Alpine/RHEL 계열). 본 캡스톤은 Alpine + Debian 기반 컨테이너만 검증 |
 | 배포 단위 | 컨테이너 내부 멀티 프로세스 (테스트베드 한정). 실 환경에서는 systemd 서비스로 가정 (명세 외) |
 | 권한 | 스캔 대상 경로에 대한 read 권한만 필요. 쓰기 불필요 |
+
+| 역할 | `agent_role` | 설명 |
+|---|---|---|
+| Host Agent | `host` | 자기 호스트 내부 crypto asset 탐색 |
+| Discovery Agent | `discovery` | 배치된 네트워크 위치에서 CIDR/IP/domain 후보 엔드포인트 탐색 |
 
 ## 4.3 Agent 책임
 
@@ -67,7 +72,7 @@ sequenceDiagram
     A->>A: 시작
     A->>A: HTTP 서버 기동 (9100)
     A->>A: Capability 검출 (OS 패키지 매니저 등)
-    A->>B: POST /api/agents/register<br/>X-Bootstrap-Token: <BOOTSTRAP_TOKEN><br/>{hostname, agent_url, capabilities, os_info}
+    A->>B: POST /api/agents/register<br/>X-Bootstrap-Token: <BOOTSTRAP_TOKEN><br/>{hostname, agent_role, agent_url, capabilities, os_info}
     B->>B: Bootstrap 토큰 검증
     B->>DB: Agent 레코드 생성 (UUID, agent_token 발급)
     B-->>A: 201 {agent_id, agent_token}
@@ -113,7 +118,18 @@ Agent는 백엔드/Worker에게 다음 엔드포인트를 제공한다.
 | 응답 | `200 AgentScanResult` |
 | 시간 | 동기 처리. 단일 호스트 스캔 5분 이내 가정 |
 
-### 4.6.4 요청/응답 스키마
+### 4.6.4 `POST /discover`
+
+Discovery Agent 전용 API다. Worker가 탐색 작업의 `executor_type=agent`와 `agent_id`를 확인한 뒤 해당 Agent에 탐색 범위를 전달한다.
+
+| 항목 | 값 |
+|---|---|
+| 인증 | Bearer agent_token |
+| 요청 | `{"scope_type": "cidr", "scope_value": "172.20.0.0/24", "ports": [443, 22]}` |
+| 응답 | `200 {"endpoints": [{"host": "172.20.0.10", "port": 443, "transport": "TCP", "detected_protocol": "TLS"}]}` |
+| 시간 | 동기 처리. 대역 크기와 포트 수에 따라 Worker timeout 정책 적용 |
+
+### 4.6.5 요청/응답 스키마
 
 #### 요청 본문
 
@@ -280,7 +296,7 @@ Agent는 백엔드/Worker에게 다음 엔드포인트를 제공한다.
 
 ## 4.8 Worker → Agent 통신
 
-Worker가 Scan Job을 처리할 때, 각 Target에 매핑된 Agent가 등록되어 있고 `target.agent_enabled=true`이면 Agent를 호출한다.
+Worker가 Scan Job을 처리할 때, 각 Target에 매핑된 Host Agent가 등록되어 있고 `target.agent_enabled=true`이면 Agent를 호출한다.
 
 ```mermaid
 sequenceDiagram
@@ -288,7 +304,7 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant A as Agent (호스트)
 
-    W->>DB: SELECT agent FROM agents<br/>WHERE hostname = target.host
+    W->>DB: SELECT agent FROM agents<br/>WHERE hostname = target.host AND agent_role = 'host'
     DB-->>W: agent_url, agent_token, capabilities
     W->>W: target.scanner_selection ∩ agent.capabilities
     W->>A: POST {agent_url}/scan<br/>Authorization: Bearer <agent_token><br/>{capabilities: [...]}
@@ -298,8 +314,8 @@ sequenceDiagram
 
 ### 4.8.1 매핑 규칙
 
-- Target의 `host` 필드가 Agent의 `hostname`과 일치하면 매핑
-- 1 호스트 = 1 Agent (다중 Agent 미지원)
+- Target의 `host` 필드가 Host Agent의 `hostname`과 일치하면 매핑
+- 동일 hostname이라도 `host`/`discovery` 역할별로 각각 1개 Agent 등록 가능
 - Agent가 `last_seen`이 5분 이상 지난 상태면 stale로 간주, Worker는 Agent 호출을 건너뛰고 Network Scanner 결과만 사용
 
 ### 4.8.2 Scanner 선택과 Agent

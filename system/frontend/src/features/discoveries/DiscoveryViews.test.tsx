@@ -21,6 +21,9 @@ describe("DiscoveriesView", () => {
           scope_type: "cidr",
           scope_value: "172.20.5.0/24",
           cidr: "172.20.5.0/24",
+          executor_type: "central",
+          agent_id: null,
+          agent_hostname: null,
           port_list: [443],
           status: "COMPLETED",
           created_at: "2026-04-29T00:00:00Z",
@@ -34,6 +37,9 @@ describe("DiscoveriesView", () => {
           scope_type: "cidr",
           scope_value: "172.20.6.0/24",
           cidr: "172.20.6.0/24",
+          executor_type: "agent",
+          agent_id: "9ab79c7e-76e8-4e49-a8b4-40be4d5a2f54",
+          agent_hostname: "probe.dmz.testbed.local",
           port_list: [22, 443],
           status: "COMPLETED",
           created_at: "2026-04-29T00:01:00Z",
@@ -50,6 +56,7 @@ describe("DiscoveriesView", () => {
     renderWithApp(<DiscoveriesView />);
 
     const discoverySixCheckbox = await screen.findByLabelText("탐색 작업 #6 선택");
+    expect(screen.getByText("probe.dmz.testbed.local")).toBeInTheDocument();
     expect(discoverySixCheckbox).not.toBeChecked();
     expect(screen.getByText("선택 0개")).toBeInTheDocument();
 

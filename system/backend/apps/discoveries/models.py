@@ -6,6 +6,14 @@ class Discovery(models.Model):
     scope_type = models.CharField(max_length=16, default="cidr")
     scope_value = models.CharField(max_length=253, default="")
     cidr = models.CharField(max_length=253)
+    executor_type = models.CharField(max_length=16, default="central")
+    discovery_agent = models.ForeignKey(
+        "agents.Agent",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="assigned_discoveries",
+    )
     ports = models.JSONField(default=list)
     include_default_ports = models.BooleanField(default=False)
     status = models.CharField(max_length=20, default="PENDING")
@@ -18,10 +26,13 @@ class Discovery(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(condition=models.Q(scope_type__in=["cidr", "ip", "domain"]), name="discovery_scope_type_valid"),
+            models.CheckConstraint(condition=models.Q(executor_type__in=["central", "agent"]), name="discovery_executor_type_valid"),
         ]
         indexes = [
             models.Index(fields=["status", "-created_at"], name="discovery_status_created_idx"),
             models.Index(fields=["scope_type", "-created_at"], name="discovery_scope_created_idx"),
+            models.Index(fields=["executor_type", "-created_at"], name="discovery_executor_created_idx"),
+            models.Index(fields=["discovery_agent", "-created_at"], name="discovery_agent_created_idx"),
         ]
 
 

@@ -2,6 +2,7 @@ import type { Schema } from "../../api/types";
 
 export type DiscoveryScopeType = Schema<"DiscoveryScopeType">;
 export type DiscoveryScopeInputType = "cidr" | "host";
+export type DiscoveryExecutorType = Schema<"DiscoveryExecutorType">;
 
 export const discoveryServiceOptions = [
   { id: "https-web", label: "HTTPS Web Server", ports: [443] },
@@ -41,7 +42,9 @@ export type DiscoveryCreateParseResult = {
 export function buildDiscoveryCreatePayload(
   scopeType: DiscoveryScopeInputType,
   scopeValue: string,
-  serviceIds: DiscoveryServiceId[]
+  serviceIds: DiscoveryServiceId[],
+  executorType: DiscoveryExecutorType = "central",
+  agentId?: string
 ): DiscoveryCreateParseResult {
   const ports = portsForServices(serviceIds);
   const errors: string[] = [];
@@ -55,6 +58,9 @@ export function buildDiscoveryCreatePayload(
   if (ports.length === 0) {
     errors.push("하나 이상의 서비스를 선택하세요.");
   }
+  if (executorType === "agent" && !agentId) {
+    errors.push("Discovery Agent를 선택하세요.");
+  }
   if (errors.length > 0) {
     return { payload: null, errors };
   }
@@ -65,6 +71,8 @@ export function buildDiscoveryCreatePayload(
     payload: {
       scope_type: payloadScopeType,
       scope_value: normalizedScopeValue,
+      executor_type: executorType,
+      agent_id: executorType === "agent" ? agentId : undefined,
       ports,
       include_default_ports: false
     },

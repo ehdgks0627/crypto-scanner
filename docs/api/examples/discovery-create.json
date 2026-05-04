@@ -1,5 +1,8 @@
 {
-  "cidr": "172.31.240.0/24",
+  "scope_type": "cidr",
+  "scope_value": "172.31.240.0/24",
+  "executor_type": "agent",
+  "agent_id": "f1e2d3c4-0000-4000-8000-000000000002",
   "ports": [22, 443, 8883, 5432, 25, 465, 587, 993, 995, 500, 4500],
-  "include_default_ports": true
+  "include_default_ports": false
 }

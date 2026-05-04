@@ -565,6 +565,20 @@ services:
     networks:
       pqc-testbed-net:
 
+  discovery-agent:
+    <<: [*agent-sidecar-base, *host-gateway, *service-hardening]
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: probe.dmz.testbed.local
+      AGENT_ROLE: discovery
+      AGENT_CAPABILITIES: agent.discovery
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${DISCOVERY_AGENT_PORT:-9118}
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${DISCOVERY_AGENT_PORT:-9118}:9100"
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.39
+
 volumes:
   db-data:
 

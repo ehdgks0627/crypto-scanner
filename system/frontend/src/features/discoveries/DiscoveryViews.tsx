@@ -23,6 +23,7 @@ import { formatDateTime } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import {
   buildDiscoveryCreatePayload,
+  type DiscoveryExecutorType,
   discoveryServiceOptions,
   type DiscoveryScopeInputType,
   type DiscoveryScopeType,
@@ -39,6 +40,11 @@ const discoveryScopeTypeLabels: Record<DiscoveryScopeType, string> = {
 const discoveryScopeInputLabels: Record<DiscoveryScopeInputType, string> = {
   cidr: "CIDR",
   host: "특정 IP / 도메인"
+};
+
+const discoveryExecutorLabels: Record<DiscoveryExecutorType, string> = {
+  central: "중앙 Worker",
+  agent: "Discovery Agent"
 };
 
 const discoveryScopePlaceholders: Record<DiscoveryScopeInputType, string> = {
@@ -60,6 +66,13 @@ function formatDiscoveryServices(ports: number[]) {
   }
   const labels = [...selectedServices.map((service) => service.label), ...unknownPorts.map((port) => `포트 ${port}`)];
   return labels.join(", ") || "-";
+}
+
+function formatDiscoveryExecutor(discovery: Schema<"Discovery">) {
+  if (discovery.executor_type === "agent") {
+    return discovery.agent_hostname || "Discovery Agent";
+  }
+  return discoveryExecutorLabels.central;
 }
 
 export function DiscoveriesView() {
@@ -154,6 +167,7 @@ export function DiscoveriesView() {
                 { key: "id", header: "ID", render: (item) => <button className="link-button" onClick={() => navigate(`/discoveries/${item.id}`)}>#{item.id}</button> },
                 { key: "scopeType", header: "유형", render: (item) => discoveryScopeTypeLabels[item.scope_type] ?? item.scope_type },
                 { key: "scopeValue", header: "탐색 값", render: (item) => discoveryScopeLabel(item) },
+                { key: "executor", header: "실행 위치", render: (item) => formatDiscoveryExecutor(item) },
                 { key: "services", header: "서비스", render: (item) => formatDiscoveryServices(item.port_list) },
                 { key: "status", header: "상태", render: (item) => <StatusBadge status={item.status} /> },
                 { key: "created", header: "생성", render: (item) => formatDateTime(item.created_at) }
@@ -174,9 +188,19 @@ export function DiscoveryNewView() {
   const [scopeValue, setScopeValue] = useState("172.20.0.0/24");
   const [serviceIds, setServiceIds] = useState<DiscoveryServiceId[]>(discoveryServiceOptions.map((service) => service.id));
   const [servicesExpanded, setServicesExpanded] = useState(false);
+  const [executorType, setExecutorType] = useState<DiscoveryExecutorType>("central");
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+  const discoveryAgents = useQuery({
+    queryKey: queryKeys.agents.list(true, "discovery"),
+    queryFn: () => services.agents.list(true, "discovery")
+  });
+  const usableDiscoveryAgents = useMemo(
+    () => discoveryAgents.data?.items.filter((agent) => agent.active && !agent.is_stale) ?? [],
+    [discoveryAgents.data?.items]
+  );
   const createPayload = useMemo(
-    () => buildDiscoveryCreatePayload(scopeType, scopeValue, serviceIds),
-    [scopeType, scopeValue, serviceIds]
+    () => buildDiscoveryCreatePayload(scopeType, scopeValue, serviceIds, executorType, selectedAgentId || undefined),
+    [scopeType, scopeValue, serviceIds, executorType, selectedAgentId]
   );
   const createDiscovery = useMutation({
     mutationFn: () => services.discoveries.create(createPayload.payload!),
@@ -190,6 +214,16 @@ export function DiscoveryNewView() {
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "탐색 시작 실패")
   });
+
+  useEffect(() => {
+    if (executorType !== "agent") {
+      return;
+    }
+    if (selectedAgentId && usableDiscoveryAgents.some((agent) => agent.id === selectedAgentId)) {
+      return;
+    }
+    setSelectedAgentId(usableDiscoveryAgents[0]?.id ?? "");
+  }, [executorType, selectedAgentId, usableDiscoveryAgents]);
 
   return (
     <Section>
@@ -233,6 +267,40 @@ export function DiscoveryNewView() {
                     placeholder={discoveryScopePlaceholders[scopeType]}
                   />
                 </Field>
+                <Field>
+                  <FieldLabel>실행 위치</FieldLabel>
+                  <Select
+                    value={executorType}
+                    onChange={(event) => {
+                      const nextExecutorType = event.target.value as DiscoveryExecutorType;
+                      setExecutorType(nextExecutorType);
+                      if (nextExecutorType === "central") {
+                        setSelectedAgentId("");
+                      }
+                    }}
+                  >
+                    <option value="central">중앙 Worker</option>
+                    <option value="agent">Discovery Agent</option>
+                  </Select>
+                </Field>
+                {executorType === "agent" ? (
+                  <Field>
+                    <FieldLabel>Discovery Agent</FieldLabel>
+                    <Select
+                      value={selectedAgentId}
+                      onChange={(event) => setSelectedAgentId(event.target.value)}
+                      disabled={discoveryAgents.isLoading || usableDiscoveryAgents.length === 0}
+                    >
+                      {discoveryAgents.isLoading ? <option value="">불러오는 중</option> : null}
+                      {!discoveryAgents.isLoading && usableDiscoveryAgents.length === 0 ? <option value="">사용 가능한 Agent 없음</option> : null}
+                      {usableDiscoveryAgents.map((agent) => (
+                        <option key={agent.id} value={agent.id}>
+                          {agent.hostname}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                ) : null}
                 <Field className="is-wide">
                   <FieldLabel>서비스</FieldLabel>
                   <div className="callout">
@@ -405,6 +473,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
             <dl className="detail-list">
               <div><dt>탐색 유형</dt><dd>{discoveryScopeTypeLabels[discovery.data.scope_type] ?? discovery.data.scope_type}</dd></div>
               <div><dt>탐색 값</dt><dd>{discoveryScopeLabel(discovery.data)}</dd></div>
+              <div><dt>실행 위치</dt><dd>{formatDiscoveryExecutor(discovery.data)}</dd></div>
               <div><dt>상태</dt><dd><StatusBadge status={discovery.data.status} /></dd></div>
               <div><dt>생성</dt><dd>{formatDateTime(discovery.data.created_at)}</dd></div>
               <div><dt>시작</dt><dd>{formatDateTime(discovery.data.started_at)}</dd></div>

@@ -113,9 +113,51 @@ def test_api_dsc_002d_create_discovery_accepts_ip_and_domain_scopes(client):
     ip_task = QueuedTask.objects.get(async_job=ip_discovery.async_job)
     assert ip_task.payload["scope_type"] == "ip"
     assert ip_task.payload["scope_value"] == "10.0.1.8"
+    assert ip_task.payload["executor_type"] == "central"
+    assert ip_task.payload["agent_id"] is None
 
 
-def test_api_dsc_002e_create_discovery_rejects_invalid_scope_values(client):
+def test_api_dsc_002e_create_discovery_can_run_on_discovery_agent(client):
+    from apps.agents.models import Agent
+    from apps.discoveries.models import Discovery
+    from apps.jobs.models import QueuedTask
+
+    agent = Agent.objects.create(
+        hostname="probe.dmz.testbed.local",
+        agent_role="discovery",
+        agent_url="http://probe.dmz.testbed.local:9100",
+        capabilities=["agent.discovery"],
+        agent_token_hash="hash",
+        active=True,
+        last_seen=timezone.now(),
+    )
+
+    response = client.post(
+        "/api/discoveries",
+        data={
+            "scope_type": "cidr",
+            "scope_value": "10.0.3.0/24",
+            "executor_type": "agent",
+            "agent_id": str(agent.id),
+            "ports": [443],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 202
+    discovery = Discovery.objects.get(id=response.json()["resource"]["id"])
+    assert discovery.executor_type == "agent"
+    assert discovery.discovery_agent_id == agent.id
+    task = QueuedTask.objects.get(async_job=discovery.async_job)
+    assert task.payload["executor_type"] == "agent"
+    assert task.payload["agent_id"] == str(agent.id)
+
+    detail_response = client.get(f"/api/discoveries/{discovery.id}")
+    assert detail_response.status_code == 200
+    assert detail_response.json()["agent_hostname"] == "probe.dmz.testbed.local"
+
+
+def test_api_dsc_002f_create_discovery_rejects_invalid_scope_values(client):
     invalid_ip = client.post(
         "/api/discoveries",
         data={"scope_type": "ip", "scope_value": "not-an-ip", "ports": [443]},
@@ -135,6 +177,66 @@ def test_api_dsc_002e_create_discovery_rejects_invalid_scope_values(client):
     assert invalid_ip.status_code == 422
     assert invalid_cidr.status_code == 422
     assert invalid_domain.status_code == 422
+
+
+def test_api_dsc_002g_create_discovery_rejects_unusable_discovery_agent(client):
+    from apps.agents.models import Agent
+
+    host_agent = Agent.objects.create(
+        hostname="host-only.testbed.local",
+        agent_role="host",
+        capabilities=["agent.cert_store"],
+        agent_token_hash="hash",
+        active=True,
+        last_seen=timezone.now(),
+    )
+    stale_discovery_agent = Agent.objects.create(
+        hostname="stale-probe.testbed.local",
+        agent_role="discovery",
+        capabilities=["agent.discovery"],
+        agent_token_hash="hash",
+        active=True,
+        last_seen=timezone.now() - timezone.timedelta(minutes=10),
+    )
+
+    missing_agent = client.post(
+        "/api/discoveries",
+        data={
+            "scope_type": "cidr",
+            "scope_value": "10.0.4.0/24",
+            "executor_type": "agent",
+            "ports": [443],
+        },
+        content_type="application/json",
+    )
+    host_agent_response = client.post(
+        "/api/discoveries",
+        data={
+            "scope_type": "cidr",
+            "scope_value": "10.0.4.0/24",
+            "executor_type": "agent",
+            "agent_id": str(host_agent.id),
+            "ports": [443],
+        },
+        content_type="application/json",
+    )
+    stale_agent_response = client.post(
+        "/api/discoveries",
+        data={
+            "scope_type": "cidr",
+            "scope_value": "10.0.4.0/24",
+            "executor_type": "agent",
+            "agent_id": str(stale_discovery_agent.id),
+            "ports": [443],
+        },
+        content_type="application/json",
+    )
+
+    assert missing_agent.status_code == 422
+    assert host_agent_response.status_code == 422
+    assert host_agent_response.json()["error"] == "agent_unavailable"
+    assert stale_agent_response.status_code == 409
+    assert stale_agent_response.json()["error"] == "agent_unavailable"
 
 
 def test_api_dsc_003_detail_separates_created_and_started_at(client):

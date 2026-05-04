@@ -28,6 +28,7 @@ def serialize_agent(agent):
     return {
         "id": str(agent.id),
         "hostname": agent.hostname,
+        "agent_role": agent.agent_role,
         "agent_url": agent.agent_url,
         "capabilities": agent.capabilities,
         "os_distribution": agent.os_distribution,
@@ -50,7 +51,7 @@ def record_agent_scanner_skip_if_needed(async_job, target, scanner_kind: str):
 
     if not target.agent_enabled:
         return False
-    agent = Agent.objects.filter(hostname=target.host, active=True).first()
+    agent = Agent.objects.filter(hostname=target.host, agent_role=Agent.ROLE_HOST, active=True).first()
     error = None
     if not agent:
         error = "agent_unavailable"

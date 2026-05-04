@@ -7,6 +7,7 @@ class EnqueueUnavailable(Exception):
 
 def enqueue_discovery(discovery) -> None:
     scope_value = discovery.scope_value or discovery.cidr
+    discovery_agent_id = str(discovery.discovery_agent_id) if discovery.discovery_agent_id else None
     enqueue_task(
         "discovery",
         {
@@ -14,6 +15,8 @@ def enqueue_discovery(discovery) -> None:
             "scope_type": discovery.scope_type,
             "scope_value": scope_value,
             "cidr": discovery.cidr,
+            "executor_type": discovery.executor_type,
+            "agent_id": discovery_agent_id,
             "ports": discovery.ports,
         },
         async_job=discovery.async_job,
@@ -30,6 +33,9 @@ def serialize_discovery(discovery):
         "scope_type": discovery.scope_type,
         "scope_value": scope_value,
         "cidr": discovery.cidr,
+        "executor_type": discovery.executor_type,
+        "agent_id": str(discovery.discovery_agent_id) if discovery.discovery_agent_id else None,
+        "agent_hostname": discovery.discovery_agent.hostname if discovery.discovery_agent_id else None,
         "port_list": discovery.ports,
         "ports": discovery.ports,
         "include_default_ports": discovery.include_default_ports,

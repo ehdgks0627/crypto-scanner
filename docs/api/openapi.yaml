@@ -207,7 +207,7 @@ paths:
           $ref: '#/components/responses/Error'
     post:
       tags: [Discovery]
-      summary: Start CIDR discovery
+      summary: Start discovery
       operationId: createDiscovery
       requestBody:
         required: true
@@ -1256,6 +1256,10 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: agent_role
+          in: query
+          schema:
+            $ref: '#/components/schemas/AgentRole'
         - $ref: '#/components/parameters/Offset'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -1948,6 +1952,10 @@ components:
       type: string
       enum: [cidr, ip, domain]
 
+    DiscoveryExecutorType:
+      type: string
+      enum: [central, agent]
+
     DiscoveryCreate:
       type: object
       required: [scope_type, scope_value]
@@ -1964,6 +1972,14 @@ components:
           example: 172.31.240.0/24
           deprecated: true
           description: Legacy alias for CIDR-only clients. New clients should send scope_type and scope_value.
+        executor_type:
+          $ref: '#/components/schemas/DiscoveryExecutorType'
+          description: Defaults to central when omitted. Use agent with agent_id to run from a Discovery Agent.
+        agent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Required when executor_type is agent.
         ports:
           type: array
           items:
@@ -1976,7 +1992,7 @@ components:
 
     Discovery:
       type: object
-      required: [id, job_id, scope_type, scope_value, cidr, port_list, status, created_at, started_at]
+      required: [id, job_id, scope_type, scope_value, cidr, executor_type, agent_id, agent_hostname, port_list, status, created_at, started_at]
       properties:
         id:
           type: integer
@@ -1989,6 +2005,15 @@ components:
           type: string
         cidr:
           type: string
+        executor_type:
+          $ref: '#/components/schemas/DiscoveryExecutorType'
+        agent_id:
+          type: string
+          format: uuid
+          nullable: true
+        agent_hostname:
+          type: string
+          nullable: true
         port_list:
           type: array
           items:
@@ -3293,6 +3318,10 @@ components:
               items:
                 $ref: '#/components/schemas/AssetPerformanceResult'
 
+    AgentRole:
+      type: string
+      enum: [host, discovery]
+
     AgentRegister:
       type: object
       required: [hostname, capabilities]
@@ -3301,6 +3330,9 @@ components:
         hostname:
           type: string
           maxLength: 253
+        agent_role:
+          $ref: '#/components/schemas/AgentRole'
+          description: Defaults to host when omitted. Discovery Agents can execute network discovery from their segment.
         agent_url:
           type: string
           format: uri
@@ -3335,6 +3367,7 @@ components:
       required:
         - id
         - hostname
+        - agent_role
         - agent_url
         - capabilities
         - registered_at
@@ -3348,6 +3381,8 @@ components:
           format: uuid
         hostname:
           type: string
+        agent_role:
+          $ref: '#/components/schemas/AgentRole'
         agent_url:
           type: string
           format: uri

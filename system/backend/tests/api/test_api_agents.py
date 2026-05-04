@@ -15,6 +15,7 @@ def register_agent(client, hostname="agent.testbed.local", capabilities=None, ex
         "/api/agents/register",
         data={
             "hostname": hostname,
+            "agent_role": "host",
             "agent_url": f"http://{hostname}:9100",
             "capabilities": capabilities or ["agent.cert_store"],
             "os_distribution": "ubuntu-22.04",
@@ -46,6 +47,7 @@ def test_api_agt_001_register_agent_returns_token_once(client, settings):
     assert agent.agent_token_hash != body["agent_token"]
     assert agent.last_seen is not None
     assert agent.agent_url == "http://agent.testbed.local:9100/"
+    assert agent.agent_role == "host"
     assert agent.os_distribution == "ubuntu-22.04"
 
 
@@ -62,6 +64,7 @@ def test_api_agt_002_existing_hostname_registration_rotates_token(client, settin
         "/api/agents/register",
         data={
             "hostname": "agent.testbed.local",
+            "agent_role": "host",
             "agent_url": "http://agent-new.testbed.local:9200",
             "capabilities": ["agent.cert_store", "agent.ssh_config"],
             "os_distribution": "debian-12",
@@ -79,6 +82,7 @@ def test_api_agt_002_existing_hostname_registration_rotates_token(client, settin
     assert client.post(f"/api/agents/{agent_id}/heartbeat", headers=bearer(body["agent_token"])).status_code == 200
     agent = Agent.objects.get(id=agent_id)
     assert agent.active is True
+    assert agent.agent_role == "host"
     assert agent.agent_url == "http://agent-new.testbed.local:9200/"
     assert agent.capabilities == ["agent.cert_store", "agent.ssh_config"]
     assert agent.os_distribution == "debian-12"
@@ -118,6 +122,30 @@ def test_api_agt_003b_registration_accepts_missing_agent_url_and_rejects_invalid
     assert missing_url.status_code == 201
     assert Agent.objects.get(id=missing_url.json()["id"]).agent_url is None
     assert invalid_url.status_code == 422
+
+
+def test_api_agt_003c_registration_accepts_discovery_agent_role(client, settings):
+    from apps.agents.models import Agent
+
+    settings.AGENT_BOOTSTRAP_TOKEN = BOOTSTRAP
+
+    response = client.post(
+        "/api/agents/register",
+        data={
+            "hostname": "probe.dmz.testbed.local",
+            "agent_role": "discovery",
+            "agent_url": "http://probe.dmz.testbed.local:9100",
+            "capabilities": ["agent.discovery"],
+            "os_distribution": "ubuntu-22.04",
+        },
+        content_type="application/json",
+        headers={"X-Bootstrap-Token": BOOTSTRAP},
+    )
+
+    assert response.status_code == 201
+    agent = Agent.objects.get(id=response.json()["id"])
+    assert agent.agent_role == "discovery"
+    assert agent.capabilities == ["agent.discovery"]
 
 
 def test_api_agt_004_heartbeat_updates_last_seen(client, settings):
@@ -184,6 +212,7 @@ def test_api_agt_006_list_agents_marks_stale_and_hides_tokens(client, settings):
     assert response.status_code == 200
     by_id = {item["id"]: item for item in response.json()["items"]}
     assert by_id[str(fresh.id)]["is_stale"] is False
+    assert by_id[str(fresh.id)]["agent_role"] == "host"
     assert by_id[str(fresh.id)]["agent_url"] is None
     assert by_id[str(fresh.id)]["registered_at"] is not None
     assert by_id[str(fresh.id)]["last_seen"] is not None
@@ -221,6 +250,34 @@ def test_api_agt_010_list_agents_filters_by_active(client, settings):
     assert {item["id"] for item in inactive_response.json()["items"]} == {str(inactive.id)}
 
 
+def test_api_agt_010b_list_agents_filters_by_role(client, settings):
+    from apps.agents.models import Agent
+
+    settings.AGENT_BOOTSTRAP_TOKEN = BOOTSTRAP
+    host_agent = Agent.objects.create(
+        hostname="shared-host",
+        agent_role="host",
+        capabilities=[],
+        agent_token_hash="hash",
+        active=True,
+        last_seen=timezone.now(),
+    )
+    discovery_agent = Agent.objects.create(
+        hostname="shared-host",
+        agent_role="discovery",
+        capabilities=["agent.discovery"],
+        agent_token_hash="hash",
+        active=True,
+        last_seen=timezone.now(),
+    )
+
+    response = client.get("/api/agents?agent_role=discovery")
+
+    assert response.status_code == 200
+    assert {item["id"] for item in response.json()["items"]} == {str(discovery_agent.id)}
+    assert str(host_agent.id) not in {item["id"] for item in response.json()["items"]}
+
+
 def test_api_agt_007_agent_detail_hides_tokens(client, settings):
     from apps.agents.models import Agent
 
@@ -239,6 +296,7 @@ def test_api_agt_007_agent_detail_hides_tokens(client, settings):
     body = response.json()
     assert {
         "agent_url",
+        "agent_role",
         "os_distribution",
         "registered_at",
         "token_rotated_at",

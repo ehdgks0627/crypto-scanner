@@ -1,4 +1,5 @@
 from secrets import compare_digest
+from typing import Literal
 
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
@@ -14,10 +15,12 @@ from apps.core.schemas import StrictSchema
 
 
 router = Router(tags=["Agents"])
+AgentRole = Literal["host", "discovery"]
 
 
 class AgentRegisterPayload(StrictSchema):
     hostname: str
+    agent_role: AgentRole = "host"
     agent_url: AnyUrl | None = None
     capabilities: list[str] = []
     os_distribution: str | None = None
@@ -40,10 +43,13 @@ def list_agents(
     active: bool | None = None,
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    agent_role: AgentRole | None = None,
 ):
     queryset = Agent.objects.all().order_by("hostname")
     if active is not None:
         queryset = queryset.filter(active=active)
+    if agent_role is not None:
+        queryset = queryset.filter(agent_role=agent_role)
     total = queryset.count()
     items = [services.serialize_agent(agent) for agent in queryset[offset : offset + limit]]
     if not items:
@@ -62,6 +68,7 @@ def register_agent(request, payload: AgentRegisterPayload):
     now = timezone.now()
     agent, created = Agent.objects.get_or_create(
         hostname=payload.hostname,
+        agent_role=payload.agent_role,
         defaults={
             "agent_url": str(payload.agent_url) if payload.agent_url else None,
             "capabilities": payload.capabilities,
@@ -73,6 +80,7 @@ def register_agent(request, payload: AgentRegisterPayload):
         },
     )
     if not created:
+        agent.agent_role = payload.agent_role
         agent.agent_url = str(payload.agent_url) if payload.agent_url else None
         agent.capabilities = payload.capabilities
         agent.os_distribution = payload.os_distribution

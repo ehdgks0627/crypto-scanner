@@ -10,6 +10,8 @@ describe("buildDiscoveryCreatePayload", () => {
       payload: {
         scope_type: "cidr",
         scope_value: "172.20.0.0/24",
+        executor_type: "central",
+        agent_id: undefined,
         ports: [443, 22, 2222, 500, 4500],
         include_default_ports: false
       },
@@ -63,6 +65,29 @@ describe("buildDiscoveryCreatePayload", () => {
       scope_type: "domain",
       scope_value: "app.testbed.local"
     });
+  });
+
+  it("builds an agent-executed discovery payload", () => {
+    const agentId = "9ab79c7e-76e8-4e49-a8b4-40be4d5a2f54";
+
+    expect(buildDiscoveryCreatePayload("cidr", "172.20.0.0/24", ["https-web"], "agent", agentId)).toEqual({
+      payload: {
+        scope_type: "cidr",
+        scope_value: "172.20.0.0/24",
+        executor_type: "agent",
+        agent_id: agentId,
+        ports: [443],
+        include_default_ports: false
+      },
+      errors: []
+    });
+  });
+
+  it("requires a Discovery Agent for agent execution", () => {
+    const result = buildDiscoveryCreatePayload("cidr", "172.20.0.0/24", ["https-web"], "agent");
+
+    expect(result.payload).toBeNull();
+    expect(result.errors).toContain("Discovery Agent를 선택하세요.");
   });
 
   it("requires scope value", () => {

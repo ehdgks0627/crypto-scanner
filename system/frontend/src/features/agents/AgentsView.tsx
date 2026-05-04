@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
-import type { Schema } from "../../api/types";
+import type { AgentRole, Schema } from "../../api/types";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
@@ -17,6 +17,12 @@ import { DataTable } from "../../components/ui/table";
 import { formatDateTime, formatRelative } from "../../lib/format";
 
 type AgentActiveFilter = "all" | "active" | "inactive";
+type AgentRoleFilter = "all" | AgentRole;
+
+const agentRoleLabels: Record<AgentRole, string> = {
+  host: "Host Agent",
+  discovery: "Discovery Agent"
+};
 
 function filterToActive(filter: AgentActiveFilter) {
   if (filter === "active") {
@@ -43,11 +49,13 @@ export function AgentsView() {
   const queryClient = useQueryClient();
   const [pendingDeactivate, setPendingDeactivate] = useState<Schema<"Agent"> | null>(null);
   const [activeFilter, setActiveFilter] = useState<AgentActiveFilter>("all");
+  const [roleFilter, setRoleFilter] = useState<AgentRoleFilter>("all");
   const [deactivateError, setDeactivateError] = useState<string | null>(null);
   const active = filterToActive(activeFilter);
+  const agentRole = roleFilter === "all" ? undefined : roleFilter;
   const agents = useQuery({
-    queryKey: queryKeys.agents.list(active),
-    queryFn: () => services.agents.list(active)
+    queryKey: queryKeys.agents.list(active, agentRole),
+    queryFn: () => services.agents.list(active, agentRole)
   });
   const deactivate = useMutation({
     mutationFn: (id: string) => services.agents.delete(id),
@@ -95,7 +103,7 @@ export function AgentsView() {
     <Section>
       <PageHeader
         title="에이전트"
-        description="호스트 내부 스캐너 에이전트 등록 상태를 관리합니다."
+        description="Host Agent와 Discovery Agent 등록 상태를 관리합니다."
       />
       <Card>
         <CardContent>
@@ -109,6 +117,15 @@ export function AgentsView() {
                 <option value="all">전체 상태</option>
                 <option value="active">활성</option>
                 <option value="inactive">비활성</option>
+              </Select>
+              <Select
+                aria-label="에이전트 역할 필터"
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value as AgentRoleFilter)}
+              >
+                <option value="all">전체 역할</option>
+                <option value="host">Host Agent</option>
+                <option value="discovery">Discovery Agent</option>
               </Select>
             </div>
             <span className="muted">전체 {agents.data?.total ?? 0}</span>
@@ -126,6 +143,7 @@ export function AgentsView() {
               empty={<EmptyState title="등록된 에이전트가 없습니다" />}
               columns={[
                 { key: "host", header: "호스트명", render: (agent) => agent.hostname },
+                { key: "role", header: "역할", render: (agent) => agentRoleLabels[agent.agent_role] ?? agent.agent_role },
                 { key: "url", header: "URL", render: (agent) => agent.agent_url },
                 {
                   key: "active",
@@ -180,7 +198,7 @@ export function AgentsView() {
       <ConfirmDialog
         open={Boolean(pendingDeactivate)}
         title="에이전트 비활성화"
-        description={pendingDeactivate ? `${pendingDeactivate.hostname} 에이전트를 비활성화합니다. 이후 해당 에이전트 기반 스캐너는 건너뛸 수 있습니다.` : ""}
+        description={pendingDeactivate ? `${pendingDeactivate.hostname} 에이전트를 비활성화합니다. 이후 해당 에이전트 기반 작업은 건너뛸 수 있습니다.` : ""}
         confirmLabel={deactivateError ? "다시 시도" : "비활성화"}
         pending={deactivate.isPending}
         error={deactivateError}

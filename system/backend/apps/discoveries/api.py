@@ -1,6 +1,7 @@
 import re
 from ipaddress import ip_address, ip_network
 from typing import Annotated, Literal
+from uuid import UUID
 
 from django.db import transaction
 from django.http import JsonResponse
@@ -10,6 +11,8 @@ from pydantic import Field, model_validator
 from apps.core.errors import error_response
 from apps.core.pagination import empty_page, page_envelope
 from apps.core.schemas import StrictSchema
+from apps.agents import services as agent_services
+from apps.agents.models import Agent
 from apps.discoveries import services
 from apps.discoveries.models import DiscoveredEndpoint, Discovery
 from apps.jobs.models import AsyncJob
@@ -22,6 +25,7 @@ router = Router(tags=["Discoveries"])
 JobStatusParam = Literal["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]
 PortNumber = Annotated[int, Field(ge=1, le=65535)]
 DiscoveryScopeType = Literal["cidr", "ip", "domain"]
+DiscoveryExecutorType = Literal["central", "agent"]
 
 
 DOMAIN_LABEL_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
@@ -31,6 +35,8 @@ class DiscoveryCreate(StrictSchema):
     scope_type: DiscoveryScopeType | None = None
     scope_value: str | None = Field(default=None, max_length=253)
     cidr: str | None = None
+    executor_type: DiscoveryExecutorType = "central"
+    agent_id: UUID | None = None
     ports: list[PortNumber] | None = None
     include_default_ports: bool = True
 
@@ -45,6 +51,10 @@ class DiscoveryCreate(StrictSchema):
         self.scope_type = scope_type
         self.scope_value = normalized_value
         self.cidr = normalized_value
+        if self.executor_type == "central" and self.agent_id is not None:
+            raise ValueError("agent_id is only valid when executor_type is agent.")
+        if self.executor_type == "agent" and self.agent_id is None:
+            raise ValueError("agent_id is required when executor_type is agent.")
         return self
 
 
@@ -98,6 +108,20 @@ def is_valid_domain(value: str) -> bool:
     return all(DOMAIN_LABEL_RE.match(label) for label in domain.split("."))
 
 
+def get_usable_discovery_agent(agent_id: UUID):
+    try:
+        agent = Agent.objects.get(id=agent_id)
+    except Agent.DoesNotExist:
+        return None, error_response("agent_unavailable", "Discovery agent not found.", status=422)
+    if agent.agent_role != Agent.ROLE_DISCOVERY:
+        return None, error_response("agent_unavailable", "Selected agent is not a Discovery Agent.", status=422)
+    if not agent.active:
+        return None, error_response("agent_unavailable", "Discovery agent is inactive.", status=409)
+    if agent_services.is_stale(agent):
+        return None, error_response("agent_unavailable", "Discovery agent heartbeat is stale.", status=409)
+    return agent, None
+
+
 @router.get("/discoveries")
 def list_discoveries(
     request,
@@ -105,7 +129,7 @@ def list_discoveries(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    queryset = Discovery.objects.select_related("async_job").order_by("-id")
+    queryset = Discovery.objects.select_related("async_job", "discovery_agent").order_by("-id")
     if status:
         queryset = queryset.filter(status=status)
     total = queryset.count()
@@ -117,18 +141,26 @@ def list_discoveries(
 
 @router.post("/discoveries")
 def create_discovery(request, payload: DiscoveryCreate):
+    discovery_agent = None
+    if payload.executor_type == "agent":
+        discovery_agent, agent_error = get_usable_discovery_agent(payload.agent_id)
+        if agent_error:
+            return agent_error
+
     try:
         with transaction.atomic():
             async_job = AsyncJob.objects.create(
                 kind="discovery",
                 status=AsyncJob.PENDING,
-                request_payload=payload.model_dump(exclude_none=True),
+                request_payload=payload.model_dump(exclude_none=True, mode="json"),
             )
             discovery = Discovery.objects.create(
                 async_job=async_job,
                 scope_type=payload.scope_type,
                 scope_value=payload.scope_value,
                 cidr=payload.cidr,
+                executor_type=payload.executor_type,
+                discovery_agent=discovery_agent,
                 ports=payload.ports or [],
                 include_default_ports=payload.include_default_ports,
                 status=async_job.status,
@@ -144,7 +176,7 @@ def create_discovery(request, payload: DiscoveryCreate):
 @router.get("/discoveries/{discovery_id}")
 def get_discovery(request, discovery_id: int):
     try:
-        discovery = Discovery.objects.select_related("async_job").get(id=discovery_id)
+        discovery = Discovery.objects.select_related("async_job", "discovery_agent").get(id=discovery_id)
     except Discovery.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
     return JsonResponse(services.serialize_discovery(discovery), headers={"Cache-Control": "no-store"})

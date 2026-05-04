@@ -50,6 +50,7 @@ AGENT_FIXTURES = [
     ("backup-service.testbed.local", ["cert_store", "keystore", "app_config"], "Debian 12", True),
     ("legacy-java-app.testbed.local", ["cert_store", "keystore", "app_config"], "RHEL 8", True),
 ]
+DISCOVERY_AGENT_HOSTNAME = "probe.dmz.testbed.local"
 
 
 LATEST_ASSETS = [
@@ -164,7 +165,7 @@ class Command(BaseCommand):
         CbomSnapshot.objects.filter(serial_number__startswith=SERIAL_PREFIX).delete()
         AsyncJob.objects.filter(request_payload__scenario=SCENARIO).delete()
         Discovery.objects.filter(cidr="172.20.0.0/16").delete()
-        Agent.objects.filter(hostname__in=[hostname for hostname, *_ in AGENT_FIXTURES]).delete()
+        Agent.objects.filter(hostname__in=[*[hostname for hostname, *_ in AGENT_FIXTURES], DISCOVERY_AGENT_HOSTNAME]).delete()
 
     def _seed_targets(self):
         targets = {}
@@ -192,6 +193,7 @@ class Command(BaseCommand):
             last_seen = now - timedelta(minutes=4 + (index * 7))
             Agent.objects.update_or_create(
                 hostname=hostname,
+                agent_role=Agent.ROLE_HOST,
                 defaults={
                     "agent_url": f"https://{hostname}:9443",
                     "capabilities": capabilities,
@@ -202,6 +204,19 @@ class Command(BaseCommand):
                     "token_rotated_at": now - timedelta(days=1),
                 },
             )
+        Agent.objects.update_or_create(
+            hostname=DISCOVERY_AGENT_HOSTNAME,
+            agent_role=Agent.ROLE_DISCOVERY,
+            defaults={
+                "agent_url": f"https://{DISCOVERY_AGENT_HOSTNAME}:9443",
+                "capabilities": ["agent.discovery"],
+                "os_distribution": "Ubuntu 24.04",
+                "agent_token_hash": f"demo-token-hash-{DISCOVERY_AGENT_HOSTNAME}",
+                "active": True,
+                "last_seen": now - timedelta(minutes=1),
+                "token_rotated_at": now - timedelta(days=1),
+            },
+        )
 
     def _seed_scan_job(self, targets, now):
         total_scan_runs = self._scan_run_count(targets, SCAN_SCANNERS)
@@ -388,10 +403,18 @@ class Command(BaseCommand):
 
     def _seed_discovery(self, targets, created_at):
         promoted_count = sum(1 for *_, promoted, target_key in DISCOVERY_ENDPOINTS if promoted and target_key)
+        discovery_agent = Agent.objects.filter(hostname=DISCOVERY_AGENT_HOSTNAME, agent_role=Agent.ROLE_DISCOVERY).first()
         async_job = AsyncJob.objects.create(
             kind="discovery",
             status=AsyncJob.COMPLETED,
-            request_payload={"scenario": SCENARIO, "cidr": "172.20.0.0/16", "ports": DISCOVERY_PORTS},
+            request_payload={
+                "scenario": SCENARIO,
+                "scope_type": "cidr",
+                "scope_value": "172.20.0.0/16",
+                "executor_type": "agent",
+                "agent_id": str(discovery_agent.id) if discovery_agent else None,
+                "ports": DISCOVERY_PORTS,
+            },
             progress={"completed": len(DISCOVERY_ENDPOINTS), "total": len(DISCOVERY_ENDPOINTS)},
             started_at=created_at,
             finished_at=created_at + timedelta(minutes=6),
@@ -399,7 +422,11 @@ class Command(BaseCommand):
         )
         discovery = Discovery.objects.create(
             async_job=async_job,
+            scope_type="cidr",
+            scope_value="172.20.0.0/16",
             cidr="172.20.0.0/16",
+            executor_type="agent" if discovery_agent else "central",
+            discovery_agent=discovery_agent,
             ports=DISCOVERY_PORTS,
             include_default_ports=True,
             status=AsyncJob.COMPLETED,

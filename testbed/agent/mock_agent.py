@@ -6,6 +6,8 @@ import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from ipaddress import ip_network
+from itertools import islice
 
 
 LOG_LEVEL = os.getenv("AGENT_LOG_LEVEL", "INFO").upper()
@@ -15,7 +17,50 @@ LOGGER = logging.getLogger("testbed-agent")
 
 def capabilities() -> list[str]:
     raw = os.getenv("AGENT_CAPABILITIES", "")
-    return [item.strip() for item in raw.split(",") if item.strip()]
+    items = [item.strip() for item in raw.split(",") if item.strip()]
+    if not items and os.getenv("AGENT_ROLE", "host") == "discovery":
+        return ["agent.discovery"]
+    return items
+
+
+def protocol_for_port(port: int) -> str:
+    if port in {22, 2222}:
+        return "SSH"
+    if port in {500, 4500}:
+        return "IKE"
+    if port in {25, 465, 587}:
+        return "SMTP"
+    if port in {993}:
+        return "IMAP"
+    if port in {995}:
+        return "POP3"
+    if port in {443, 8443, 8883, 9093, 9443, 15017}:
+        return "TLS"
+    return "UNKNOWN"
+
+
+def discovery_findings(payload: dict) -> list[dict]:
+    scope_type = payload.get("scope_type", "cidr")
+    scope_value = str(payload.get("scope_value") or payload.get("cidr") or "")
+    ports = [int(port) for port in payload.get("ports", [])]
+    if scope_type == "cidr":
+        try:
+            hosts = [str(host) for host in islice(ip_network(scope_value, strict=False).hosts(), 3)]
+        except ValueError:
+            hosts = []
+    else:
+        hosts = [scope_value] if scope_value else []
+    return [
+        {
+            "host": host,
+            "port": port,
+            "transport": "TCP",
+            "detected_protocol": protocol_for_port(port),
+            "suggested_protocol_hint": protocol_for_port(port),
+        }
+        for host in hosts
+        for port in ports
+    ]
 
 
 def static_findings() -> list[dict]:
@@ -166,6 +211,7 @@ def register_loop() -> None:
     agent_url = os.getenv("AGENT_URL", f"http://{hostname}:9100")
     payload = {
         "hostname": hostname,
+        "agent_role": os.getenv("AGENT_ROLE", "host"),
         "agent_url": agent_url,
         "capabilities": capabilities(),
         "os_distribution": os.getenv("AGENT_OS_DISTRIBUTION", "testbed-container"),
@@ -216,6 +262,12 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _read_json(self) -> dict:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        if length == 0:
+            return {}
+        return json.loads(self.rfile.read(length).decode("utf-8"))
+
     def do_GET(self) -> None:
         if self.path == "/healthz":
             self._send_json(
@@ -248,6 +300,15 @@ class Handler(BaseHTTPRequestHandler):
                     "findings": static_findings(),
                 },
             )
+            return
+        if self.path == "/discover":
+            if not self._authorized():
+                self._send_json(401, {"error": "invalid_token"})
+                return
+            if os.getenv("AGENT_ROLE", "host") != "discovery":
+                self._send_json(403, {"error": "role_unsupported"})
+                return
+            self._send_json(200, {"endpoints": discovery_findings(self._read_json())})
             return
         self._send_json(404, {"error": "not_found"})
 

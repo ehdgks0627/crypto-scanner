@@ -3,6 +3,7 @@
     {
       "id": "f1e2d3c4-0000-4000-8000-000000000001",
       "hostname": "web.testbed.local",
+      "agent_role": "host",
       "agent_url": "http://web.testbed.local:9100",
       "capabilities": ["agent.cert_store", "agent.ssh_config", "agent.app_cert_files", "agent.app_config"],
       "os_distribution": "alpine:3.20",
@@ -11,9 +12,22 @@
       "last_seen": "2026-04-25T10:00:00Z",
       "active": true,
       "is_stale": false
+    },
+    {
+      "id": "f1e2d3c4-0000-4000-8000-000000000002",
+      "hostname": "probe.dmz.testbed.local",
+      "agent_role": "discovery",
+      "agent_url": "http://probe.dmz.testbed.local:9100",
+      "capabilities": ["agent.discovery"],
+      "os_distribution": "ubuntu-22.04",
+      "registered_at": "2026-04-25T09:05:00Z",
+      "token_rotated_at": "2026-04-25T09:05:00Z",
+      "last_seen": "2026-04-25T10:00:00Z",
+      "active": true,
+      "is_stale": false
     }
   ],
-  "total": 1,
+  "total": 2,
   "offset": 0,
   "limit": 20
 }

@@ -1,5 +1,5 @@
 import { apiClient, type ApiClient } from "./client";
-import type { AssetType, JobStatus, ProtocolHint, QueryParams, RiskTier, Schema, ScannerId } from "./types";
+import type { AgentRole, AssetType, JobStatus, ProtocolHint, QueryParams, RiskTier, Schema, ScannerId } from "./types";
 
 abstract class BaseService {
   constructor(protected readonly client: ApiClient) {}
@@ -204,8 +204,8 @@ export class PerformanceService extends BaseService {
 }
 
 export class AgentService extends BaseService {
-  list(active?: boolean) {
-    return this.client.request<Schema<"AgentPage">>("/agents", { query: { active, limit: 100 } });
+  list(active?: boolean, agentRole?: AgentRole) {
+    return this.client.request<Schema<"AgentPage">>("/agents", { query: { active, agent_role: agentRole, limit: 100 } });
   }
 
   get(id: string) {
