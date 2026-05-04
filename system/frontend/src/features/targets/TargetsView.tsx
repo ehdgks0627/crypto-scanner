@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,18 +12,15 @@ import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
-import { Dialog } from "../../components/ui/dialog";
 import { Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
 import { enabledLabel } from "../../domain/displayLabels";
 import { TargetModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
-import { TargetForm } from "./TargetForms";
 
 export function TargetsView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Schema<"Target"> | null>(null);
   const [host, setHost] = useState("");
   const [protocol, setProtocol] = useState("");
@@ -31,16 +28,6 @@ export function TargetsView() {
   const targets = useQuery({
     queryKey: queryKeys.targets.list(filters),
     queryFn: () => services.targets.list(filters)
-  });
-  const createTarget = useMutation({
-    mutationFn: (payload: Schema<"TargetCreate">) => services.targets.create(payload),
-    onSuccess: async (target) => {
-      toast.success("스캔 대상을 추가했습니다.");
-      setCreateOpen(false);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.targets.all });
-      navigate(`/targets/${target.id}`);
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "스캔 대상 추가 실패")
   });
   const deleteTarget = useMutation({
     mutationFn: (id: number) => services.targets.delete(id),
@@ -56,12 +43,7 @@ export function TargetsView() {
     <Section>
       <PageHeader
         title="스캔 대상"
-        description="탐색 대상 결과를 승인하거나 알려진 호스트:포트를 수동으로 추가해 스캔 범위를 관리합니다."
-        actions={
-          <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
-            <Plus size={15} />수동 대상 추가
-          </Button>
-        }
+        description="탐색 대상 결과에서 승인된 엔드포인트를 스캔 가능한 대상으로 관리합니다."
       />
       <Card>
         <CardContent>
@@ -90,7 +72,7 @@ export function TargetsView() {
             <DataTable
               items={targets.data.items}
               getRowKey={(target) => target.id}
-              empty={<EmptyState title="스캔 대상이 없습니다" description="탐색 대상 결과를 스캔 대상으로 승인하거나 수동으로 추가하세요." />}
+              empty={<EmptyState title="스캔 대상이 없습니다" description="탐색 대상에서 엔드포인트를 찾고 스캔 대상으로 승인하세요." />}
               columns={[
                 {
                   key: "target",
@@ -122,14 +104,6 @@ export function TargetsView() {
         </Card>
       ) : null}
 
-      <Dialog open={createOpen} title="수동 스캔 대상 추가" closeDisabled={createTarget.isPending} onClose={() => !createTarget.isPending && setCreateOpen(false)}>
-        <TargetForm
-          submitLabel="추가"
-          isSubmitting={createTarget.isPending}
-          onCancel={() => !createTarget.isPending && setCreateOpen(false)}
-          onSubmit={(payload) => createTarget.mutate(payload as Schema<"TargetCreate">)}
-        />
-      </Dialog>
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         title="스캔 대상 삭제"
