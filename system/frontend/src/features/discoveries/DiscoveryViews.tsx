@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Play, Plus, XCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, Play, Plus, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -21,7 +21,13 @@ import { canCancelJob, isActiveJobStatus, pageHasActiveJob } from "../../domain/
 import { JobProgressModel } from "../../domain/models";
 import { formatDateTime } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
-import { buildDiscoveryCreatePayload, type DiscoveryScopeType } from "./discoveryCreatePayload";
+import {
+  buildDiscoveryCreatePayload,
+  discoveryServiceOptions,
+  type DiscoveryScopeInputType,
+  type DiscoveryScopeType,
+  type DiscoveryServiceId
+} from "./discoveryCreatePayload";
 import { DiscoveryPromotionModel } from "./discoveryPromotion";
 
 const discoveryScopeTypeLabels: Record<DiscoveryScopeType, string> = {
@@ -30,14 +36,30 @@ const discoveryScopeTypeLabels: Record<DiscoveryScopeType, string> = {
   domain: "도메인"
 };
 
-const discoveryScopePlaceholders: Record<DiscoveryScopeType, string> = {
+const discoveryScopeInputLabels: Record<DiscoveryScopeInputType, string> = {
+  cidr: "CIDR",
+  host: "특정 IP / 도메인"
+};
+
+const discoveryScopePlaceholders: Record<DiscoveryScopeInputType, string> = {
   cidr: "172.20.0.0/24",
-  ip: "172.20.0.10",
-  domain: "app.testbed.local"
+  host: "172.20.0.10 또는 app.testbed.local"
 };
 
 function discoveryScopeLabel(discovery: Schema<"Discovery">) {
   return discovery.scope_value || discovery.cidr;
+}
+
+function formatDiscoveryServices(ports: number[]) {
+  const selectedPorts = new Set(ports);
+  const selectedServices = discoveryServiceOptions.filter((service) => service.ports.every((port) => selectedPorts.has(port)));
+  const knownPorts = new Set<number>(selectedServices.flatMap((service) => service.ports));
+  const unknownPorts = ports.filter((port) => !knownPorts.has(port));
+  if (selectedServices.length === discoveryServiceOptions.length && unknownPorts.length === 0) {
+    return "전체 서비스";
+  }
+  const labels = [...selectedServices.map((service) => service.label), ...unknownPorts.map((port) => `포트 ${port}`)];
+  return labels.join(", ") || "-";
 }
 
 export function DiscoveriesView() {
@@ -71,7 +93,7 @@ export function DiscoveriesView() {
     <Section>
       <PageHeader
         title="탐색 대상"
-        description="CIDR, 특정 IP, 도메인을 기준으로 후보 엔드포인트를 찾고 스캔 대상으로 승인합니다."
+        description="CIDR 또는 특정 IP / 도메인을 기준으로 후보 엔드포인트를 찾고 스캔 대상으로 승인합니다."
         actions={
           <Button type="button" variant="primary" onClick={() => navigate("/discoveries/new")}>
             <Plus size={15} />탐색 대상 추가
@@ -132,7 +154,7 @@ export function DiscoveriesView() {
                 { key: "id", header: "ID", render: (item) => <button className="link-button" onClick={() => navigate(`/discoveries/${item.id}`)}>#{item.id}</button> },
                 { key: "scopeType", header: "유형", render: (item) => discoveryScopeTypeLabels[item.scope_type] ?? item.scope_type },
                 { key: "scopeValue", header: "탐색 값", render: (item) => discoveryScopeLabel(item) },
-                { key: "ports", header: "포트", render: (item) => item.port_list.join(", ") || "기본값" },
+                { key: "services", header: "서비스", render: (item) => formatDiscoveryServices(item.port_list) },
                 { key: "status", header: "상태", render: (item) => <StatusBadge status={item.status} /> },
                 { key: "created", header: "생성", render: (item) => formatDateTime(item.created_at) }
               ]}
@@ -148,13 +170,13 @@ export function DiscoveryNewView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const trackJob = useJobWatchStore((state) => state.trackJob);
-  const [scopeType, setScopeType] = useState<DiscoveryScopeType>("cidr");
+  const [scopeType, setScopeType] = useState<DiscoveryScopeInputType>("cidr");
   const [scopeValue, setScopeValue] = useState("172.20.0.0/24");
-  const [ports, setPorts] = useState("443,22,500");
-  const [includeDefaultPorts, setIncludeDefaultPorts] = useState(true);
+  const [serviceIds, setServiceIds] = useState<DiscoveryServiceId[]>(discoveryServiceOptions.map((service) => service.id));
+  const [servicesExpanded, setServicesExpanded] = useState(false);
   const createPayload = useMemo(
-    () => buildDiscoveryCreatePayload(scopeType, scopeValue, ports, includeDefaultPorts),
-    [includeDefaultPorts, ports, scopeType, scopeValue]
+    () => buildDiscoveryCreatePayload(scopeType, scopeValue, serviceIds),
+    [scopeType, scopeValue, serviceIds]
   );
   const createDiscovery = useMutation({
     mutationFn: () => services.discoveries.create(createPayload.payload!),
@@ -171,7 +193,7 @@ export function DiscoveryNewView() {
 
   return (
     <Section>
-      <PageHeader title="탐색 대상 추가" description="CIDR, 특정 IP, 도메인 중 하나를 기준으로 후보 엔드포인트를 찾습니다." />
+      <PageHeader title="탐색 대상 추가" description="CIDR 또는 특정 IP / 도메인을 기준으로 후보 엔드포인트를 찾습니다." />
       <Card>
         <CardContent>
           <form
@@ -190,14 +212,16 @@ export function DiscoveryNewView() {
                   <Select
                     value={scopeType}
                     onChange={(event) => {
-                      const nextScopeType = event.target.value as DiscoveryScopeType;
+                      const nextScopeType = event.target.value as DiscoveryScopeInputType;
                       setScopeType(nextScopeType);
                       setScopeValue(discoveryScopePlaceholders[nextScopeType]);
                     }}
                   >
-                    <option value="cidr">CIDR</option>
-                    <option value="ip">특정 IP</option>
-                    <option value="domain">도메인</option>
+                    {Object.entries(discoveryScopeInputLabels).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
                   </Select>
                 </Field>
                 <Field>
@@ -209,16 +233,31 @@ export function DiscoveryNewView() {
                     placeholder={discoveryScopePlaceholders[scopeType]}
                   />
                 </Field>
-                <Field>
-                  <FieldLabel>포트</FieldLabel>
-                  <Input value={ports} onChange={(event) => setPorts(event.target.value)} placeholder="443,22,500" />
-                </Field>
                 <Field className="is-wide">
-                  <FieldLabel>기본 포트</FieldLabel>
-                  <span className="inline-actions">
-                    <Checkbox checked={includeDefaultPorts} onChange={(event) => setIncludeDefaultPorts(event.target.checked)} />
-                    <span>프로토콜 기본 포트 포함</span>
-                  </span>
+                  <FieldLabel>서비스</FieldLabel>
+                  <div className="callout">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setServicesExpanded((current) => !current)}>
+                      {servicesExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                      {`지원 서비스 ${serviceIds.length}/${discoveryServiceOptions.length}`}
+                    </Button>
+                    {servicesExpanded ? (
+                      <div className="discovery-service-grid">
+                        {discoveryServiceOptions.map((service) => (
+                          <label key={service.id} className="inline-actions discovery-service-option">
+                            <Checkbox
+                              checked={serviceIds.includes(service.id)}
+                              onChange={(event) =>
+                                setServiceIds((current) =>
+                                  event.target.checked ? [...current, service.id] : current.filter((item) => item !== service.id)
+                                )
+                              }
+                            />
+                            <span>{service.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </Field>
               </div>
               {createPayload.errors.length > 0 ? <div className="callout state-view--error" role="alert">{createPayload.errors.join(" ")}</div> : null}

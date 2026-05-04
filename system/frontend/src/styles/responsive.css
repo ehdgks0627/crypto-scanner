@@ -140,6 +140,7 @@
   }
 
   .form-grid,
+  .discovery-service-grid,
   .detail-list {
     grid-template-columns: 1fr;
   }

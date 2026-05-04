@@ -1,6 +1,24 @@
 import type { Schema } from "../../api/types";
 
 export type DiscoveryScopeType = Schema<"DiscoveryScopeType">;
+export type DiscoveryScopeInputType = "cidr" | "host";
+
+export const discoveryServiceOptions = [
+  { id: "https", label: "HTTPS / TLS", ports: [443] },
+  { id: "ssh", label: "SSH", ports: [22] },
+  { id: "mqtt", label: "MQTT over TLS", ports: [8883] },
+  { id: "postgresql", label: "PostgreSQL TLS", ports: [5432] },
+  { id: "ike", label: "IKE / IPsec", ports: [500, 4500] },
+  { id: "smtp-starttls", label: "SMTP STARTTLS", ports: [25] },
+  { id: "submission-starttls", label: "Submission STARTTLS", ports: [587] },
+  { id: "smtps", label: "SMTPS", ports: [465] },
+  { id: "imap-starttls", label: "IMAP STARTTLS", ports: [143] },
+  { id: "imaps", label: "IMAPS", ports: [993] },
+  { id: "pop3-starttls", label: "POP3 STARTTLS", ports: [110] },
+  { id: "pop3s", label: "POP3S", ports: [995] }
+] as const;
+
+export type DiscoveryServiceId = (typeof discoveryServiceOptions)[number]["id"];
 
 export type DiscoveryCreateParseResult = {
   payload: Schema<"DiscoveryCreate"> | null;
@@ -8,12 +26,11 @@ export type DiscoveryCreateParseResult = {
 };
 
 export function buildDiscoveryCreatePayload(
-  scopeType: DiscoveryScopeType,
+  scopeType: DiscoveryScopeInputType,
   scopeValue: string,
-  portsText: string,
-  includeDefaultPorts: boolean
+  serviceIds: DiscoveryServiceId[]
 ): DiscoveryCreateParseResult {
-  const ports = parsePorts(portsText);
+  const ports = portsForServices(serviceIds);
   const errors: string[] = [];
   const normalizedScopeValue = scopeValue.trim();
 
@@ -22,42 +39,52 @@ export function buildDiscoveryCreatePayload(
   } else if (!isValidScopeValue(scopeType, normalizedScopeValue)) {
     errors.push("탐색 대상 형식이 올바르지 않습니다.");
   }
-  if (!ports.valid) {
-    errors.push("포트는 1부터 65535까지의 중복 없는 정수여야 합니다.");
+  if (ports.length === 0) {
+    errors.push("하나 이상의 서비스를 선택하세요.");
   }
   if (errors.length > 0) {
     return { payload: null, errors };
   }
 
+  const payloadScopeType = resolvePayloadScopeType(scopeType, normalizedScopeValue);
+
   return {
     payload: {
-      scope_type: scopeType,
+      scope_type: payloadScopeType,
       scope_value: normalizedScopeValue,
-      ports: ports.values,
-      include_default_ports: includeDefaultPorts
+      ports,
+      include_default_ports: false
     },
     errors: []
   };
 }
 
-function parsePorts(value: string): { valid: true; values: number[] } | { valid: false; values: number[] } {
-  const parts = value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  const parsed = parts.map((item) => Number(item));
-  const unique = Array.from(new Set(parsed));
-  const valid = parsed.every((port) => Number.isInteger(port) && port >= 1 && port <= 65535) && unique.length === parsed.length;
-  return valid ? { valid: true, values: parsed } : { valid: false, values: [] };
+function portsForServices(serviceIds: DiscoveryServiceId[]): number[] {
+  const selected = new Set(serviceIds);
+  const ports = discoveryServiceOptions
+    .filter((service) => selected.has(service.id))
+    .flatMap((service) => service.ports);
+  return Array.from(new Set(ports));
 }
 
-function isValidScopeValue(scopeType: DiscoveryScopeType, value: string): boolean {
+function isValidScopeValue(scopeType: DiscoveryScopeInputType, value: string): boolean {
   if (scopeType === "cidr") {
     return /^[0-9A-Fa-f:.]+\/\d{1,3}$/.test(value);
   }
-  if (scopeType === "ip") {
-    return /^[0-9A-Fa-f:.]+$/.test(value) && (value.includes(".") || value.includes(":"));
+  return isIpLiteral(value) || isDomainName(value);
+}
+
+function resolvePayloadScopeType(scopeType: DiscoveryScopeInputType, value: string): DiscoveryScopeType {
+  if (scopeType === "cidr") {
+    return "cidr";
   }
+  return isIpLiteral(value) ? "ip" : "domain";
+}
+
+function isIpLiteral(value: string): boolean {
+  return /^[0-9A-Fa-f:.]+$/.test(value) && (value.includes(".") || value.includes(":"));
+}
+
+function isDomainName(value: string): boolean {
   return value.length <= 253 && !/[/:]/.test(value) && value.split(".").every((label) => /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label));
 }
