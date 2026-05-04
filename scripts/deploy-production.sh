@@ -13,7 +13,8 @@ HEALTHCHECK_DELAY_SECONDS="${HEALTHCHECK_DELAY_SECONDS:-2}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-$HOME/.local/state/crypto-scanner-deploy}"
 SEED_TESTBED_DEMO_ON_DEPLOY="${SEED_TESTBED_DEMO_ON_DEPLOY:-1}"
 SEED_TESTBED_DEMO_FORCE="${SEED_TESTBED_DEMO_FORCE:-0}"
-SEED_TESTBED_DEMO_VERSION="${SEED_TESTBED_DEMO_VERSION:-20260504-production-testbed}"
+SEED_TESTBED_DEMO_RESET_DB="${SEED_TESTBED_DEMO_RESET_DB:-1}"
+SEED_TESTBED_DEMO_VERSION="${SEED_TESTBED_DEMO_VERSION:-20260504-production-testbed-reset}"
 
 SAFE_UNTRACKED=()
 DOCKER_PREFIX=()
@@ -132,6 +133,11 @@ seed_testbed_demo_if_needed() {
   if [[ -f "$marker" ]] && ! is_truthy "$SEED_TESTBED_DEMO_FORCE"; then
     log "production testbed demo seed already applied: $SEED_TESTBED_DEMO_VERSION"
     return
+  fi
+
+  if is_truthy "$SEED_TESTBED_DEMO_RESET_DB"; then
+    log "flushing database before production testbed demo seed"
+    compose run --rm --entrypoint python backend manage.py flush --noinput
   fi
 
   log "seeding production testbed demo data: $SEED_TESTBED_DEMO_VERSION"
