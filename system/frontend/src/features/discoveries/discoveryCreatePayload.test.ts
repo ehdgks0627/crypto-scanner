@@ -6,15 +6,45 @@ const allServiceIds = discoveryServiceOptions.map((service) => service.id);
 
 describe("buildDiscoveryCreatePayload", () => {
   it("builds ports from selected services", () => {
-    expect(buildDiscoveryCreatePayload("cidr", " 172.20.0.0/24 ", ["https", "ssh", "ike"])).toEqual({
+    expect(buildDiscoveryCreatePayload("cidr", " 172.20.0.0/24 ", ["https-web", "ssh", "ipsec"])).toEqual({
       payload: {
         scope_type: "cidr",
         scope_value: "172.20.0.0/24",
-        ports: [443, 22, 500, 4500],
+        ports: [443, 22, 2222, 500, 4500],
         include_default_ports: false
       },
       errors: []
     });
+  });
+
+  it("covers production-level testbed discovery ports", () => {
+    const result = buildDiscoveryCreatePayload("cidr", "172.20.0.0/16", allServiceIds);
+
+    expect(result.payload).not.toBeNull();
+    expect(result.payload?.ports?.slice().sort((a, b) => a - b)).toEqual([
+      22,
+      25,
+      443,
+      465,
+      500,
+      587,
+      993,
+      995,
+      2222,
+      3306,
+      4500,
+      5000,
+      5432,
+      6380,
+      8200,
+      8443,
+      8883,
+      9090,
+      9093,
+      9200,
+      9443,
+      15017
+    ]);
   });
 
   it("rejects empty service selection", () => {
@@ -25,18 +55,18 @@ describe("buildDiscoveryCreatePayload", () => {
   });
 
   it("resolves combined IP/domain scope values", () => {
-    expect(buildDiscoveryCreatePayload("host", "10.0.0.8", ["https"]).payload).toMatchObject({
+    expect(buildDiscoveryCreatePayload("host", "10.0.0.8", ["https-web"]).payload).toMatchObject({
       scope_type: "ip",
       scope_value: "10.0.0.8"
     });
-    expect(buildDiscoveryCreatePayload("host", "app.testbed.local", ["https"]).payload).toMatchObject({
+    expect(buildDiscoveryCreatePayload("host", "app.testbed.local", ["https-web"]).payload).toMatchObject({
       scope_type: "domain",
       scope_value: "app.testbed.local"
     });
   });
 
   it("requires scope value", () => {
-    const result = buildDiscoveryCreatePayload("cidr", "", ["https"]);
+    const result = buildDiscoveryCreatePayload("cidr", "", ["https-web"]);
 
     expect(result.payload).toBeNull();
     expect(result.errors).toContain("탐색 대상 값이 필요합니다.");
