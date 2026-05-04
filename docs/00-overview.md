@@ -28,7 +28,7 @@ flowchart LR
 
 ### 범위 내 (In Scope)
 
-- **테스트베드**: 9종 서비스 환경 구성 (HTTPS, PQC-TLS, SSH, MQTT, IPsec, Mail, DB, System CA, Package Repo)
+- **테스트베드**: 25개 서비스 환경 구성 (core protocol fixtures + 200~300명 IT 회사 PoC용 enterprise TLS fixtures)
 - **암호자산 식별**: Network Scanner + Agent 기반 File Scanner를 통한 다중 경로 식별
 - **CBOM 생성**: CycloneDX 1.6 CBOM 스펙 기반 + 자체 확장 필드
 - **위험도 평가**: 정량(휴리스틱 + 사용자 입력) + 정성(LLM, 인터페이스만 정의) 하이브리드
@@ -87,7 +87,7 @@ flowchart LR
 |---|---|
 | 00-overview.md | 본 문서. 프로젝트 정보, 범위, 결정사항 요약 |
 | 01-architecture.md | 컴포넌트 아키텍처, 데이터 흐름, 배포 토폴로지 |
-| 02-testbed.md | 테스트베드 9종 서비스 명세, 의도된 취약점 매트릭스 |
+| 02-testbed.md | 테스트베드 25개 서비스 명세, 의도된 취약점 매트릭스 |
 | 03-network-scanner.md | Network Scanner (필수, 기본) 동작 명세, 프로토콜별 식별 로직 |
 | 04-agent.md | Agent (옵션 capability) 동작, 통신 프로토콜, 인증, 등록/트리거 흐름 |
 | 05-cbom-schema.md | CBOM 스키마 (CycloneDX 1.6 + 확장 필드) |

@@ -1024,7 +1024,7 @@ top-level `status` 집계 규칙:
       "error": null
     }
   ],
-  "agents_status": {"total": 3, "active": 3, "stale": 0},
+  "agents_status": {"total": 10, "active": 10, "stale": 0},
   "trend": [
     {"snapshot_id": 53, "created_at": "...", "critical_count": 5, "total_count": 130},
     {"snapshot_id": 54, "created_at": "...", "critical_count": 6, "total_count": 135},

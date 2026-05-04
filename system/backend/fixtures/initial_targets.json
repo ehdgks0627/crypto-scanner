@@ -206,5 +206,293 @@
       "agent_url": null,
       "context": {"sensitivity": "high", "lifespan_years": 6, "criticality": "high", "exposure": "internal_network", "service_role": "testbed PostgreSQL TLS"}
     }
+  },
+  {
+    "model": "targets.target",
+    "pk": 15,
+    "fields": {
+      "host": "api-gateway.testbed.local",
+      "display_name": "API Gateway",
+      "ip": null,
+      "port": 8443,
+      "protocol_hint": "TLS",
+      "sni": "api-gateway.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 5, "criticality": "critical", "exposure": "public_internet", "service_role": "API gateway and mTLS termination"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 16,
+    "fields": {
+      "host": "admin-console.testbed.local",
+      "display_name": "Admin Console",
+      "ip": null,
+      "port": 443,
+      "protocol_hint": "TLS",
+      "sni": "admin-console.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 5, "criticality": "critical", "exposure": "dmz", "service_role": "privileged admin console"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 17,
+    "fields": {
+      "host": "mobile-api.testbed.local",
+      "display_name": "Mobile API",
+      "ip": null,
+      "port": 443,
+      "protocol_hint": "TLS",
+      "sni": "mobile-api.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 4, "criticality": "high", "exposure": "public_internet", "service_role": "mobile API"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 18,
+    "fields": {
+      "host": "auth-oidc.testbed.local",
+      "display_name": "OIDC Provider",
+      "ip": null,
+      "port": 443,
+      "protocol_hint": "TLS",
+      "sni": "auth-oidc.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 7, "criticality": "critical", "exposure": "dmz", "service_role": "OIDC signing and token service"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 19,
+    "fields": {
+      "host": "saml-idp.testbed.local",
+      "display_name": "SAML Identity Provider",
+      "ip": null,
+      "port": 443,
+      "protocol_hint": "TLS",
+      "sni": "saml-idp.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 7, "criticality": "critical", "exposure": "internal_network", "service_role": "SAML signing and encryption"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 20,
+    "fields": {
+      "host": "mysql-legacy.testbed.local",
+      "display_name": "Legacy MySQL TLS",
+      "ip": null,
+      "port": 3306,
+      "protocol_hint": "TLS",
+      "sni": "mysql-legacy.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 8, "criticality": "high", "exposure": "internal_network", "service_role": "legacy MySQL TLS endpoint"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 21,
+    "fields": {
+      "host": "redis-cache.testbed.local",
+      "display_name": "Redis Cache TLS",
+      "ip": null,
+      "port": 6380,
+      "protocol_hint": "TLS",
+      "sni": "redis-cache.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 2, "criticality": "medium", "exposure": "internal_network", "service_role": "Redis TLS cache"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 22,
+    "fields": {
+      "host": "kafka-broker.testbed.local",
+      "display_name": "Kafka Broker TLS",
+      "ip": null,
+      "port": 9093,
+      "protocol_hint": "TLS",
+      "sni": "kafka-broker.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 5, "criticality": "high", "exposure": "internal_network", "service_role": "Kafka broker TLS"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 23,
+    "fields": {
+      "host": "internal-grpc.testbed.local",
+      "display_name": "Internal gRPC Service",
+      "ip": null,
+      "port": 8443,
+      "protocol_hint": "TLS",
+      "sni": "internal-grpc.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 4, "criticality": "high", "exposure": "internal_network", "service_role": "internal gRPC over TLS"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 24,
+    "fields": {
+      "host": "service-mesh-mtls.testbed.local",
+      "display_name": "Service Mesh mTLS Control Plane",
+      "ip": null,
+      "port": 15017,
+      "protocol_hint": "TLS",
+      "sni": "service-mesh-mtls.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 4, "criticality": "critical", "exposure": "internal_network", "service_role": "service mesh mTLS control plane"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 25,
+    "fields": {
+      "host": "gitlab-runner.testbed.local",
+      "display_name": "CI Runner Control",
+      "ip": null,
+      "port": 9443,
+      "protocol_hint": "TLS",
+      "sni": "gitlab-runner.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 3, "criticality": "high", "exposure": "internal_network", "service_role": "CI runner control endpoint"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 26,
+    "fields": {
+      "host": "container-registry.testbed.local",
+      "display_name": "Container Registry",
+      "ip": null,
+      "port": 5000,
+      "protocol_hint": "TLS",
+      "sni": "container-registry.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 6, "criticality": "high", "exposure": "internal_network", "service_role": "container registry and image signing"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 27,
+    "fields": {
+      "host": "artifact-repo.testbed.local",
+      "display_name": "Artifact Repository",
+      "ip": null,
+      "port": 8443,
+      "protocol_hint": "TLS",
+      "sni": "artifact-repo.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 6, "criticality": "high", "exposure": "internal_network", "service_role": "package and artifact repository"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 28,
+    "fields": {
+      "host": "vault.testbed.local",
+      "display_name": "Vault KMS",
+      "ip": null,
+      "port": 8200,
+      "protocol_hint": "TLS",
+      "sni": "vault.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "critical", "lifespan_years": 10, "criticality": "critical", "exposure": "internal_network", "service_role": "Vault KMS and transit keys"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 29,
+    "fields": {
+      "host": "backup-service.testbed.local",
+      "display_name": "Backup Encryption Service",
+      "ip": null,
+      "port": 8443,
+      "protocol_hint": "TLS",
+      "sni": "backup-service.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "critical", "lifespan_years": 12, "criticality": "critical", "exposure": "internal_network", "service_role": "backup encryption control plane"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 30,
+    "fields": {
+      "host": "monitoring.testbed.local",
+      "display_name": "Monitoring",
+      "ip": null,
+      "port": 9090,
+      "protocol_hint": "TLS",
+      "sni": "monitoring.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "medium", "lifespan_years": 3, "criticality": "medium", "exposure": "internal_network", "service_role": "monitoring endpoint"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 31,
+    "fields": {
+      "host": "logging.testbed.local",
+      "display_name": "Logging Search",
+      "ip": null,
+      "port": 9200,
+      "protocol_hint": "TLS",
+      "sni": "logging.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": false,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 5, "criticality": "high", "exposure": "internal_network", "service_role": "logging search endpoint"}
+    }
+  },
+  {
+    "model": "targets.target",
+    "pk": 32,
+    "fields": {
+      "host": "legacy-java-app.testbed.local",
+      "display_name": "Legacy Java App",
+      "ip": null,
+      "port": 8443,
+      "protocol_hint": "TLS",
+      "sni": "legacy-java-app.testbed.local",
+      "transport": "TCP",
+      "agent_enabled": true,
+      "agent_url": null,
+      "context": {"sensitivity": "high", "lifespan_years": 9, "criticality": "high", "exposure": "internal_network", "service_role": "legacy Java JKS application"}
+    }
   }
 ]

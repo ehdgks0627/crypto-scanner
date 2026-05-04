@@ -36,6 +36,20 @@ class DemoAsset:
 
 
 TARGET_FIXTURE = Path(settings.BASE_DIR) / "fixtures/initial_targets.json"
+SCAN_SCANNERS = ["network", "agent.cert_store", "agent.ssh_userkey", "agent.ssh_config", "agent.keystore", "agent.pkg_keyring", "agent.app_config"]
+DISCOVERY_PORTS = [22, 25, 443, 465, 587, 993, 995, 500, 2222, 3306, 4500, 5000, 5432, 6380, 8200, 8443, 8883, 9090, 9093, 9200, 9443, 15017]
+AGENT_FIXTURES = [
+    ("web.testbed.local", ["cert_store", "app_cert_files", "app_config"], "Ubuntu 24.04", True),
+    ("ssh.testbed.local", ["ssh_userkey", "ssh_config", "pkg_keyring"], "Ubuntu 24.04", True),
+    ("db.testbed.local", ["cert_store", "keystore", "pkg_keyring"], "Debian 12", True),
+    ("api-gateway.testbed.local", ["cert_store", "app_config", "keystore"], "Ubuntu 24.04", True),
+    ("auth-oidc.testbed.local", ["cert_store", "app_config", "keystore"], "Ubuntu 24.04", True),
+    ("saml-idp.testbed.local", ["cert_store", "app_config"], "Ubuntu 24.04", True),
+    ("container-registry.testbed.local", ["cert_store", "pkg_keyring", "app_config"], "Ubuntu 24.04", True),
+    ("vault.testbed.local", ["cert_store", "keystore", "app_config"], "Ubuntu 24.04", True),
+    ("backup-service.testbed.local", ["cert_store", "keystore", "app_config"], "Debian 12", True),
+    ("legacy-java-app.testbed.local", ["cert_store", "keystore", "app_config"], "RHEL 8", True),
+]
 
 
 LATEST_ASSETS = [
@@ -83,6 +97,24 @@ DISCOVERY_ENDPOINTS = [
     ("172.20.60.10", 5432, "TCP", "PostgreSQL TLS", "UNKNOWN", True, ("db.testbed.local", 5432, "TCP")),
     ("172.20.60.11", 8443, "TCP", "TLS", "TLS", False, None),
     ("172.20.70.20", 2222, "TCP", "SSH", "SSH", False, None),
+    ("172.20.10.20", 8443, "TCP", "TLS", "TLS", True, ("api-gateway.testbed.local", 8443, "TCP")),
+    ("172.20.10.21", 443, "TCP", "TLS", "TLS", True, ("admin-console.testbed.local", 443, "TCP")),
+    ("172.20.10.22", 443, "TCP", "TLS", "TLS", True, ("mobile-api.testbed.local", 443, "TCP")),
+    ("172.20.20.20", 443, "TCP", "TLS", "TLS", True, ("auth-oidc.testbed.local", 443, "TCP")),
+    ("172.20.20.21", 443, "TCP", "TLS", "TLS", True, ("saml-idp.testbed.local", 443, "TCP")),
+    ("172.20.60.20", 3306, "TCP", "TLS", "TLS", True, ("mysql-legacy.testbed.local", 3306, "TCP")),
+    ("172.20.60.21", 6380, "TCP", "TLS", "TLS", True, ("redis-cache.testbed.local", 6380, "TCP")),
+    ("172.20.60.22", 9093, "TCP", "TLS", "TLS", True, ("kafka-broker.testbed.local", 9093, "TCP")),
+    ("172.20.70.10", 8443, "TCP", "TLS", "TLS", True, ("internal-grpc.testbed.local", 8443, "TCP")),
+    ("172.20.70.11", 15017, "TCP", "TLS", "TLS", True, ("service-mesh-mtls.testbed.local", 15017, "TCP")),
+    ("172.20.80.10", 9443, "TCP", "TLS", "TLS", True, ("gitlab-runner.testbed.local", 9443, "TCP")),
+    ("172.20.80.11", 5000, "TCP", "TLS", "TLS", True, ("container-registry.testbed.local", 5000, "TCP")),
+    ("172.20.80.12", 8443, "TCP", "TLS", "TLS", True, ("artifact-repo.testbed.local", 8443, "TCP")),
+    ("172.20.90.10", 8200, "TCP", "TLS", "TLS", True, ("vault.testbed.local", 8200, "TCP")),
+    ("172.20.90.11", 8443, "TCP", "TLS", "TLS", True, ("backup-service.testbed.local", 8443, "TCP")),
+    ("172.20.100.10", 9090, "TCP", "TLS", "TLS", True, ("monitoring.testbed.local", 9090, "TCP")),
+    ("172.20.100.11", 9200, "TCP", "TLS", "TLS", True, ("logging.testbed.local", 9200, "TCP")),
+    ("172.20.110.10", 8443, "TCP", "TLS", "TLS", True, ("legacy-java-app.testbed.local", 8443, "TCP")),
 ]
 
 DEMO_DEPENDENCIES = [
@@ -132,7 +164,7 @@ class Command(BaseCommand):
         CbomSnapshot.objects.filter(serial_number__startswith=SERIAL_PREFIX).delete()
         AsyncJob.objects.filter(request_payload__scenario=SCENARIO).delete()
         Discovery.objects.filter(cidr="172.20.0.0/16").delete()
-        Agent.objects.filter(hostname__in=["web.testbed.local", "ssh.testbed.local", "db.testbed.local"]).delete()
+        Agent.objects.filter(hostname__in=[hostname for hostname, *_ in AGENT_FIXTURES]).delete()
 
     def _seed_targets(self):
         targets = {}
@@ -156,12 +188,8 @@ class Command(BaseCommand):
         return targets
 
     def _seed_agents(self, now):
-        agents = [
-            ("web.testbed.local", ["cert_store", "app_cert_files", "app_config"], "Ubuntu 24.04", True, now - timedelta(minutes=4)),
-            ("ssh.testbed.local", ["ssh_userkey", "ssh_config", "pkg_keyring"], "Ubuntu 24.04", True, now - timedelta(minutes=11)),
-            ("db.testbed.local", ["cert_store", "keystore", "pkg_keyring"], "Debian 12", True, now - timedelta(hours=7)),
-        ]
-        for hostname, capabilities, os_distribution, active, last_seen in agents:
+        for index, (hostname, capabilities, os_distribution, active) in enumerate(AGENT_FIXTURES):
+            last_seen = now - timedelta(minutes=4 + (index * 7))
             Agent.objects.update_or_create(
                 hostname=hostname,
                 defaults={
@@ -176,15 +204,16 @@ class Command(BaseCommand):
             )
 
     def _seed_scan_job(self, targets, now):
+        total_scan_runs = self._scan_run_count(targets, SCAN_SCANNERS)
         async_job = AsyncJob.objects.create(
             kind="scan_job",
             status=AsyncJob.COMPLETED,
             request_payload={
                 "scenario": SCENARIO,
                 "target_ids": [target.id for target in targets.values()],
-                "scanners": ["network", "agent.cert_store", "agent.ssh_userkey", "agent.ssh_config", "agent.keystore", "agent.pkg_keyring"],
+                "scanners": SCAN_SCANNERS,
             },
-            progress={"completed": 78, "total": 78},
+            progress={"completed": total_scan_runs, "total": total_scan_runs},
             started_at=now - timedelta(minutes=55),
             finished_at=now - timedelta(minutes=38),
             result={"snapshot_serial": f"{SERIAL_PREFIX}-latest", "findings_count": len(LATEST_ASSETS)},
@@ -192,7 +221,7 @@ class Command(BaseCommand):
         scan_job = ScanJob.objects.create(
             async_job=async_job,
             target_ids=[target.id for target in targets.values()],
-            scanner_selection=["network", "agent.cert_store", "agent.ssh_userkey", "agent.ssh_config", "agent.keystore", "agent.pkg_keyring"],
+            scanner_selection=SCAN_SCANNERS,
         )
         async_job.resource_id = scan_job.id
         async_job.save(update_fields=["resource_id"])
@@ -202,7 +231,7 @@ class Command(BaseCommand):
         return scan_job
 
     def _seed_scan_logs(self, async_job, targets, now):
-        scanner_kinds = ["network", "agent.cert_store", "agent.ssh_userkey", "agent.ssh_config", "agent.keystore", "agent.pkg_keyring"]
+        scanner_kinds = SCAN_SCANNERS
         target_list = list(targets.values())
         for index, target in enumerate(target_list):
             for scanner_index, scanner_kind in enumerate(scanner_kinds):
@@ -219,6 +248,14 @@ class Command(BaseCommand):
                     started_at=started_at,
                     finished_at=finished_at,
                 )
+
+    def _scan_run_count(self, targets, scanner_kinds):
+        return sum(
+            1
+            for target in targets.values()
+            for scanner_kind in scanner_kinds
+            if not scanner_kind.startswith("agent.") or target.agent_enabled
+        )
 
     def _seed_snapshot(self, label, assets, targets, scan_job, created_at):
         serial = f"{SERIAL_PREFIX}-{label}"
@@ -350,19 +387,20 @@ class Command(BaseCommand):
         )
 
     def _seed_discovery(self, targets, created_at):
+        promoted_count = sum(1 for *_, promoted, target_key in DISCOVERY_ENDPOINTS if promoted and target_key)
         async_job = AsyncJob.objects.create(
             kind="discovery",
             status=AsyncJob.COMPLETED,
-            request_payload={"scenario": SCENARIO, "cidr": "172.20.0.0/16", "ports": [22, 25, 443, 465, 587, 993, 995, 500, 4500, 5432, 8883]},
-            progress={"completed": 15, "total": 15},
+            request_payload={"scenario": SCENARIO, "cidr": "172.20.0.0/16", "ports": DISCOVERY_PORTS},
+            progress={"completed": len(DISCOVERY_ENDPOINTS), "total": len(DISCOVERY_ENDPOINTS)},
             started_at=created_at,
             finished_at=created_at + timedelta(minutes=6),
-            result={"endpoint_count": len(DISCOVERY_ENDPOINTS), "promoted_count": 13},
+            result={"endpoint_count": len(DISCOVERY_ENDPOINTS), "promoted_count": promoted_count},
         )
         discovery = Discovery.objects.create(
             async_job=async_job,
             cidr="172.20.0.0/16",
-            ports=[22, 25, 443, 465, 587, 993, 995, 500, 4500, 5432, 8883],
+            ports=DISCOVERY_PORTS,
             include_default_ports=True,
             status=AsyncJob.COMPLETED,
             started_at=async_job.started_at,
@@ -406,6 +444,7 @@ class Command(BaseCommand):
 
     def _seed_failed_scan_job(self, targets, created_at):
         db_target = targets[("db.testbed.local", 5432, "TCP")]
+        target_count = len(targets)
         async_job = AsyncJob.objects.create(
             kind="scan_job",
             status=AsyncJob.FAILED,
@@ -414,7 +453,7 @@ class Command(BaseCommand):
                 "target_ids": [target.id for target in targets.values()],
                 "scanners": ["network", "agent.keystore", "agent.pkg_keyring"],
             },
-            progress={"completed": 11, "total": 13, "current_target": "db.testbed.local", "current_scanner": "agent.keystore"},
+            progress={"completed": min(11, target_count), "total": target_count, "current_target": "db.testbed.local", "current_scanner": "agent.keystore"},
             started_at=created_at,
             finished_at=created_at + timedelta(minutes=1),
             error={"code": "agent_stale", "message": "db.testbed.local agent did not report within freshness window."},

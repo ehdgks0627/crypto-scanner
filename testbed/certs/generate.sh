@@ -93,7 +93,9 @@ EOF
     -days "$days" \
     -subj "/CN=$cn/O=Crypto Scanner Testbed" \
     -out "$out_dir/server.crt" \
-    -extfile "$ext_file"
+    -addext "subjectAltName=DNS:$cn" \
+    -addext "extendedKeyUsage=serverAuth" \
+    -addext "keyUsage=digitalSignature,keyEncipherment"
   chmod 600 "$out_dir/server.key"
   chmod 644 "$out_dir/server.crt"
   cp "$out_dir/server.crt" "$out_dir/ca.crt"
@@ -107,6 +109,25 @@ sign_cert "mail" "mail.testbed.local" "rsa" "2048"
 sign_cert "mail-imaps" "mail.testbed.local" "ec" "prime256v1"
 sign_self_signed_cert "db" "db.testbed.local" "rsa" "1024"
 sign_cert "ipsec" "ipsec.testbed.local" "rsa" "2048"
+
+sign_cert "api-gateway" "api-gateway.testbed.local" "rsa" "2048"
+sign_cert "admin-console" "admin-console.testbed.local" "ec" "prime256v1"
+sign_cert "mobile-api" "mobile-api.testbed.local" "rsa" "2048"
+sign_cert "auth-oidc" "auth-oidc.testbed.local" "rsa" "2048"
+sign_cert "saml-idp" "saml-idp.testbed.local" "rsa" "2048"
+sign_self_signed_cert "mysql-legacy" "mysql-legacy.testbed.local" "rsa" "1024"
+sign_cert "redis-cache" "redis-cache.testbed.local" "rsa" "2048"
+sign_cert "kafka-broker" "kafka-broker.testbed.local" "ec" "prime256v1"
+sign_cert "internal-grpc" "internal-grpc.testbed.local" "rsa" "2048"
+sign_cert "service-mesh-mtls" "service-mesh-mtls.testbed.local" "ec" "prime256v1"
+sign_cert "gitlab-runner" "gitlab-runner.testbed.local" "rsa" "2048"
+sign_cert "container-registry" "container-registry.testbed.local" "ec" "prime256v1"
+sign_cert "artifact-repo" "artifact-repo.testbed.local" "rsa" "2048"
+sign_cert "vault" "vault.testbed.local" "rsa" "4096"
+sign_cert "backup-service" "backup-service.testbed.local" "rsa" "2048"
+sign_cert "monitoring" "monitoring.testbed.local" "rsa" "2048"
+sign_cert "logging" "logging.testbed.local" "rsa" "2048"
+sign_self_signed_cert "legacy-java-app" "legacy-java-app.testbed.local" "rsa" "1024"
 
 if [[ "$FORCE_CERT_REGEN" == "1" || ! -f "$ROOT_DIR/db/keystore.p12" ]]; then
   openssl pkcs12 -export \

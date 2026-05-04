@@ -16,18 +16,45 @@
 
 ## 2.2 서비스 일람
 
+테스트베드는 200~300명 규모 IT 회사의 PoC를 가정해 **25개 서비스**로 구성한다. 실제 프로토콜 동작이 중요한 7개는 전용 fixture로 유지하고, 나머지 18개는 가벼운 공통 TLS fixture로 서비스 경계·호스트명·인증서·Agent 식별 시나리오를 제공한다.
+
+### 2.2.1 Core protocol fixtures
+
 | # | 서비스 | 호스트네임 | 포트 | 베이스 이미지 | Agent | 시연 시나리오 |
 |---|---|---|---|---|---|---|
 | 1 | HTTPS Web Server | `web.testbed.local` | 443/TCP | `nginx:1.27-alpine` | ✓ | 협조 가능 호스트 (Agent로 시스템 CA·미사용 인증서까지 식별) |
-| 2 | PQC-enabled TLS Server | `pqc-tls.testbed.local` | 443/TCP | OQS Provider 기반 빌드 | ✗ | 외부 시점 스캔만 (전환 후 자산 참조 예시) |
-| 3 | SSH Server | `ssh.testbed.local` | 22/TCP | `linuxserver/openssh-server` | ✓ | 협조 가능 호스트 (사용자 키·`authorized_keys`·`sshd_config` 정책 식별) |
+| 2 | PQC-enabled TLS Server | `pqc-tls.testbed.local` | 443/TCP | OQS Provider 기반 빌드 예정, 현재 nginx placeholder | ✗ | 외부 시점 스캔만 (전환 후 자산 참조 예시) |
+| 3 | SSH Server | `ssh.testbed.local` | 22/TCP | `linuxserver/openssh-server` 계열 fixture | ✓ | 협조 가능 호스트 (사용자 키·`authorized_keys`·`sshd_config` 정책 식별) |
 | 4 | MQTT Broker | `mqtt.testbed.local` | 8883/TCP | `eclipse-mosquitto:2` | ✗ | 외부 시점 스캔만 |
 | 5 | IPsec Gateway | `ipsec.testbed.local` | 500, 4500/UDP | `strongx509/strongswan` (digest pin) | ✗ | 외부 시점 스캔만 (IKE_SA_INIT 분석) |
-| 6 | Mail Server | `mail.testbed.local` | 25, 465, 587, 993, 995/TCP | postfix+dovecot 자체 구성 | ✗ | 외부 시점 스캔만 (멀티 포트, 포트별 cert 다양성) |
+| 6 | Mail Server | `mail.testbed.local` | 25, 465, 587, 993, 995/TCP | 자체 경량 fixture | ✗ | 외부 시점 스캔만 (멀티 포트, 포트별 cert 다양성) |
 | 7 | Database Server | `db.testbed.local` | 5432/TCP | `postgres:16` (TLS 활성) | ✓ | 협조 가능 호스트 (keystore·약한 키 파일까지 식별) |
 
-**Agent 탑재 그룹** (3개): web, ssh, db
-**Agent 미탑재 그룹** (4개): pqc-tls, mqtt, ipsec, mail
+### 2.2.2 Enterprise TLS fixtures
+
+| # | 서비스 | 호스트네임 | 포트 | Fixture | Agent | 시연 시나리오 |
+|---|---|---|---|---|---|---|
+| 8 | API Gateway | `api-gateway.testbed.local` | 8443/TCP | TLS fixture | ✓ | 공개 API/mTLS 종단, JWT signing key |
+| 9 | Admin Console | `admin-console.testbed.local` | 443/TCP | TLS fixture | ✗ | 권한 관리 콘솔 |
+| 10 | Mobile API | `mobile-api.testbed.local` | 443/TCP | TLS fixture | ✗ | 외부 모바일 API |
+| 11 | OIDC Provider | `auth-oidc.testbed.local` | 443/TCP | TLS fixture | ✓ | OIDC JWKS/signing key |
+| 12 | SAML Identity Provider | `saml-idp.testbed.local` | 443/TCP | TLS fixture | ✓ | SAML signing/encryption cert |
+| 13 | Legacy MySQL TLS | `mysql-legacy.testbed.local` | 3306/TCP | TLS fixture | ✗ | TLS 1.2 + RSA-1024 legacy DB |
+| 14 | Redis Cache TLS | `redis-cache.testbed.local` | 6380/TCP | TLS fixture | ✗ | Cache TLS endpoint |
+| 15 | Kafka Broker TLS | `kafka-broker.testbed.local` | 9093/TCP | TLS fixture | ✗ | Event bus TLS endpoint |
+| 16 | Internal gRPC Service | `internal-grpc.testbed.local` | 8443/TCP | TLS fixture | ✗ | 내부 서비스 TLS |
+| 17 | Service Mesh mTLS Control Plane | `service-mesh-mtls.testbed.local` | 15017/TCP | TLS fixture | ✗ | TLS 1.3 mTLS control plane |
+| 18 | CI Runner Control | `gitlab-runner.testbed.local` | 9443/TCP | TLS fixture | ✗ | CI/CD runner control endpoint |
+| 19 | Container Registry | `container-registry.testbed.local` | 5000/TCP | TLS fixture | ✓ | Registry cert + image signing key |
+| 20 | Artifact Repository | `artifact-repo.testbed.local` | 8443/TCP | TLS fixture | ✗ | Package/artifact repository |
+| 21 | Vault KMS | `vault.testbed.local` | 8200/TCP | TLS fixture | ✓ | KMS/transit key metadata |
+| 22 | Backup Encryption Service | `backup-service.testbed.local` | 8443/TCP | TLS fixture | ✓ | 장기 보관 백업 암호화 키 |
+| 23 | Monitoring | `monitoring.testbed.local` | 9090/TCP | TLS fixture | ✗ | 운영 관측 엔드포인트 |
+| 24 | Logging Search | `logging.testbed.local` | 9200/TCP | TLS fixture | ✗ | 로그 검색 엔드포인트 |
+| 25 | Legacy Java App | `legacy-java-app.testbed.local` | 8443/TCP | TLS fixture | ✓ | JKS/RSA-1024 legacy app |
+
+**Agent 탑재 그룹** (10개): web, ssh, db, api-gateway, auth-oidc, saml-idp, container-registry, vault, backup-service, legacy-java-app
+**Agent 미탑재 그룹** (15개): 그 외 서비스
 
 > **System CA Certificates** 와 **Package Repository Certificates** 는 별도 서비스가 아니라, **Agent가 탑재된 호스트에서 추가로 발견되는 자산 타입**이다. Agent 미탑재 호스트에서는 단순히 발견되지 않는 것이며, "식별 불가" 같은 별도 표기를 하지 않는다 (CBOM에는 발견된 자산만 들어간다).
 
@@ -45,6 +72,24 @@
 | `ipsec.testbed.local` | `tb-ipsec` | 172.31.240.14 |
 | `mail.testbed.local` | `tb-mail` | 172.31.240.15 |
 | `db.testbed.local` | `tb-db` | 172.31.240.16 |
+| `api-gateway.testbed.local` | `tb-api-gateway` | 172.31.240.21 |
+| `admin-console.testbed.local` | `tb-admin-console` | 172.31.240.22 |
+| `mobile-api.testbed.local` | `tb-mobile-api` | 172.31.240.23 |
+| `auth-oidc.testbed.local` | `tb-auth-oidc` | 172.31.240.24 |
+| `saml-idp.testbed.local` | `tb-saml-idp` | 172.31.240.25 |
+| `mysql-legacy.testbed.local` | `tb-mysql-legacy` | 172.31.240.26 |
+| `redis-cache.testbed.local` | `tb-redis-cache` | 172.31.240.27 |
+| `kafka-broker.testbed.local` | `tb-kafka-broker` | 172.31.240.28 |
+| `internal-grpc.testbed.local` | `tb-internal-grpc` | 172.31.240.29 |
+| `service-mesh-mtls.testbed.local` | `tb-service-mesh-mtls` | 172.31.240.30 |
+| `gitlab-runner.testbed.local` | `tb-gitlab-runner` | 172.31.240.31 |
+| `container-registry.testbed.local` | `tb-container-registry` | 172.31.240.32 |
+| `artifact-repo.testbed.local` | `tb-artifact-repo` | 172.31.240.33 |
+| `vault.testbed.local` | `tb-vault` | 172.31.240.34 |
+| `backup-service.testbed.local` | `tb-backup-service` | 172.31.240.35 |
+| `monitoring.testbed.local` | `tb-monitoring` | 172.31.240.36 |
+| `logging.testbed.local` | `tb-logging` | 172.31.240.37 |
+| `legacy-java-app.testbed.local` | `tb-legacy-java-app` | 172.31.240.38 |
 
 ### 2.3.2 호스트 노출 포트
 
@@ -60,8 +105,10 @@
 | 5000/UDP, 45000/UDP | tb-ipsec | IKE/IPsec (`45000`은 호스트 VPN 충돌 회피용 NAT-T host port) |
 | 2525, 4465, 5587, 9993, 9995 /TCP | tb-mail | Mail (호스트 충돌 회피) |
 | 54320/TCP | tb-db | PostgreSQL |
+| 9111~9117/TCP | enterprise agent sidecars | API/OIDC/SAML/Registry/Vault/Backup/Legacy Java mock agents |
 
 > 시스템 스택의 Network Scanner는 dnsmasq를 통해 호스트네임 → 내부 IP를 직접 사용하므로, 위 호스트 포트는 외부 디버깅/검증용이다. 단, 시스템 스택을 호스트 머신에서 실행하는 경우 위 포트를 사용한다. **상세는 12장 배포 가이드 참고.**
+> Enterprise TLS fixture 서비스들은 기본적으로 호스트 포트를 열지 않는다. 동일 Docker 호스트에서 dnsmasq와 고정 bridge IP로 접근하는 것을 기준으로 한다.
 
 ## 2.4 의도된 취약점 매트릭스 (Vulnerability Matrix)
 
@@ -187,14 +234,29 @@ SSH 호스트(`ssh.testbed.local`)의 Agent가 추가로 식별:
 - `web`: `/etc/nginx/ssl/legacy-rsa1024.pem` (서비스에 미연결, 약한 키)
 - `db`: `/var/lib/postgresql/keystore.p12` (PKCS#12 keystore, 내부에 RSA-2048 키)
 
+### 2.4.12 Enterprise TLS Fixture 자산
+
+18개 확장 서비스는 모두 공통 nginx TLS fixture를 사용한다. 목적은 실제 제품 전체를 무겁게 띄우는 것이 아니라, 200~300명 IT 회사에서 흔한 **서비스 경계와 암호 자산 위치**를 재현하는 것이다.
+
+| 서비스군 | 대표 호스트 | 네트워크 자산 | Agent 추가 자산 |
+|---|---|---|---|
+| Public/API | `api-gateway`, `admin-console`, `mobile-api` | RSA/ECDSA TLS cert, 공개/DMZ exposure | API Gateway의 JWKS, mTLS trust bundle |
+| Identity | `auth-oidc`, `saml-idp` | TLS cert | OIDC JWKS, SAML signing/encryption cert |
+| Data platform | `mysql-legacy`, `redis-cache`, `kafka-broker` | TLS cert, legacy RSA-1024, ECDSA P-256 | 없음 |
+| Internal platform | `internal-grpc`, `service-mesh-mtls` | TLS/mTLS control-plane cert, TLS 1.3 policy | 없음 |
+| DevOps/Supply chain | `gitlab-runner`, `container-registry`, `artifact-repo` | TLS cert | Registry image signing key |
+| Secrets/Backup | `vault`, `backup-service` | RSA-4096/RSA-2048 TLS cert | KMS/transit key reference, backup encryption key metadata |
+| Observability | `monitoring`, `logging` | TLS cert | 없음 |
+| Legacy app | `legacy-java-app` | TLS 1.2, RSA-1024 cert | JKS keystore, TLS properties |
+
 ## 2.5 알고리즘 다양성 요약 (Algorithm Coverage Matrix)
 
 | 알고리즘 | 사용처 |
 |---|---|
-| RSA-1024 | DB Server (의도적 약한 키) |
-| RSA-2048 | HTTPS, MQTT, Mail, IPsec, SSH host key |
-| RSA-4096 | HTTPS root CA, MQTT, Package Repo (PGP) |
-| ECDSA P-256 | HTTPS (web-ec), Mail (993), SSH host key |
+| RSA-1024 | DB Server, Legacy MySQL, Legacy Java App (의도적 약한 키) |
+| RSA-2048 | HTTPS, MQTT, Mail, IPsec, SSH host key, API/OIDC/SAML/Backup/Observability fixtures |
+| RSA-4096 | HTTPS root CA, MQTT, Package Repo (PGP), Vault/KMS fixture |
+| ECDSA P-256 | HTTPS (web-ec), Mail (993), SSH host key, Admin Console, Kafka, Service Mesh, Registry |
 | ECDSA P-384 | HTTPS intermediate (web-ec) |
 | Ed25519 | SSH host key, Package Repo (PGP) |
 | DH (modp2048) | IPsec (Group 14) |
@@ -217,6 +279,7 @@ testbed/
 │   ├── generate.sh           # 모든 인증서 일괄 생성
 │   ├── ca/                   # 자체 CA
 │   ├── web/, web-ec/, mqtt/, mail/, db/, ipsec/, pqc-tls/
+│   └── api-gateway/, auth-oidc/, saml-idp/, vault/, ... # enterprise fixtures
 ├── services/
 │   ├── web/                  # Agent 탑재
 │   │   ├── Dockerfile        # nginx + agent
@@ -234,27 +297,26 @@ testbed/
 │   │   └── ipsec.secrets
 │   ├── mail/                 # Agent 미탑재
 │   │   └── postfix/, dovecot/ 설정
-│   └── db/                   # Agent 탑재
+│   ├── db/                   # Agent 탑재
 │       ├── Dockerfile
 │       └── postgresql.conf, pg_hba.conf
+│   └── tls-fixture/          # 18개 enterprise TLS fixture 공통 nginx template
 └── agent/
-    ├── Dockerfile             # Agent 베이스 (탑재 호스트 3개에서 사용)
-    ├── agent.py
-    └── requirements.txt
+    └── mock_agent.py          # 내장 Agent 및 enterprise sidecar Agent 공통 mock
 ```
 
 ## 2.7 Agent 탑재 방식 (탑재 호스트 한정)
 
-Agent를 탑재할 3개 호스트(web, ssh, db)에 한해, 두 가지 방식이 가능하다.
+Agent를 탑재할 core 3개 호스트(web, ssh, db)는 컨테이너 내부 멀티 프로세스 방식을 사용한다. Enterprise TLS fixture 중 Agent가 필요한 7개 호스트는 서비스 컨테이너를 가볍게 유지하기 위해 mock agent sidecar를 사용한다.
 
 | 방식 | 설명 | 채택 |
 |---|---|---|
-| **사이드카 컨테이너** | 같은 네트워크 namespace에 Agent를 별도 컨테이너로 띄움 | 서비스 컨테이너의 파일시스템 접근을 위해 volume share 필요. 복잡함 |
-| **컨테이너 내부 멀티 프로세스** | 서비스 컨테이너의 Dockerfile에 Agent 추가, supervisord/dumb-init로 동시 실행 | ✓ **채택** |
+| **사이드카 컨테이너** | Agent를 별도 컨테이너로 띄움 | ✓ Enterprise fixture 7개에 채택 |
+| **컨테이너 내부 멀티 프로세스** | 서비스 컨테이너의 Dockerfile에 Agent 추가, supervisord/dumb-init로 동시 실행 | ✓ Core 3개에 채택 |
 
-> 단순성과 파일시스템 직접 접근을 위해 **컨테이너 내부 멀티 프로세스**로 통일한다. Agent 탑재 호스트 3개의 베이스 이미지를 약간 확장하여 Agent를 함께 실행한다.
+> Core 서비스는 파일시스템 직접 접근을 보여주기 위해 컨테이너 내부 멀티 프로세스를 유지한다. Enterprise fixture는 서비스 수가 많으므로 sidecar mock으로 Agent 등록·heartbeat·scan API 계약을 검증한다.
 
-> 미탑재 호스트(pqc-tls, mqtt, ipsec, mail)는 베이스 이미지를 그대로 사용한다.
+> 미탑재 호스트는 베이스 이미지 또는 공통 TLS fixture만 실행한다.
 
 > Agent 상세는 `04-agent.md` 참고.
 
@@ -265,7 +327,7 @@ Agent를 탑재할 3개 호스트(web, ssh, db)에 한해, 두 가지 방식이 
 1. `certs/generate.sh` 실행 → 모든 의도된 인증서 생성 (CA 포함, 키 길이/곡선 다양화)
 2. dnsmasq 컨테이너 시작
 3. 각 서비스 컨테이너 시작
-4. **Agent 탑재 호스트(web, ssh, db)** 의 Agent가 백엔드의 `/api/agents/register` 호출 (백엔드 URL은 환경변수로 주입)
+4. **Agent 탑재 호스트 10개** 의 Agent가 백엔드의 `/api/agents/register` 호출 (백엔드 URL은 환경변수로 주입)
 5. 백엔드가 Agent를 등록하고 토큰 발급 → Agent에 응답으로 전달
 
 > 시스템 스택이 먼저 떠 있어야 Agent 등록이 성공한다. **시스템 스택 → 테스트베드 순으로 기동.**

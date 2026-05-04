@@ -17,8 +17,8 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert latest.serial_number == "testbed-demo-latest"
     assert latest.assets.count() == 21
     assert RiskScore.objects.filter(snapshot=latest, tier="CRITICAL").count() == 4
-    assert Target.objects.count() == 13
-    assert Discovery.objects.get(cidr="172.20.0.0/16").endpoints.count() == 15
+    assert Target.objects.count() == 31
+    assert Discovery.objects.get(cidr="172.20.0.0/16").endpoints.count() == 33
 
     response = client.get("/api/dashboard/summary")
 
@@ -29,6 +29,6 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert body["by_tier"]["CRITICAL"] == 4
     assert body["by_tier"]["HIGH"] == 11
     assert body["quantum_vulnerable_ratio"]["vulnerable"] == 17
-    assert body["agents_status"]["total"] == 3
+    assert body["agents_status"]["total"] == 10
     assert len(body["recent_jobs"]) == 5
     assert {job["status"] for job in body["recent_jobs"]} >= {"COMPLETED", "FAILED", "CANCELLED"}

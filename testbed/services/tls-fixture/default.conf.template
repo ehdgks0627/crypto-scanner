@@ -1,0 +1,16 @@
+server {
+  listen ${SERVICE_PORT} ssl;
+  server_name ${SERVICE_HOSTNAME};
+
+  ssl_protocols ${TLS_PROTOCOLS};
+  ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+  ssl_certificate /etc/testbed/certs/service/server.crt;
+  ssl_certificate_key /etc/testbed/certs/service/server.key;
+
+  add_header X-Testbed-Service "${SERVICE_KIND}" always;
+
+  location / {
+    default_type text/plain;
+    return 200 "${SERVICE_HOSTNAME} ${SERVICE_KIND} fixture\n";
+  }
+}

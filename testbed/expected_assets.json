@@ -80,6 +80,158 @@
         {"type": "postgres_tls_config", "path": "/etc/testbed/postgresql.conf", "algorithm_family": "RSA", "key_size_bits": 1024},
         {"type": "keystore", "path": "/var/lib/postgresql/keystore.p12", "format": "PKCS#12"}
       ]
+    },
+    {
+      "host": "api-gateway.testbed.local",
+      "ports": [8443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ],
+      "agent_assets": [
+        {"type": "jwt_signing_key", "path": "/etc/api-gateway/jwks/current.json", "algorithm_family": "RSA", "key_size_bits": 2048},
+        {"type": "mtls_trust_bundle", "path": "/etc/api-gateway/trust/internal-ca.pem", "algorithm_family": "RSA", "key_size_bits": 4096}
+      ]
+    },
+    {
+      "host": "admin-console.testbed.local",
+      "ports": [443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "ECDSA", "curve": "P-256"}
+      ]
+    },
+    {
+      "host": "mobile-api.testbed.local",
+      "ports": [443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ]
+    },
+    {
+      "host": "auth-oidc.testbed.local",
+      "ports": [443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ],
+      "agent_assets": [
+        {"type": "oidc_jwks", "path": "/var/lib/oidc/jwks.json", "algorithms": ["RSA-2048", "ECDSA-P256"]}
+      ]
+    },
+    {
+      "host": "saml-idp.testbed.local",
+      "ports": [443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ],
+      "agent_assets": [
+        {"type": "saml_signing_certificate", "path": "/etc/saml/signing.crt", "algorithm_family": "RSA", "key_size_bits": 2048},
+        {"type": "saml_encryption_certificate", "path": "/etc/saml/encryption.crt", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ]
+    },
+    {
+      "host": "mysql-legacy.testbed.local",
+      "ports": [3306],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 1024}
+      ]
+    },
+    {
+      "host": "redis-cache.testbed.local",
+      "ports": [6380],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ]
+    },
+    {
+      "host": "kafka-broker.testbed.local",
+      "ports": [9093],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "ECDSA", "curve": "P-256"}
+      ]
+    },
+    {
+      "host": "internal-grpc.testbed.local",
+      "ports": [8443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ]
+    },
+    {
+      "host": "service-mesh-mtls.testbed.local",
+      "ports": [15017],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "ECDSA", "curve": "P-256"},
+        {"type": "tls_version_policy", "versions": ["TLSv1.3"]}
+      ]
+    },
+    {
+      "host": "gitlab-runner.testbed.local",
+      "ports": [9443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ]
+    },
+    {
+      "host": "container-registry.testbed.local",
+      "ports": [5000],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "ECDSA", "curve": "P-256"}
+      ],
+      "agent_assets": [
+        {"type": "container_image_signing_key", "path": "/etc/registry/cosign.pub", "algorithm_family": "ECDSA", "curve": "P-256"}
+      ]
+    },
+    {
+      "host": "artifact-repo.testbed.local",
+      "ports": [8443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ]
+    },
+    {
+      "host": "vault.testbed.local",
+      "ports": [8200],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 4096}
+      ],
+      "agent_assets": [
+        {"type": "kms_key_reference", "path": "/var/lib/vault/transit/pqc-testbed", "algorithm_family": "RSA", "key_size_bits": 4096}
+      ]
+    },
+    {
+      "host": "backup-service.testbed.local",
+      "ports": [8443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ],
+      "agent_assets": [
+        {"type": "backup_encryption_key", "path": "/etc/backup/encryption-key.metadata", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ]
+    },
+    {
+      "host": "monitoring.testbed.local",
+      "ports": [9090],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ]
+    },
+    {
+      "host": "logging.testbed.local",
+      "ports": [9200],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048}
+      ]
+    },
+    {
+      "host": "legacy-java-app.testbed.local",
+      "ports": [8443],
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 1024},
+        {"type": "tls_version_policy", "versions": ["TLSv1.2"]}
+      ],
+      "agent_assets": [
+        {"type": "java_keystore", "path": "/opt/legacy-java/conf/server.jks", "algorithm_family": "RSA", "key_size_bits": 1024},
+        {"type": "tls_config", "path": "/opt/legacy-java/conf/tls.properties", "minimum_tls_version": "TLSv1.2"}
+      ]
     }
   ]
 }

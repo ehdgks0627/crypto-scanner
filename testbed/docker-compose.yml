@@ -14,6 +14,25 @@ x-service-hardening: &service-hardening
   security_opt:
     - no-new-privileges:true
 
+x-tls-fixture-base: &tls-fixture-base
+  image: nginx:1.27.3-alpine
+  volumes:
+    - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+  depends_on:
+    certgen:
+      condition: service_completed_successfully
+    dns:
+      condition: service_started
+
+x-agent-sidecar-base: &agent-sidecar-base
+  image: python:3.12-alpine
+  command: ["python", "/opt/testbed-agent/mock_agent.py"]
+  volumes:
+    - ./agent/mock_agent.py:/opt/testbed-agent/mock_agent.py:ro
+  depends_on:
+    dns:
+      condition: service_started
+
 services:
   certgen:
     build:
@@ -209,6 +228,342 @@ services:
       pqc-testbed-net:
         ipv4_address: 172.31.240.16
     <<: [*host-gateway, *service-hardening]
+
+  api-gateway:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: api-gateway.testbed.local
+      SERVICE_KIND: api-gateway
+      SERVICE_PORT: 8443
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/api-gateway:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.21
+
+  api-gateway-agent:
+    <<: [*agent-sidecar-base, *host-gateway, *service-hardening]
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: api-gateway.testbed.local
+      AGENT_CAPABILITIES: agent.cert_store,agent.app_config,agent.keystore
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${API_GATEWAY_AGENT_PORT:-9111}
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${API_GATEWAY_AGENT_PORT:-9111}:9100"
+    networks:
+      pqc-testbed-net:
+
+  admin-console:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: admin-console.testbed.local
+      SERVICE_KIND: admin-console
+      SERVICE_PORT: 443
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/admin-console:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.22
+
+  mobile-api:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: mobile-api.testbed.local
+      SERVICE_KIND: mobile-api
+      SERVICE_PORT: 443
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/mobile-api:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.23
+
+  auth-oidc:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: auth-oidc.testbed.local
+      SERVICE_KIND: oidc-provider
+      SERVICE_PORT: 443
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/auth-oidc:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.24
+
+  auth-oidc-agent:
+    <<: [*agent-sidecar-base, *host-gateway, *service-hardening]
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: auth-oidc.testbed.local
+      AGENT_CAPABILITIES: agent.cert_store,agent.app_config,agent.keystore
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${AUTH_OIDC_AGENT_PORT:-9112}
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${AUTH_OIDC_AGENT_PORT:-9112}:9100"
+    networks:
+      pqc-testbed-net:
+
+  saml-idp:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: saml-idp.testbed.local
+      SERVICE_KIND: saml-idp
+      SERVICE_PORT: 443
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/saml-idp:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.25
+
+  saml-idp-agent:
+    <<: [*agent-sidecar-base, *host-gateway, *service-hardening]
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: saml-idp.testbed.local
+      AGENT_CAPABILITIES: agent.cert_store,agent.app_config
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${SAML_IDP_AGENT_PORT:-9113}
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${SAML_IDP_AGENT_PORT:-9113}:9100"
+    networks:
+      pqc-testbed-net:
+
+  mysql-legacy:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: mysql-legacy.testbed.local
+      SERVICE_KIND: mysql-legacy-tls
+      SERVICE_PORT: 3306
+      TLS_PROTOCOLS: TLSv1.2
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/mysql-legacy:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.26
+
+  redis-cache:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: redis-cache.testbed.local
+      SERVICE_KIND: redis-cache-tls
+      SERVICE_PORT: 6380
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/redis-cache:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.27
+
+  kafka-broker:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: kafka-broker.testbed.local
+      SERVICE_KIND: kafka-broker-tls
+      SERVICE_PORT: 9093
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/kafka-broker:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.28
+
+  internal-grpc:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: internal-grpc.testbed.local
+      SERVICE_KIND: internal-grpc
+      SERVICE_PORT: 8443
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/internal-grpc:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.29
+
+  service-mesh-mtls:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: service-mesh-mtls.testbed.local
+      SERVICE_KIND: service-mesh-mtls-control-plane
+      SERVICE_PORT: 15017
+      TLS_PROTOCOLS: TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/service-mesh-mtls:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.30
+
+  gitlab-runner:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: gitlab-runner.testbed.local
+      SERVICE_KIND: ci-runner-control
+      SERVICE_PORT: 9443
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/gitlab-runner:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.31
+
+  container-registry:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: container-registry.testbed.local
+      SERVICE_KIND: container-registry
+      SERVICE_PORT: 5000
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/container-registry:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.32
+
+  container-registry-agent:
+    <<: [*agent-sidecar-base, *host-gateway, *service-hardening]
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: container-registry.testbed.local
+      AGENT_CAPABILITIES: agent.cert_store,agent.pkg_keyring,agent.app_config
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${CONTAINER_REGISTRY_AGENT_PORT:-9114}
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${CONTAINER_REGISTRY_AGENT_PORT:-9114}:9100"
+    networks:
+      pqc-testbed-net:
+
+  artifact-repo:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: artifact-repo.testbed.local
+      SERVICE_KIND: artifact-repository
+      SERVICE_PORT: 8443
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/artifact-repo:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.33
+
+  vault:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: vault.testbed.local
+      SERVICE_KIND: vault-kms
+      SERVICE_PORT: 8200
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/vault:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.34
+
+  vault-agent:
+    <<: [*agent-sidecar-base, *host-gateway, *service-hardening]
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: vault.testbed.local
+      AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_config
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${VAULT_AGENT_PORT:-9115}
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${VAULT_AGENT_PORT:-9115}:9100"
+    networks:
+      pqc-testbed-net:
+
+  backup-service:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: backup-service.testbed.local
+      SERVICE_KIND: backup-encryption-service
+      SERVICE_PORT: 8443
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/backup-service:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.35
+
+  backup-service-agent:
+    <<: [*agent-sidecar-base, *host-gateway, *service-hardening]
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: backup-service.testbed.local
+      AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_config
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${BACKUP_SERVICE_AGENT_PORT:-9116}
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${BACKUP_SERVICE_AGENT_PORT:-9116}:9100"
+    networks:
+      pqc-testbed-net:
+
+  monitoring:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: monitoring.testbed.local
+      SERVICE_KIND: monitoring
+      SERVICE_PORT: 9090
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/monitoring:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.36
+
+  logging:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: logging.testbed.local
+      SERVICE_KIND: logging-search
+      SERVICE_PORT: 9200
+      TLS_PROTOCOLS: TLSv1.2 TLSv1.3
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/logging:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.37
+
+  legacy-java-app:
+    <<: [*tls-fixture-base, *service-hardening]
+    environment:
+      SERVICE_HOSTNAME: legacy-java-app.testbed.local
+      SERVICE_KIND: legacy-java-app
+      SERVICE_PORT: 8443
+      TLS_PROTOCOLS: TLSv1.2
+    volumes:
+      - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs/legacy-java-app:/etc/testbed/certs/service:ro
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.38
+
+  legacy-java-app-agent:
+    <<: [*agent-sidecar-base, *host-gateway, *service-hardening]
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: legacy-java-app.testbed.local
+      AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_config
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${LEGACY_JAVA_AGENT_PORT:-9117}
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${LEGACY_JAVA_AGENT_PORT:-9117}:9100"
+    networks:
+      pqc-testbed-net:
 
 volumes:
   db-data:

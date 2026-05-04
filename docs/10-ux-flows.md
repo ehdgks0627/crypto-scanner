@@ -100,16 +100,16 @@ sequenceDiagram
     F->>B: GET /api/discoveries/4
     B-->>F: status=COMPLETED
     F->>B: GET /api/discoveries/4/endpoints
-    B-->>F: 25 endpoints
+    B-->>F: 33 endpoints
 
-    U->>F: 7개 endpoint 체크<br/>[Promote 선택된 항목]
+    U->>F: 31개 endpoint 체크<br/>[Promote 선택된 항목]
     F->>F: PromoteDialog 표시
     Note over F: 각 endpoint별 컨텍스트 입력<br/>(또는 일괄 적용 옵션)
     U->>F: 컨텍스트 입력 후 [확인]
     F->>B: POST /api/discoveries/4/promote
-    B->>DB: 7 Targets 생성
-    B-->>F: {promoted: 7, skipped: 0}
-    F->>F: Toast "7개 Target 등록 완료"
+    B->>DB: 31 Targets 생성
+    B-->>F: {promoted: 31, skipped: 0}
+    F->>F: Toast "31개 Target 등록 완료"
     F->>F: navigate /targets
 ```
 

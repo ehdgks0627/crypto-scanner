@@ -79,9 +79,13 @@ address=/mqtt.testbed.local/172.31.240.13
 address=/ipsec.testbed.local/172.31.240.14
 address=/mail.testbed.local/172.31.240.15
 address=/db.testbed.local/172.31.240.16
+address=/api-gateway.testbed.local/172.31.240.21
+address=/auth-oidc.testbed.local/172.31.240.24
+address=/vault.testbed.local/172.31.240.34
+address=/legacy-java-app.testbed.local/172.31.240.38
 ```
 
-> 상세 호스트/IP 매핑은 `02-testbed.md` 참고.
+> 상세 25개 서비스 호스트/IP 매핑은 `02-testbed.md` 참고.
 
 ## 1.3 컴포넌트 책임 (Responsibility)
 

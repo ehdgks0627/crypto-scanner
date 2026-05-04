@@ -551,7 +551,7 @@ API mutation이 비동기 Job enqueue를 동반하면 Worker/Redis preflight를 
 | 시드 | 내용 |
 |---|---|
 | Algorithm Risk Table | 6.2.1의 알고리즘별 A 값 사전 등록 (코드 상수) |
-| 기본 Target | 테스트베드 7개 호스트의 주요 포트 사전 등록 (`fixtures/initial_targets.json`) |
+| 기본 Target | 테스트베드 25개 서비스의 주요 포트 31개 사전 등록 (`fixtures/initial_targets.json`) |
 | 기본 가중치 | 모두 1.0 |
 
 > 시드는 `python manage.py loaddata`로 적재.

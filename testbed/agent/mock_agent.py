@@ -62,6 +62,78 @@ def static_findings() -> list[dict]:
                 "format": "PKCS#12",
             }
         ]
+    enterprise_findings = {
+        "api-gateway.testbed.local": [
+            {
+                "type": "jwt_signing_key",
+                "path": "/etc/api-gateway/jwks/current.json",
+                "algorithm": "RSA-2048",
+                "status": "active",
+            },
+            {
+                "type": "mtls_trust_bundle",
+                "path": "/etc/api-gateway/trust/internal-ca.pem",
+                "algorithm": "RSA-4096",
+            },
+        ],
+        "auth-oidc.testbed.local": [
+            {
+                "type": "oidc_jwks",
+                "path": "/var/lib/oidc/jwks.json",
+                "algorithms": ["RSA-2048", "ECDSA-P256"],
+            }
+        ],
+        "saml-idp.testbed.local": [
+            {
+                "type": "saml_signing_certificate",
+                "path": "/etc/saml/signing.crt",
+                "algorithm": "RSA-2048",
+            },
+            {
+                "type": "saml_encryption_certificate",
+                "path": "/etc/saml/encryption.crt",
+                "algorithm": "RSA-2048",
+            },
+        ],
+        "container-registry.testbed.local": [
+            {
+                "type": "container_image_signing_key",
+                "path": "/etc/registry/cosign.pub",
+                "algorithm": "ECDSA-P256",
+            }
+        ],
+        "vault.testbed.local": [
+            {
+                "type": "kms_key_reference",
+                "path": "/var/lib/vault/transit/pqc-testbed",
+                "algorithm": "RSA-4096",
+                "status": "managed",
+            }
+        ],
+        "backup-service.testbed.local": [
+            {
+                "type": "backup_encryption_key",
+                "path": "/etc/backup/encryption-key.metadata",
+                "algorithm": "RSA-2048",
+                "lifespan_years": 10,
+            }
+        ],
+        "legacy-java-app.testbed.local": [
+            {
+                "type": "java_keystore",
+                "path": "/opt/legacy-java/conf/server.jks",
+                "algorithm": "RSA-1024",
+                "format": "JKS",
+            },
+            {
+                "type": "tls_config",
+                "path": "/opt/legacy-java/conf/tls.properties",
+                "minimum_tls_version": "TLSv1.2",
+            },
+        ],
+    }
+    if hostname in enterprise_findings:
+        return enterprise_findings[hostname]
     return []
 
 
