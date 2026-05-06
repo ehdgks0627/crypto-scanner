@@ -3,6 +3,7 @@ import time
 from django.core.management.base import BaseCommand
 
 from apps.discoveries import services as discovery_services
+from apps.jobs import scan_worker
 from apps.risk import services as risk_services
 
 
@@ -17,6 +18,7 @@ class Command(BaseCommand):
         loop = options["loop"]
         sleep_sec = options["sleep"]
         processors = [
+            ("scan_job", scan_worker.process_next_scan_job_task),
             ("discovery", discovery_services.process_next_discovery_task),
             ("recompute", risk_services.process_next_recompute_task),
         ]

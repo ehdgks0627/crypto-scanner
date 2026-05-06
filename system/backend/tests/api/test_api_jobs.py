@@ -119,6 +119,106 @@ def test_api_job_005_completed_scan_job_returns_snapshot_result(client):
     assert body["result"]["snapshot_id"] == 56
 
 
+def test_api_job_005b_scan_worker_creates_snapshot_assets_risks_and_logs(monkeypatch):
+    from apps.jobs import network_scanner, scan_worker
+    from apps.jobs.models import QueuedTask, ScanRunLog
+    from apps.jobs.scan_assets import AssetCandidate
+    from apps.risk.models import RiskScore
+    from apps.snapshots.models import CbomSnapshot
+
+    target = create_target(host="worker-web.testbed.local", port=443, protocol_hint="TLS", agent_enabled=False)
+    async_job = create_async_job(kind="scan_job", status="PENDING")
+    scan_job = create_scan_job(async_job=async_job, target_ids=[target.id], scanner_selection=["network"])
+    task = QueuedTask.objects.create(
+        async_job=async_job,
+        task_name="scan_job",
+        payload={"scan_job_id": scan_job.id, "target_ids": [target.id], "scanners": ["network"]},
+        status=QueuedTask.QUEUED,
+        available_at=timezone.now(),
+    )
+
+    def fake_scan_network_target(target_arg):
+        return [
+            AssetCandidate(
+                target_id=target_arg.id,
+                scanner_kind="network",
+                name="worker-web certificate",
+                asset_type="certificate",
+                algorithm="RSA-2048",
+                algorithm_family="RSA",
+                bom_ref="network:tls:worker-web",
+            )
+        ]
+
+    monkeypatch.setattr(network_scanner, "scan_network_target", fake_scan_network_target)
+
+    result = scan_worker.process_scan_job_task(task.id)
+
+    snapshot = CbomSnapshot.objects.get(id=result["snapshot_id"])
+    asset = snapshot.assets.get()
+    assert result["assets_count"] == 1
+    assert asset.name == "worker-web certificate"
+    assert asset.algorithm == "RSA-2048"
+    assert asset.target_id == target.id
+    assert RiskScore.objects.filter(snapshot=snapshot, asset=asset).count() == 1
+    assert ScanRunLog.objects.get(async_job=async_job, scanner_kind="network").findings_count == 1
+    task.refresh_from_db()
+    async_job.refresh_from_db()
+    assert task.status == QueuedTask.COMPLETED
+    assert async_job.status == "COMPLETED"
+    assert async_job.result["snapshot_id"] == snapshot.id
+
+
+def test_api_job_005c_scan_worker_maps_host_agent_findings(monkeypatch):
+    from apps.agents.models import Agent
+    from apps.jobs import agent_client, scan_worker
+    from apps.jobs.models import QueuedTask, ScanRunLog
+    from apps.snapshots.models import CbomSnapshot
+
+    target = create_target(host="agent-worker.testbed.local", port=443, protocol_hint="TLS", agent_enabled=True)
+    Agent.objects.create(
+        hostname=target.host,
+        agent_role="host",
+        agent_url="http://agent-worker.testbed.local:9100",
+        capabilities=["agent.cert_store", "agent.ssh_config"],
+        agent_token_hash="hash",
+        agent_runtime_token="runtime-token",
+        active=True,
+        last_seen=timezone.now(),
+    )
+    async_job = create_async_job(kind="scan_job", status="PENDING")
+    scan_job = create_scan_job(async_job=async_job, target_ids=[target.id], scanner_selection=["agent.cert_store", "agent.ssh_config"])
+    task = QueuedTask.objects.create(
+        async_job=async_job,
+        task_name="scan_job",
+        payload={"scan_job_id": scan_job.id, "target_ids": [target.id], "scanners": ["agent.cert_store", "agent.ssh_config"]},
+        status=QueuedTask.QUEUED,
+        available_at=timezone.now(),
+    )
+
+    def fake_post_scan(agent, capabilities):
+        assert capabilities == ["agent.cert_store", "agent.ssh_config"]
+        return {
+            "findings": [
+                {"type": "system_ca", "path": "/etc/ssl/certs/internal.pem", "algorithm": "RSA-4096"},
+                {"type": "ssh_config", "path": "/etc/ssh/sshd_config", "kex_algorithms": ["curve25519-sha256", "diffie-hellman-group14-sha256"]},
+            ]
+        }
+
+    monkeypatch.setattr(agent_client, "post_scan", fake_post_scan)
+
+    result = scan_worker.process_scan_job_task(task.id)
+
+    assets = list(CbomSnapshot.objects.get(id=result["snapshot_id"]).assets.order_by("asset_type", "algorithm"))
+    assert {(asset.asset_type, asset.algorithm_family) for asset in assets} == {
+        ("certificate", "RSA"),
+        ("protocol", "ECDH"),
+        ("protocol", "DH"),
+    }
+    logs = {log.scanner_kind: log.findings_count for log in ScanRunLog.objects.filter(async_job=async_job)}
+    assert logs == {"agent.cert_store": 1, "agent.ssh_config": 2}
+
+
 def test_api_job_006_failed_job_returns_error_and_finished_at(client):
     finished_at = timezone.now()
     job = create_async_job(

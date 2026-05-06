@@ -43,4 +43,11 @@ contract-test skeleton to production-grade service. It complements
 
 - [ ] `PR-SCAN-001` Replace scanner/risk/CBOM placeholder services with real scanner, CBOM, and risk engines.
 - [ ] `PR-SCAN-002` Run worker integration tests against a real broker and disposable database.
+- [x] `PR-SCAN-003` Network scanner records SSH host keys for RSA, ECDSA, and Ed25519 when they are advertised.
+- [x] `PR-SCAN-004` Network scanner parses IKEv2 SA proposal responses instead of emitting a fixed placeholder proposal.
+- [x] `PR-SCAN-005` Network scanner records TLS version policy and negotiated cipher suite assets.
+- [x] `PR-SCAN-006` Network scanner records application protocol assets for MQTT over TLS endpoints.
+- [x] `PR-SCAN-007` Network scanner retries known SNI aliases for the same endpoint and records distinct certificates.
+- [x] `PR-SCAN-008` Network scanner records every certificate sent in the TLS chain, not only the leaf certificate.
+- [x] `PR-SCAN-009` Network scanner emits a protocol asset for generic open TCP fallback endpoints.
 - [x] `PR-OPENAPI-001` Add generated OpenAPI drift test for static contract path coverage.
