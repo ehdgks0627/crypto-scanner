@@ -27,123 +27,12 @@ def discovery_findings(payload: dict) -> list[dict]:
     return discover_endpoints(payload)
 
 
-def static_findings() -> list[dict]:
-    hostname = os.getenv("AGENT_HOSTNAME", os.uname().nodename)
-    if hostname == "web.testbed.local":
-        return [
-            {
-                "type": "certificate_file",
-                "path": "/etc/nginx/ssl/legacy-rsa1024.pem",
-                "algorithm": "RSA-1024",
-                "status": "unused",
-            },
-            {
-                "type": "system_ca",
-                "path": "/etc/testbed/certs/web/ca.crt",
-                "algorithm": "RSA-4096",
-            },
-        ]
-    if hostname == "ssh.testbed.local":
-        return [
-            {
-                "type": "ssh_authorized_key",
-                "path": "/home/testbed/.ssh/authorized_keys",
-                "algorithms": ["RSA-2048", "ECDSA-P256", "Ed25519"],
-            },
-            {
-                "type": "ssh_config",
-                "path": "/etc/ssh/sshd_config",
-                "kex_algorithms": ["curve25519-sha256", "ecdh-sha2-nistp256", "diffie-hellman-group14-sha256"],
-            },
-        ]
-    if hostname == "db.testbed.local":
-        return [
-            {
-                "type": "postgres_tls_config",
-                "path": "/etc/testbed/postgresql.conf",
-                "certificate": "/var/lib/postgresql/testbed-certs/server.crt",
-                "algorithm": "RSA-1024",
-            },
-            {
-                "type": "keystore",
-                "path": "/var/lib/postgresql/keystore.p12",
-                "algorithm": "RSA-1024",
-                "format": "PKCS#12",
-            }
-        ]
-    enterprise_findings = {
-        "api-gateway.testbed.local": [
-            {
-                "type": "jwt_signing_key",
-                "path": "/etc/api-gateway/jwks/current.json",
-                "algorithm": "RSA-2048",
-                "status": "active",
-            },
-            {
-                "type": "mtls_trust_bundle",
-                "path": "/etc/api-gateway/trust/internal-ca.pem",
-                "algorithm": "RSA-4096",
-            },
-        ],
-        "auth-oidc.testbed.local": [
-            {
-                "type": "oidc_jwks",
-                "path": "/var/lib/oidc/jwks.json",
-                "algorithms": ["RSA-2048", "ECDSA-P256"],
-            }
-        ],
-        "saml-idp.testbed.local": [
-            {
-                "type": "saml_signing_certificate",
-                "path": "/etc/saml/signing.crt",
-                "algorithm": "RSA-2048",
-            },
-            {
-                "type": "saml_encryption_certificate",
-                "path": "/etc/saml/encryption.crt",
-                "algorithm": "RSA-2048",
-            },
-        ],
-        "container-registry.testbed.local": [
-            {
-                "type": "container_image_signing_key",
-                "path": "/etc/registry/cosign.pub",
-                "algorithm": "ECDSA-P256",
-            }
-        ],
-        "vault.testbed.local": [
-            {
-                "type": "kms_key_reference",
-                "path": "/var/lib/vault/transit/pqc-testbed",
-                "algorithm": "RSA-4096",
-                "status": "managed",
-            }
-        ],
-        "backup-service.testbed.local": [
-            {
-                "type": "backup_encryption_key",
-                "path": "/etc/backup/encryption-key.metadata",
-                "algorithm": "RSA-2048",
-                "lifespan_years": 10,
-            }
-        ],
-        "legacy-java-app.testbed.local": [
-            {
-                "type": "java_keystore",
-                "path": "/opt/legacy-java/conf/server.jks",
-                "algorithm": "RSA-1024",
-                "format": "JKS",
-            },
-            {
-                "type": "tls_config",
-                "path": "/opt/legacy-java/conf/tls.properties",
-                "minimum_tls_version": "TLSv1.2",
-            },
-        ],
-    }
-    if hostname in enterprise_findings:
-        return enterprise_findings[hostname]
-    return []
+def scan_findings(payload: dict) -> dict:
+    from host_scanners import run_host_scan
+
+    requested = payload.get("capabilities") or capabilities()
+    options = payload.get("options") or {}
+    return run_host_scan(requested, options)
 
 
 class State:
@@ -256,14 +145,12 @@ class Handler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(401, {"error": "invalid_token"})
                 return
-            self._send_json(
-                200,
-                {
-                    "hostname": os.getenv("AGENT_HOSTNAME", os.uname().nodename),
-                    "capabilities": capabilities(),
-                    "findings": static_findings(),
-                },
-            )
+            result = scan_findings(self._read_json())
+            unsupported = [error for error in result.get("errors", []) if error.get("error") == "unsupported_capability"]
+            if unsupported:
+                self._send_json(400, {"error": "unsupported_capability", "details": unsupported})
+                return
+            self._send_json(200, result)
             return
         if self.path == "/discover":
             if not self._authorized():

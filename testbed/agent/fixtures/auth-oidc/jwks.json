@@ -1,0 +1,7 @@
+{
+  "algorithms": ["RSA-2048", "ECDSA-P256"],
+  "keys": [
+    {"kid": "oidc-rsa-current", "kty": "RSA", "use": "sig", "algorithm": "RSA-2048"},
+    {"kid": "oidc-ec-rollover", "kty": "EC", "crv": "P-256", "use": "sig", "algorithm": "ECDSA-P256"}
+  ]
+}

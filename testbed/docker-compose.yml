@@ -25,11 +25,15 @@ x-tls-fixture-base: &tls-fixture-base
       condition: service_started
 
 x-agent-sidecar-base: &agent-sidecar-base
-  image: python:3.12-alpine
+  build:
+    context: .
+    dockerfile: agent/Dockerfile
   command: ["python", "/opt/testbed-agent/mock_agent.py"]
   volumes:
     - ./agent:/opt/testbed-agent:ro
   depends_on:
+    certgen:
+      condition: service_completed_successfully
     dns:
       condition: service_started
 
@@ -250,6 +254,12 @@ services:
       AGENT_HOSTNAME: api-gateway.testbed.local
       AGENT_CAPABILITIES: agent.cert_store,agent.app_config,agent.keystore
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${API_GATEWAY_AGENT_PORT:-9111}
+      AGENT_CERT_STORE_PATHS: /etc/api-gateway/trust
+      AGENT_APP_CONFIG_PATHS: /etc/api-gateway/jwks/current.json
+    volumes:
+      - ./agent:/opt/testbed-agent:ro
+      - ./certs/api-gateway/ca.crt:/etc/api-gateway/trust/internal-ca.pem:ro
+      - ./agent/fixtures/api-gateway/jwks:/etc/api-gateway/jwks:ro
     ports:
       - "${TESTBED_BIND_ADDR:-127.0.0.1}:${API_GATEWAY_AGENT_PORT:-9111}:9100"
     networks:
@@ -304,6 +314,11 @@ services:
       AGENT_HOSTNAME: auth-oidc.testbed.local
       AGENT_CAPABILITIES: agent.cert_store,agent.app_config,agent.keystore
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${AUTH_OIDC_AGENT_PORT:-9112}
+      AGENT_CERT_STORE_PATHS: /run/empty-agent-cert-store
+      AGENT_APP_CONFIG_PATHS: /var/lib/oidc/jwks.json
+    volumes:
+      - ./agent:/opt/testbed-agent:ro
+      - ./agent/fixtures/auth-oidc/jwks.json:/var/lib/oidc/jwks.json:ro
     ports:
       - "${TESTBED_BIND_ADDR:-127.0.0.1}:${AUTH_OIDC_AGENT_PORT:-9112}:9100"
     networks:
@@ -328,8 +343,14 @@ services:
     environment:
       <<: *agent-env
       AGENT_HOSTNAME: saml-idp.testbed.local
-      AGENT_CAPABILITIES: agent.cert_store,agent.app_config
+      AGENT_CAPABILITIES: agent.cert_store,agent.app_cert_files,agent.app_config
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${SAML_IDP_AGENT_PORT:-9113}
+      AGENT_CERT_STORE_PATHS: /run/empty-agent-cert-store
+      AGENT_APP_CERT_PATHS: /etc/saml
+    volumes:
+      - ./agent:/opt/testbed-agent:ro
+      - ./certs/saml-idp/server.crt:/etc/saml/signing.crt:ro
+      - ./certs/saml-idp/server.crt:/etc/saml/encryption.crt:ro
     ports:
       - "${TESTBED_BIND_ADDR:-127.0.0.1}:${SAML_IDP_AGENT_PORT:-9113}:9100"
     networks:
@@ -440,6 +461,11 @@ services:
       AGENT_HOSTNAME: container-registry.testbed.local
       AGENT_CAPABILITIES: agent.cert_store,agent.pkg_keyring,agent.app_config
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${CONTAINER_REGISTRY_AGENT_PORT:-9114}
+      AGENT_CERT_STORE_PATHS: /run/empty-agent-cert-store
+      AGENT_PKG_KEYRING_PATHS: /etc/registry/cosign.pub
+    volumes:
+      - ./agent:/opt/testbed-agent:ro
+      - ./agent/fixtures/container-registry/cosign.pub:/etc/registry/cosign.pub:ro
     ports:
       - "${TESTBED_BIND_ADDR:-127.0.0.1}:${CONTAINER_REGISTRY_AGENT_PORT:-9114}:9100"
     networks:
@@ -480,6 +506,11 @@ services:
       AGENT_HOSTNAME: vault.testbed.local
       AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_config
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${VAULT_AGENT_PORT:-9115}
+      AGENT_CERT_STORE_PATHS: /run/empty-agent-cert-store
+      AGENT_KEYSTORE_PATHS: /var/lib/vault/transit
+    volumes:
+      - ./agent:/opt/testbed-agent:ro
+      - ./agent/fixtures/vault/transit:/var/lib/vault/transit:ro
     ports:
       - "${TESTBED_BIND_ADDR:-127.0.0.1}:${VAULT_AGENT_PORT:-9115}:9100"
     networks:
@@ -506,6 +537,11 @@ services:
       AGENT_HOSTNAME: backup-service.testbed.local
       AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_config
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${BACKUP_SERVICE_AGENT_PORT:-9116}
+      AGENT_CERT_STORE_PATHS: /run/empty-agent-cert-store
+      AGENT_KEYSTORE_PATHS: /etc/backup
+    volumes:
+      - ./agent:/opt/testbed-agent:ro
+      - ./agent/fixtures/backup/encryption-key.metadata:/etc/backup/encryption-key.metadata:ro
     ports:
       - "${TESTBED_BIND_ADDR:-127.0.0.1}:${BACKUP_SERVICE_AGENT_PORT:-9116}:9100"
     networks:
@@ -560,6 +596,12 @@ services:
       AGENT_HOSTNAME: legacy-java-app.testbed.local
       AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_config
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${LEGACY_JAVA_AGENT_PORT:-9117}
+      AGENT_CERT_STORE_PATHS: /run/empty-agent-cert-store
+      AGENT_KEYSTORE_PATHS: /opt/legacy-java/conf
+      AGENT_APP_CONFIG_PATHS: /opt/legacy-java/conf/tls.properties
+    volumes:
+      - ./agent:/opt/testbed-agent:ro
+      - ./agent/fixtures/legacy-java:/opt/legacy-java/conf:ro
     ports:
       - "${TESTBED_BIND_ADDR:-127.0.0.1}:${LEGACY_JAVA_AGENT_PORT:-9117}:9100"
     networks:

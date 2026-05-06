@@ -1,10 +1,10 @@
 FROM postgres:16.6
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 ca-certificates \
+  && apt-get install -y --no-install-recommends python3 ca-certificates openssl \
   && rm -rf /var/lib/apt/lists/*
 
-COPY agent/mock_agent.py /opt/testbed-agent/mock_agent.py
+COPY agent /opt/testbed-agent
 COPY services/db/entrypoint.sh /usr/local/bin/testbed-db-entrypoint
 
 RUN chmod +x /usr/local/bin/testbed-db-entrypoint

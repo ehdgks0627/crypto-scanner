@@ -10,7 +10,8 @@ The default compose now models a 200-300 person IT company PoC environment:
   service mesh, CI/CD, registry, artifact repository, Vault/KMS, backup, monitoring,
   logging, and a legacy Java app.
 - 10 agent-enabled hosts: the original web/SSH/DB hosts plus representative
-  API, identity, registry, vault, backup, and legacy app hosts.
+  API, identity, registry, vault, backup, and legacy app hosts. Host Agents
+  read mounted fixture files instead of returning hard-coded findings.
 
 ## Configure
 
@@ -23,7 +24,7 @@ Set these values before starting the testbed:
 - `BOOTSTRAP_TOKEN`: same value as the system backend `AGENT_BOOTSTRAP_TOKEN`.
 - `POSTGRES_PASSWORD` and `IPSEC_PSK`: local testbed-only secrets.
 - `AGENT_PUBLIC_HOST`: use `127.0.0.1` when the backend/worker runs directly on the host. Use `host.docker.internal` when the system stack runs in Docker and set `TESTBED_BIND_ADDR=0.0.0.0` so that containerized workers can reach host-published agent ports.
-- `*_AGENT_PORT`: host-published mock agent ports for the agent-enabled
+- `*_AGENT_PORT`: host-published agent ports for the agent-enabled
   enterprise fixtures.
 
 ## Validate

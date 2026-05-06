@@ -1,0 +1,10 @@
+{
+  "keys": [
+    {
+      "kid": "api-gateway-current-rsa",
+      "kty": "RSA",
+      "use": "sig",
+      "algorithm": "RSA-2048"
+    }
+  ]
+}

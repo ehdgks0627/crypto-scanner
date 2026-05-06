@@ -24,7 +24,9 @@ bash -n \
   testbed/services/ssh/entrypoint.sh \
   testbed/services/ipsec/entrypoint.sh \
   testbed/services/db/entrypoint.sh
-python3 -m py_compile testbed/agent/mock_agent.py testbed/agent/discovery/*.py testbed/services/mail/mail_fixture.py
+python3 -m compileall -q testbed/agent
+python3 -m py_compile testbed/services/mail/mail_fixture.py
+python3 -m unittest discover -s testbed/agent/tests
 python3 -m json.tool testbed/expected_assets.json >/dev/null
 python3 -m json.tool system/backend/fixtures/initial_targets.json >/dev/null
 testbed/certs/generate.sh

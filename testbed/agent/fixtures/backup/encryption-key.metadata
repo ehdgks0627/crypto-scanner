@@ -1,0 +1,6 @@
+{
+  "type": "backup_encryption_key",
+  "algorithm": "RSA-2048",
+  "lifespan_years": 10,
+  "purpose": "backup encryption key metadata"
+}

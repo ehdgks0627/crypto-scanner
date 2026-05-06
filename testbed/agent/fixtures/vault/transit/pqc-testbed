@@ -1,0 +1,6 @@
+{
+  "type": "kms_key_reference",
+  "algorithm": "RSA-4096",
+  "status": "managed",
+  "purpose": "vault transit key metadata"
+}

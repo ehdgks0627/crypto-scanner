@@ -1,0 +1,3 @@
+algorithm=ECDSA-P256
+purpose=container_image_signing_key
+comment=testbed registry cosign public key metadata
