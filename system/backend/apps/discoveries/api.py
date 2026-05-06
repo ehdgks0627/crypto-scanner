@@ -119,6 +119,10 @@ def get_usable_discovery_agent(agent_id: UUID):
         return None, error_response("agent_unavailable", "Discovery agent is inactive.", status=409)
     if agent_services.is_stale(agent):
         return None, error_response("agent_unavailable", "Discovery agent heartbeat is stale.", status=409)
+    if "agent.discovery" not in agent.capabilities:
+        return None, error_response("agent_unavailable", "Selected agent does not support discovery.", status=422)
+    if not agent.agent_url or not agent.agent_runtime_token:
+        return None, error_response("agent_unavailable", "Discovery agent is missing connection credentials.", status=409)
     return agent, None
 
 

@@ -6,8 +6,6 @@ import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from ipaddress import ip_network
-from itertools import islice
 
 
 LOG_LEVEL = os.getenv("AGENT_LOG_LEVEL", "INFO").upper()
@@ -23,44 +21,10 @@ def capabilities() -> list[str]:
     return items
 
 
-def protocol_for_port(port: int) -> str:
-    if port in {22, 2222}:
-        return "SSH"
-    if port in {500, 4500}:
-        return "IKE"
-    if port in {25, 465, 587}:
-        return "SMTP"
-    if port in {993}:
-        return "IMAP"
-    if port in {995}:
-        return "POP3"
-    if port in {443, 8443, 8883, 9093, 9443, 15017}:
-        return "TLS"
-    return "UNKNOWN"
-
-
 def discovery_findings(payload: dict) -> list[dict]:
-    scope_type = payload.get("scope_type", "cidr")
-    scope_value = str(payload.get("scope_value") or payload.get("cidr") or "")
-    ports = [int(port) for port in payload.get("ports", [])]
-    if scope_type == "cidr":
-        try:
-            hosts = [str(host) for host in islice(ip_network(scope_value, strict=False).hosts(), 3)]
-        except ValueError:
-            hosts = []
-    else:
-        hosts = [scope_value] if scope_value else []
-    return [
-        {
-            "host": host,
-            "port": port,
-            "transport": "TCP",
-            "detected_protocol": protocol_for_port(port),
-            "suggested_protocol_hint": protocol_for_port(port),
-        }
-        for host in hosts
-        for port in ports
-    ]
+    from discovery.runner import discover_endpoints
+
+    return discover_endpoints(payload)
 
 
 def static_findings() -> list[dict]:

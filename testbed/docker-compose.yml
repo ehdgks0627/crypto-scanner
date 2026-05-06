@@ -28,7 +28,7 @@ x-agent-sidecar-base: &agent-sidecar-base
   image: python:3.12-alpine
   command: ["python", "/opt/testbed-agent/mock_agent.py"]
   volumes:
-    - ./agent/mock_agent.py:/opt/testbed-agent/mock_agent.py:ro
+    - ./agent:/opt/testbed-agent:ro
   depends_on:
     dns:
       condition: service_started

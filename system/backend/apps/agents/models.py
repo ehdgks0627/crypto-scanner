@@ -14,6 +14,7 @@ class Agent(models.Model):
     capabilities = models.JSONField(default=list)
     os_distribution = models.CharField(max_length=128, null=True, blank=True)
     agent_token_hash = models.CharField(max_length=128)
+    agent_runtime_token = models.CharField(max_length=128, null=True, blank=True)
     active = models.BooleanField(default=True)
     last_seen = models.DateTimeField(null=True, blank=True)
     token_rotated_at = models.DateTimeField(null=True, blank=True)

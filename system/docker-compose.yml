@@ -25,7 +25,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: python manage.py process_recompute_jobs --loop --sleep 2
+    command: python manage.py process_queued_jobs --loop --sleep 2
     environment:
       AGENT_BOOTSTRAP_TOKEN: ${AGENT_BOOTSTRAP_TOKEN:-dev-bootstrap-token}
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/db.sqlite3}

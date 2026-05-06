@@ -74,6 +74,7 @@ def register_agent(request, payload: AgentRegisterPayload):
             "capabilities": payload.capabilities,
             "os_distribution": payload.os_distribution,
             "agent_token_hash": services.hash_token(token),
+            "agent_runtime_token": token,
             "active": True,
             "last_seen": now,
             "token_rotated_at": now,
@@ -85,6 +86,7 @@ def register_agent(request, payload: AgentRegisterPayload):
         agent.capabilities = payload.capabilities
         agent.os_distribution = payload.os_distribution
         agent.agent_token_hash = services.hash_token(token)
+        agent.agent_runtime_token = token
         agent.active = True
         agent.last_seen = now
         agent.token_rotated_at = now

@@ -128,6 +128,7 @@ def test_api_dsc_002e_create_discovery_can_run_on_discovery_agent(client):
         agent_url="http://probe.dmz.testbed.local:9100",
         capabilities=["agent.discovery"],
         agent_token_hash="hash",
+        agent_runtime_token="runtime-token",
         active=True,
         last_seen=timezone.now(),
     )
@@ -155,6 +156,75 @@ def test_api_dsc_002e_create_discovery_can_run_on_discovery_agent(client):
     detail_response = client.get(f"/api/discoveries/{discovery.id}")
     assert detail_response.status_code == 200
     assert detail_response.json()["agent_hostname"] == "probe.dmz.testbed.local"
+
+
+def test_api_dsc_002e_worker_calls_discovery_agent_and_persists_endpoints(client, monkeypatch):
+    from apps.agents.models import Agent
+    from apps.discoveries import services
+    from apps.discoveries.models import DiscoveredEndpoint, Discovery
+    from apps.jobs.models import AsyncJob, QueuedTask
+
+    agent = Agent.objects.create(
+        hostname="probe.dmz.testbed.local",
+        agent_role="discovery",
+        agent_url="http://probe.dmz.testbed.local:9100",
+        capabilities=["agent.discovery"],
+        agent_token_hash="hash",
+        agent_runtime_token="runtime-token",
+        active=True,
+        last_seen=timezone.now(),
+    )
+    response = client.post(
+        "/api/discoveries",
+        data={
+            "scope_type": "cidr",
+            "scope_value": "172.31.240.0/24",
+            "executor_type": "agent",
+            "agent_id": str(agent.id),
+            "ports": [443, 22],
+            "include_default_ports": False,
+        },
+        content_type="application/json",
+    )
+    discovery = Discovery.objects.get(id=response.json()["resource"]["id"])
+    task = QueuedTask.objects.get(async_job=discovery.async_job)
+    agent_requests = []
+
+    def fake_post_discover(agent_arg, payload):
+        agent_requests.append((agent_arg.id, payload))
+        return {
+            "endpoints": [
+                {"host": "172.31.240.10", "port": 443, "transport": "TCP", "detected_protocol": "TLS", "suggested_protocol_hint": "TLS"},
+                {"host": "172.31.240.12", "port": 22, "transport": "TCP", "detected_protocol": "SSH", "suggested_protocol_hint": "SSH"},
+            ]
+        }
+
+    monkeypatch.setattr(services.agent_client, "post_discover", fake_post_discover)
+
+    result = services.process_discovery_task(task.id)
+
+    assert result == {"discovery_id": discovery.id, "executor_type": "agent", "endpoints_count": 2}
+    assert agent_requests == [
+        (
+            agent.id,
+            {
+                "scope_type": "cidr",
+                "scope_value": "172.31.240.0/24",
+                "cidr": "172.31.240.0/24",
+                "ports": [22, 443],
+            },
+        )
+    ]
+    assert {(endpoint.host, endpoint.port, endpoint.detected_protocol) for endpoint in DiscoveredEndpoint.objects.filter(discovery=discovery)} == {
+        ("172.31.240.10", 443, "TLS"),
+        ("172.31.240.12", 22, "SSH"),
+    }
+    task.refresh_from_db()
+    discovery.refresh_from_db()
+    discovery.async_job.refresh_from_db()
+    assert task.status == QueuedTask.COMPLETED
+    assert discovery.status == AsyncJob.COMPLETED
+    assert discovery.async_job.progress == {"current": 2, "total": 2, "percent": 100}
 
 
 def test_api_dsc_002f_create_discovery_rejects_invalid_scope_values(client):
