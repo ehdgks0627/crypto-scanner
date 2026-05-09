@@ -56,7 +56,7 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
     <Section>
       <PageHeader
         title={`스냅샷 #${snapshotId} 가용성 검사`}
-        description="PQC 전환 전후 가용성 검사 실행과 자산별 측정 결과를 조회합니다."
+        description="가용성 검사 실행과 자산별 측정 결과를 조회합니다."
       />
       <Card>
         <CardContent>
