@@ -105,7 +105,10 @@ run_cycle() {
   local latest current
 
   cd "$APP_DIR"
-  latest="$(latest_remote_sha)"
+  if ! latest="$(latest_remote_sha)"; then
+    log "could not query $DEPLOY_REMOTE/$DEPLOY_BRANCH"
+    return 0
+  fi
   [[ -n "$latest" ]] || {
     log "could not resolve $DEPLOY_REMOTE/$DEPLOY_BRANCH"
     return 0
@@ -143,7 +146,7 @@ main() {
 
   log "watching $DEPLOY_REMOTE/$DEPLOY_BRANCH every ${POLL_SECONDS}s from $APP_DIR"
   while true; do
-    run_cycle
+    run_cycle || log "deployment cycle failed; retrying after ${POLL_SECONDS}s"
     sleep "$POLL_SECONDS"
   done
 }
