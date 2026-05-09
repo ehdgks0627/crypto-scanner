@@ -45,6 +45,7 @@ class DiscoveredEndpoint(models.Model):
     suggested_protocol_hint = models.CharField(max_length=16)
     promoted = models.BooleanField(default=False)
     target = models.ForeignKey("targets.Target", null=True, blank=True, on_delete=models.SET_NULL)
+    availability_metrics = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

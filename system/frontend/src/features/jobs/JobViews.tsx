@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play, XCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -116,8 +116,11 @@ export function ScanNewView() {
   const trackJob = useJobWatchStore((state) => state.trackJob);
   const [searchParams] = useSearchParams();
   const preselectedTargetIds = useMemo(() => ScanSelectionModel.targetIdsFromSearch(searchParams), [searchParams]);
+  const hasExplicitTargetSelection = useMemo(() => searchParams.has("target_id") || searchParams.has("target_ids"), [searchParams]);
   const [targetIds, setTargetIds] = useState<number[]>(preselectedTargetIds);
   const [scanners, setScanners] = useState<ScannerId[]>([]);
+  const defaultTargetsInitialized = useRef(false);
+  const defaultScannersInitialized = useRef(false);
   const targets = useQuery({
     queryKey: queryKeys.targets.list({ limit: 100 }),
     queryFn: () => services.targets.list({ limit: 100 })
@@ -142,14 +145,39 @@ export function ScanNewView() {
   const estimatedRuns = targetIds.length * scanners.length;
 
   useEffect(() => {
+    defaultTargetsInitialized.current = false;
     setTargetIds(preselectedTargetIds);
   }, [preselectedTargetIds]);
 
   useEffect(() => {
-    if (targets.data) {
-      setTargetIds((current) => current.filter((id) => validTargetIds.has(id)));
+    if (!targets.data || defaultTargetsInitialized.current) {
+      return;
     }
-  }, [targets.data, validTargetIds]);
+
+    if (hasExplicitTargetSelection) {
+      setTargetIds((current) => current.filter((id) => validTargetIds.has(id)));
+      defaultTargetsInitialized.current = true;
+      return;
+    }
+
+    const allTargetIds = targets.data.items.map((target) => target.id);
+    if (allTargetIds.length > 0) {
+      setTargetIds(allTargetIds);
+      defaultTargetsInitialized.current = true;
+    }
+  }, [hasExplicitTargetSelection, targets.data, validTargetIds]);
+
+  useEffect(() => {
+    if (!scannerMeta.data || defaultScannersInitialized.current) {
+      return;
+    }
+
+    const allScannerIds = scannerMeta.data.scanners.map((scanner) => scanner.id);
+    if (allScannerIds.length > 0) {
+      setScanners(allScannerIds);
+      defaultScannersInitialized.current = true;
+    }
+  }, [scannerMeta.data]);
 
   return (
     <Section>

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { services } from "../../api/services";
 import { renderWithApp } from "../../test/test-utils";
-import { DiscoveriesView } from "./DiscoveryViews";
+import { DiscoveriesView, DiscoveryDetailView } from "./DiscoveryViews";
 
 describe("DiscoveriesView", () => {
   afterEach(() => {
@@ -69,5 +69,95 @@ describe("DiscoveriesView", () => {
 
     expect(discoverySixCheckbox).not.toBeChecked();
     expect(screen.getByText("선택 0개")).toBeInTheDocument();
+  });
+
+  it("renders discovery availability report and endpoint checks", async () => {
+    vi.spyOn(services.discoveries, "get").mockResolvedValue({
+      id: 9,
+      job_id: 109,
+      scope_type: "cidr",
+      scope_value: "172.20.0.0/24",
+      cidr: "172.20.0.0/24",
+      executor_type: "agent",
+      agent_id: "9ab79c7e-76e8-4e49-a8b4-40be4d5a2f54",
+      agent_hostname: "probe.dmz.testbed.local",
+      port_list: [443],
+      status: "COMPLETED",
+      progress: { completed: 1, total: 1 },
+      created_at: "2026-04-29T00:00:00Z",
+      started_at: "2026-04-29T00:00:01Z",
+      finished_at: "2026-04-29T00:00:10Z",
+      error: null,
+      availability_report: {
+        measured_endpoint_count: 1,
+        tls_endpoint_count: 1,
+        sample_count: 3,
+        averages: {
+          tcp_connect_p95_ms: 4.2,
+          handshake_p95_ms: 30.2,
+          ttfb_p95_ms: 12.5,
+          total_request_p95_ms: 15.8
+        },
+        max: {
+          handshake_p95_ms: 31.4,
+          ttfb_p95_ms: 12.5,
+          total_request_p95_ms: 15.8
+        },
+        rates: {
+          failure_rate: 0.05,
+          timeout_rate: 0
+        },
+        handshake_bytes: {
+          sent: 1632,
+          received: 4216
+        }
+      }
+    });
+    vi.spyOn(services.discoveries, "endpoints").mockResolvedValue({
+      items: [
+        {
+          id: 77,
+          ip: "172.20.10.11",
+          port: 443,
+          detected_protocol: "TLS",
+          banner_metadata: {},
+          promoted: false,
+          target_id: null,
+          suggested_protocol_hint: "TLS",
+          suggested_host: "web.testbed.local",
+          availability_metrics: {
+            handshake_ms: { p95: 31.4 },
+            ttfb_ms: { p95: 12.5 },
+            failure_rate: 0.05
+          }
+        }
+      ],
+      total: 1,
+      offset: 0,
+      limit: 100
+    });
+    vi.spyOn(services.jobs, "get").mockResolvedValue({
+      id: 109,
+      kind: "discovery",
+      resource: { kind: "discovery", id: 9 },
+      status: "COMPLETED",
+      progress: { completed: 1, total: 1 },
+      started_at: "2026-04-29T00:00:01Z",
+      cancel_requested_at: null,
+      finished_at: "2026-04-29T00:00:10Z",
+      result: { discovery_id: 9 },
+      error: null
+    });
+
+    renderWithApp(<DiscoveryDetailView id={9} />);
+
+    expect(await screen.findByText("가용성 검사 리포트")).toBeInTheDocument();
+    expect(screen.getByText("핸드셰이크 p95 평균")).toBeInTheDocument();
+    expect(screen.getByText("30.2 ms")).toBeInTheDocument();
+    expect(screen.getByText("4,216 B")).toBeInTheDocument();
+    expect(screen.getByText("web.testbed.local")).toBeInTheDocument();
+    expect(screen.getByText("31.4 ms")).toBeInTheDocument();
+    expect(screen.getAllByText("12.5 ms").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("5.0%").length).toBeGreaterThan(0);
   });
 });

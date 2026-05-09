@@ -4,6 +4,12 @@ set -euo pipefail
 CERT_DIR="/var/lib/postgresql/testbed-certs"
 mkdir -p "$CERT_DIR"
 
+if [[ -f "${OPENSSL_CONF:-}" ]]; then
+  export OPENSSL_CONF
+elif [[ -f /etc/testbed/openssl-lowsec.cnf ]]; then
+  export OPENSSL_CONF=/etc/testbed/openssl-lowsec.cnf
+fi
+
 if [[ -f /etc/testbed/db-certs/server.crt && -f /etc/testbed/db-certs/server.key ]]; then
   cp /etc/testbed/db-certs/server.crt "$CERT_DIR/server.crt"
   cp /etc/testbed/db-certs/server.key "$CERT_DIR/server.key"

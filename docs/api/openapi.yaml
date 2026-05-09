@@ -2041,6 +2041,8 @@ components:
         error:
           type: string
           nullable: true
+        availability_report:
+          $ref: '#/components/schemas/DiscoveryAvailabilityReport'
 
     DiscoveryPage:
       allOf:
@@ -2092,6 +2094,19 @@ components:
         suggested_host:
           type: string
           nullable: true
+        availability_metrics:
+          $ref: '#/components/schemas/DiscoveryAvailabilityMetrics'
+
+    DiscoveryAvailabilityReport:
+      type: object
+      nullable: true
+      description: Aggregate endpoint availability checks reported by a Discovery Agent.
+      additionalProperties: true
+
+    DiscoveryAvailabilityMetrics:
+      type: object
+      description: Per-endpoint availability and connectivity checks captured during discovery.
+      additionalProperties: true
 
     DiscoveredEndpointPage:
       allOf:
@@ -2197,6 +2212,8 @@ components:
           type: integer
           description: Number of RiskScore rows updated by a completed recompute job.
           nullable: true
+        availability_report:
+          $ref: '#/components/schemas/DiscoveryAvailabilityReport'
       additionalProperties: false
 
     JobEnvelope:

@@ -61,6 +61,7 @@ def enqueue_discovery(discovery) -> None:
 
 def serialize_discovery(discovery):
     scope_value = discovery.scope_value or discovery.cidr
+    result = discovery.async_job.result or {}
     return {
         "id": discovery.id,
         "job_id": discovery.async_job_id,
@@ -79,6 +80,7 @@ def serialize_discovery(discovery):
         "started_at": serialize_dt(discovery.started_at),
         "finished_at": serialize_dt(discovery.finished_at),
         "error": discovery.error,
+        "availability_report": result.get("availability_report") or result.get("performance_report"),
     }
 
 
@@ -95,6 +97,7 @@ def serialize_endpoint(endpoint):
         "suggested_host": endpoint.host,
         "promoted": endpoint.promoted,
         "target_id": endpoint.target_id,
+        "availability_metrics": endpoint.availability_metrics,
     }
 
 
@@ -179,14 +182,18 @@ def run_discovery_payload(payload: dict) -> dict:
     if discovery.executor_type == "agent":
         response = agent_client.post_discover(discovery.discovery_agent, request_payload)
         endpoints = response.get("endpoints", [])
+        availability_report = response.get("availability_report") or response.get("performance_report")
     else:
         endpoints = central_discover(request_payload)
+        availability_report = None
 
     saved_count = upsert_discovered_endpoints(discovery, endpoints)
+    availability_report = availability_report or summarize_discovery_availability(endpoints)
     return {
         "discovery_id": discovery.id,
         "executor_type": discovery.executor_type,
         "endpoints_count": saved_count,
+        "availability_report": availability_report,
     }
 
 
@@ -202,6 +209,7 @@ def upsert_discovered_endpoints(discovery, endpoints: list[dict]) -> int:
             continue
         detected_protocol = str(endpoint.get("detected_protocol") or "UNKNOWN")[:32]
         suggested_protocol_hint = str(endpoint.get("suggested_protocol_hint") or _protocol_hint_for_port(port, transport))[:16]
+        availability_metrics = _endpoint_availability_metrics(endpoint)
         existing = (
             DiscoveredEndpoint.objects.filter(discovery=discovery, host=host, port=port, transport=transport)
             .order_by("id")
@@ -210,7 +218,8 @@ def upsert_discovered_endpoints(discovery, endpoints: list[dict]) -> int:
         if existing:
             existing.detected_protocol = detected_protocol
             existing.suggested_protocol_hint = suggested_protocol_hint
-            existing.save(update_fields=["detected_protocol", "suggested_protocol_hint"])
+            existing.availability_metrics = availability_metrics
+            existing.save(update_fields=["detected_protocol", "suggested_protocol_hint", "availability_metrics"])
             DiscoveredEndpoint.objects.filter(discovery=discovery, host=host, port=port, transport=transport).exclude(id=existing.id).delete()
         else:
             DiscoveredEndpoint.objects.create(
@@ -220,9 +229,109 @@ def upsert_discovered_endpoints(discovery, endpoints: list[dict]) -> int:
                 transport=transport,
                 detected_protocol=detected_protocol,
                 suggested_protocol_hint=suggested_protocol_hint,
+                availability_metrics=availability_metrics,
             )
         saved += 1
     return saved
+
+
+def summarize_discovery_availability(endpoints: list[dict]) -> dict:
+    metrics = [
+        metric
+        for endpoint in endpoints
+        if isinstance((metric := _endpoint_availability_metrics(endpoint)), dict) and metric
+    ]
+    tls_endpoint_count = len(
+        [
+            endpoint
+            for endpoint in endpoints
+            if str(endpoint.get("transport") or "TCP").upper() == "TCP"
+            and str(endpoint.get("suggested_protocol_hint") or endpoint.get("detected_protocol") or "").upper() == "TLS"
+        ]
+    )
+    if not metrics:
+        return {
+            "measured_endpoint_count": 0,
+            "tls_endpoint_count": tls_endpoint_count,
+            "sample_count": 0,
+            "averages": {},
+            "max": {},
+            "rates": {"failure_rate": 0.0, "timeout_rate": 0.0},
+        }
+
+    return {
+        "measured_endpoint_count": len(metrics),
+        "tls_endpoint_count": tls_endpoint_count,
+        "sample_count": int(sum(_series_samples(metric, "handshake_ms") for metric in metrics)),
+        "averages": {
+            "tcp_connect_p95_ms": _average_metric(metrics, "tcp_connect_ms", "p95"),
+            "handshake_p95_ms": _average_metric(metrics, "handshake_ms", "p95"),
+            "ttfb_p95_ms": _average_metric(metrics, "ttfb_ms", "p95"),
+            "total_request_p95_ms": _average_metric(metrics, "total_request_ms", "p95"),
+        },
+        "max": {
+            "tcp_connect_p95_ms": _max_metric(metrics, "tcp_connect_ms", "p95"),
+            "handshake_p95_ms": _max_metric(metrics, "handshake_ms", "p95"),
+            "ttfb_p95_ms": _max_metric(metrics, "ttfb_ms", "p95"),
+            "total_request_p95_ms": _max_metric(metrics, "total_request_ms", "p95"),
+        },
+        "rates": {
+            "failure_rate": _average_scalar(metrics, "failure_rate"),
+            "timeout_rate": _average_scalar(metrics, "timeout_rate"),
+        },
+        "handshake_bytes": {
+            "sent": _average_scalar(metrics, "handshake_bytes_sent"),
+            "received": _average_scalar(metrics, "handshake_bytes_received"),
+        },
+    }
+
+
+def _endpoint_availability_metrics(endpoint: dict) -> dict:
+    metrics = endpoint.get("availability_metrics") or endpoint.get("performance_metrics") or endpoint.get("performance") or {}
+    return metrics if isinstance(metrics, dict) else {}
+
+
+def _series_samples(metrics: dict, key: str) -> int:
+    series = metrics.get(key)
+    if isinstance(series, dict):
+        value = series.get("samples")
+        if isinstance(value, int):
+            return value
+    sample_count = metrics.get("sample_count")
+    return sample_count if isinstance(sample_count, int) else 0
+
+
+def _series_value(metrics: dict, key: str, percentile: str) -> float | None:
+    series = metrics.get(key)
+    if isinstance(series, dict):
+        return _number(series.get(percentile))
+    return _number(series)
+
+
+def _average_metric(metrics: list[dict], key: str, percentile: str) -> float | None:
+    return _average([_series_value(metric, key, percentile) for metric in metrics])
+
+
+def _max_metric(metrics: list[dict], key: str, percentile: str) -> float | None:
+    values = [value for metric in metrics if (value := _series_value(metric, key, percentile)) is not None]
+    return round(max(values), 2) if values else None
+
+
+def _average_scalar(metrics: list[dict], key: str) -> float | None:
+    return _average([_number(metric.get(key)) for metric in metrics])
+
+
+def _average(values: list[float | None]) -> float | None:
+    numeric = [value for value in values if value is not None]
+    return round(sum(numeric) / len(numeric), 4) if numeric else None
+
+
+def _number(value) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
 
 
 def central_discover(payload: dict) -> list[dict]:

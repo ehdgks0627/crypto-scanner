@@ -55,8 +55,8 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
   return (
     <Section>
       <PageHeader
-        title={`스냅샷 #${snapshotId} 성능평가`}
-        description="PQC 전환 전후 성능평가 실행과 자산별 측정 결과를 조회합니다."
+        title={`스냅샷 #${snapshotId} 가용성 검사`}
+        description="PQC 전환 전후 가용성 검사 실행과 자산별 측정 결과를 조회합니다."
       />
       <Card>
         <CardContent>
@@ -64,7 +64,7 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
             <div className="toolbar__filters">
               <Field className="field-inline">
                 <FieldLabel>프로파일</FieldLabel>
-                <Select aria-label="성능평가 프로파일 필터" value={profile} onChange={(event) => setFilter("profile", event.target.value)}>
+                <Select aria-label="가용성 검사 프로파일 필터" value={profile} onChange={(event) => setFilter("profile", event.target.value)}>
                   <option value="">전체 프로파일</option>
                   {profiles.map((item) => (
                     <option key={item} value={item}>{profileLabel(item)}</option>
@@ -74,7 +74,7 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
               <Field className="field-inline">
                 <FieldLabel>실행</FieldLabel>
                 <Select
-                  aria-label="성능평가 실행 선택"
+                  aria-label="가용성 검사 실행 선택"
                   disabled={runItems.length === 0}
                   value={activeRunId ?? ""}
                   onChange={(event) => setFilter("run", event.target.value)}
@@ -94,7 +94,7 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
       {runs.isLoading ? <LoadingState /> : null}
       {runs.isError ? <ErrorState error={runs.error} onRetry={() => void runs.refetch()} /> : null}
       {runs.data && runItems.length === 0 ? (
-        <EmptyState title="성능평가 실행이 없습니다" description="마이그레이션 후 에이전트가 성능 측정 결과를 업로드하면 이곳에 표시됩니다." />
+        <EmptyState title="가용성 검사 실행이 없습니다" description="마이그레이션 후 에이전트가 가용성 검사 결과를 업로드하면 이곳에 표시됩니다." />
       ) : null}
       {detail.isLoading && activeRunId ? <LoadingState /> : null}
       {detail.isError ? <ErrorState error={detail.error} onRetry={() => void detail.refetch()} /> : null}
@@ -136,7 +136,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
           <DataTable
             items={run.results}
             getRowKey={(item) => item.id}
-            empty={<EmptyState title="자산별 성능 결과가 없습니다" />}
+            empty={<EmptyState title="자산별 가용성 검사 결과가 없습니다" />}
             columns={[
               { key: "asset", header: "자산", render: (item) => <span className="mono">{item.bom_ref}</span> },
               { key: "target", header: "스캔 대상", render: (item) => item.target_label ?? "-" },

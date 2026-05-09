@@ -13,7 +13,7 @@ export function PerformancePage() {
   if (snapshots.isError) {
     return (
       <Section>
-        <PageHeader title="성능평가" />
+        <PageHeader title="가용성 검사" />
         <ErrorState error={snapshots.error} onRetry={() => void snapshots.refetch()} />
       </Section>
     );
@@ -21,8 +21,8 @@ export function PerformancePage() {
   if (!selectedSnapshotId) {
     return (
       <Section>
-        <PageHeader title="성능평가" />
-        <EmptyState title="스냅샷이 없습니다" description="스캔을 실행해 자산 스냅샷을 생성한 뒤 성능평가 결과를 확인할 수 있습니다." />
+        <PageHeader title="가용성 검사" />
+        <EmptyState title="스냅샷이 없습니다" description="스캔을 실행해 자산 스냅샷을 생성한 뒤 가용성 검사 결과를 확인할 수 있습니다." />
       </Section>
     );
   }

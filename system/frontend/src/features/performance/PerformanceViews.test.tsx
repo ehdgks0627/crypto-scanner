@@ -61,13 +61,13 @@ describe("PerformanceEvaluationView", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders performance run summary and asset measurements", async () => {
+  it("renders availability check run summary and asset measurements", async () => {
     vi.spyOn(services.performance, "listRuns").mockResolvedValue({ items: [run], total: 1, offset: 0, limit: 100 });
     vi.spyOn(services.performance, "getRun").mockResolvedValue(detail);
 
     renderWithApp(<PerformanceEvaluationView snapshotId={3} />);
 
-    expect(await screen.findByText("스냅샷 #3 성능평가")).toBeInTheDocument();
+    expect(await screen.findByText("스냅샷 #3 가용성 검사")).toBeInTheDocument();
     expect(await screen.findByText("tls:web:leaf")).toBeInTheDocument();
     expect(screen.getByText("post_migration")).toBeInTheDocument();
     expect(screen.getByText("118.2 ms")).toBeInTheDocument();

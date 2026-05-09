@@ -1,0 +1,123 @@
+name: crypto-scanner-testbed
+
+x-host-gateway: &host-gateway
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+x-agent-env: &agent-env
+  BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8000}
+  BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-dev-bootstrap-token}
+  AGENT_LISTEN: ${AGENT_LISTEN:-0.0.0.0:9100}
+  AGENT_LOG_LEVEL: ${AGENT_LOG_LEVEL:-INFO}
+
+x-service-hardening: &service-hardening
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  certgen:
+    build:
+      context: .
+      dockerfile: services/certgen/Dockerfile
+    command: ["/certs/generate.sh"]
+    environment:
+      CERT_VALIDITY_DAYS: ${CERT_VALIDITY_DAYS:-365}
+      CERT_NEAR_EXPIRY_DAYS: ${CERT_NEAR_EXPIRY_DAYS:-15}
+      FORCE_CERT_REGEN: ${FORCE_CERT_REGEN:-0}
+    volumes:
+      - ./certs:/certs
+
+  dns:
+    build:
+      context: .
+      dockerfile: services/dns/Dockerfile
+    command: ["--conf-file=/etc/dnsmasq.conf", "--no-daemon"]
+    volumes:
+      - ./dns/dnsmasq.conf:/etc/dnsmasq.conf:ro
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${DNS_PORT_HOST:-5353}:53/udp"
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.2
+    <<: *service-hardening
+
+  web:
+    build:
+      context: .
+      dockerfile: services/web/Dockerfile
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: web.testbed.local
+      AGENT_CAPABILITIES: agent.cert_store,agent.pkg_keyring,agent.app_cert_files,agent.app_config
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${WEB_AGENT_PORT:-9101}
+    volumes:
+      - ./services/minimal-web/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs/web:/etc/testbed/certs/web:ro
+      - ./certs/web-ec:/etc/testbed/certs/web-ec:ro
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${WEB_HTTP_PORT:-8080}:80"
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${WEB_HTTPS_PORT:-4430}:443"
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${WEB_AGENT_PORT:-9101}:9100"
+    depends_on:
+      certgen:
+        condition: service_completed_successfully
+      dns:
+        condition: service_started
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.10
+    <<: [*host-gateway, *service-hardening]
+
+  ssh:
+    build:
+      context: .
+      dockerfile: services/ssh/Dockerfile
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: ssh.testbed.local
+      AGENT_CAPABILITIES: agent.ssh_userkey,agent.ssh_config,agent.cert_store
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${SSH_AGENT_PORT:-9102}
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${SSH_PORT:-2222}:22"
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${SSH_AGENT_PORT:-9102}:9100"
+    depends_on:
+      certgen:
+        condition: service_completed_successfully
+      dns:
+        condition: service_started
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.12
+    <<: [*host-gateway, *service-hardening]
+
+  discovery-agent:
+    build:
+      context: .
+      dockerfile: agent/Dockerfile
+    command: ["python", "/opt/testbed-agent/mock_agent.py"]
+    environment:
+      <<: *agent-env
+      AGENT_HOSTNAME: probe.dmz.testbed.local
+      AGENT_ROLE: discovery
+      AGENT_CAPABILITIES: agent.discovery
+      AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${DISCOVERY_AGENT_PORT:-9118}
+    volumes:
+      - ./agent:/opt/testbed-agent:ro
+    ports:
+      - "${TESTBED_BIND_ADDR:-127.0.0.1}:${DISCOVERY_AGENT_PORT:-9118}:9100"
+    depends_on:
+      certgen:
+        condition: service_completed_successfully
+      dns:
+        condition: service_started
+    networks:
+      pqc-testbed-net:
+        ipv4_address: 172.31.240.39
+    <<: [*host-gateway, *service-hardening]
+
+networks:
+  pqc-testbed-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.240.0/24

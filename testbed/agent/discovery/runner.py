@@ -5,6 +5,14 @@ from ipaddress import ip_address, ip_network
 from .registry import build_default_registry
 
 
+def discover(payload: dict) -> dict:
+    endpoints = discover_endpoints(payload)
+    return {
+        "endpoints": endpoints,
+        "availability_report": summarize_availability(endpoints),
+    }
+
+
 def discover_endpoints(payload: dict) -> list[dict]:
     ports = sorted({int(port) for port in payload.get("ports", []) if 1 <= int(port) <= 65535})
     hosts = _hosts_for_scope(
@@ -39,6 +47,56 @@ def discover_endpoints(payload: dict) -> list[dict]:
     return sorted(endpoints, key=lambda item: (_host_sort_key(item["host"]), item["port"], item["transport"]))
 
 
+def summarize_availability(endpoints: list[dict]) -> dict:
+    metrics = [
+        metrics
+        for endpoint in endpoints
+        if isinstance((metrics := endpoint.get("availability_metrics") or endpoint.get("performance_metrics")), dict) and metrics
+    ]
+    tls_endpoint_count = len(
+        [
+            endpoint
+            for endpoint in endpoints
+            if endpoint.get("transport") == "TCP"
+            and str(endpoint.get("suggested_protocol_hint") or endpoint.get("detected_protocol") or "").upper() == "TLS"
+        ]
+    )
+    if not metrics:
+        return {
+            "measured_endpoint_count": 0,
+            "tls_endpoint_count": tls_endpoint_count,
+            "sample_count": 0,
+            "averages": {},
+            "max": {},
+            "rates": {"failure_rate": 0.0, "timeout_rate": 0.0},
+        }
+    return {
+        "measured_endpoint_count": len(metrics),
+        "tls_endpoint_count": tls_endpoint_count,
+        "sample_count": int(sum(_series_samples(metric, "handshake_ms") for metric in metrics)),
+        "averages": {
+            "tcp_connect_p95_ms": _average_metric(metrics, "tcp_connect_ms", "p95"),
+            "handshake_p95_ms": _average_metric(metrics, "handshake_ms", "p95"),
+            "ttfb_p95_ms": _average_metric(metrics, "ttfb_ms", "p95"),
+            "total_request_p95_ms": _average_metric(metrics, "total_request_ms", "p95"),
+        },
+        "max": {
+            "tcp_connect_p95_ms": _max_metric(metrics, "tcp_connect_ms", "p95"),
+            "handshake_p95_ms": _max_metric(metrics, "handshake_ms", "p95"),
+            "ttfb_p95_ms": _max_metric(metrics, "ttfb_ms", "p95"),
+            "total_request_p95_ms": _max_metric(metrics, "total_request_ms", "p95"),
+        },
+        "rates": {
+            "failure_rate": _average_scalar(metrics, "failure_rate"),
+            "timeout_rate": _average_scalar(metrics, "timeout_rate"),
+        },
+        "handshake_bytes": {
+            "sent": _average_scalar(metrics, "handshake_bytes_sent"),
+            "received": _average_scalar(metrics, "handshake_bytes_received"),
+        },
+    }
+
+
 def _probe_host_port(registry, host: str, port: int, transport: str, timeout_sec: float):
     for probe in registry.probes_for(port, transport):
         endpoint = probe.run(host, port, timeout_sec)
@@ -69,3 +127,43 @@ def _host_sort_key(host: str):
         return (0, int(ip_address(host)))
     except ValueError:
         return (1, host)
+
+
+def _series_samples(metrics: dict, key: str) -> int:
+    series = metrics.get(key)
+    if isinstance(series, dict) and isinstance(series.get("samples"), int):
+        return series["samples"]
+    return int(metrics.get("sample_count") or 0)
+
+
+def _series_value(metrics: dict, key: str, percentile: str) -> float | None:
+    series = metrics.get(key)
+    if isinstance(series, dict):
+        return _number(series.get(percentile))
+    return _number(series)
+
+
+def _average_metric(metrics: list[dict], key: str, percentile: str) -> float | None:
+    return _average([_series_value(metric, key, percentile) for metric in metrics])
+
+
+def _max_metric(metrics: list[dict], key: str, percentile: str) -> float | None:
+    values = [value for metric in metrics if (value := _series_value(metric, key, percentile)) is not None]
+    return round(max(values), 2) if values else None
+
+
+def _average_scalar(metrics: list[dict], key: str) -> float | None:
+    return _average([_number(metric.get(key)) for metric in metrics])
+
+
+def _average(values: list[float | None]) -> float | None:
+    numeric = [value for value in values if value is not None]
+    return round(sum(numeric) / len(numeric), 4) if numeric else None
+
+
+def _number(value) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None

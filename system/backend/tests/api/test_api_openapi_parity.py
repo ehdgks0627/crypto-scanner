@@ -35,3 +35,5 @@ def test_pr_openapi_002_recent_contract_schema_fields_are_declared():
     assert "ApiToken:" in text
     assert "name: X-API-Token" in text
     assert "maximum: 100" in text
+    assert "DiscoveryAvailabilityReport:" in text
+    assert "availability_metrics:" in text

@@ -1,0 +1,19 @@
+services:
+  backend:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      LOAD_INITIAL_TARGETS: "0"
+    ports:
+      - "${BACKEND_PORT:-18000}:8000"
+
+  worker:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      LOAD_INITIAL_TARGETS: "0"
+
+  frontend:
+    ports: !override
+      - "${SYSTEM_WEB_PORT:-8088}:80"
+      - "${SYSTEM_WEB_HTTPS_PORT:-8444}:443"

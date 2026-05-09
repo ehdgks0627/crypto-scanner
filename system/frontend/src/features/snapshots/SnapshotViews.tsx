@@ -113,7 +113,7 @@ function SnapshotAssetsView({ id, snapshotHint }: { id: number; snapshotHint?: S
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/diff`)}>비교</Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/risk`)}>위험평가</Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/migration`)}>마이그레이션</Button>
-            <Button type="button" onClick={() => navigate(`/snapshots/${id}/performance`)}>성능평가</Button>
+            <Button type="button" onClick={() => navigate(`/snapshots/${id}/performance`)}>가용성 검사</Button>
           </>
         }
       />
@@ -285,7 +285,7 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
       ) : null}
       <Card>
         <CardHeader>
-          <CardTitle>성능평가 이력</CardTitle>
+          <CardTitle>가용성 검사 이력</CardTitle>
         </CardHeader>
         <CardContent>
           {performanceHistory.isLoading ? <LoadingState /> : null}
@@ -294,7 +294,7 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
             <DataTable
               items={performanceHistory.data.items}
               getRowKey={(item) => item.id}
-              empty={<EmptyState title="성능평가 이력이 없습니다" />}
+              empty={<EmptyState title="가용성 검사 이력이 없습니다" />}
               columns={[
                 { key: "run", header: "실행", render: (item) => `#${item.run_id}` },
                 { key: "status", header: "상태", render: (item) => performanceStatusLabel(item.status) },

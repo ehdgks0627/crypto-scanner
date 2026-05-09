@@ -45,6 +45,31 @@ register against `BACKEND_URL`.
 docker compose up -d
 ```
 
+## Minimal Actual Environment
+
+For a clean environment with no demo seed data and only one web server plus one
+SSH server, run:
+
+```bash
+# from the repository root
+DOCKER_CMD="sudo -n docker" ./scripts/start-minimal-actual-env.sh
+```
+
+This starts the system stack with `LOAD_INITIAL_TARGETS=0`, resets the system
+database volume by default, and starts only the minimal testbed services:
+
+- `web`: HTTP on host `8080`, HTTPS on host `4430`, Host Agent on `9101`.
+- `ssh`: SSH on host `2222`, Host Agent on `9102`.
+- `discovery-agent`: Discovery Agent on host `9118`.
+- `dns` and `certgen`: support services for deterministic names and TLS certs.
+
+Set `RESET_SYSTEM_DB=0` to keep the current system DB, or override ports with
+`BACKEND_PORT`, `SYSTEM_WEB_PORT`, `SYSTEM_WEB_HTTPS_PORT`, `WEB_HTTP_PORT`,
+`WEB_HTTPS_PORT`, `SSH_PORT`, and `DISCOVERY_AGENT_PORT`. The system backend
+defaults to `18000`, and the system frontend defaults to `8088`/`8444`, so the
+minimal stack can run beside a local dev server on `8000` or an existing reverse
+proxy on `80`/`443`.
+
 The backend fixture `system/backend/fixtures/initial_targets.json` contains the
 matching internal testbed targets for scanner demos. It includes 31 targets
 because some services expose multiple protocol endpoints.

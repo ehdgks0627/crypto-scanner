@@ -212,12 +212,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-pqc_testbed}
       POSTGRES_USER: ${POSTGRES_USER:-pqc}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in testbed/.env.}
+      OPENSSL_CONF: /etc/testbed/openssl-lowsec.cnf
       AGENT_HOSTNAME: db.testbed.local
       AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_cert_files,agent.app_config
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${DB_AGENT_PORT:-9103}
     volumes:
       - db-data:/var/lib/postgresql/data
       - ./certs/db:/etc/testbed/db-certs:ro
+      - ./services/openssl-lowsec.cnf:/etc/testbed/openssl-lowsec.cnf:ro
       - ./services/db/postgresql.conf:/etc/testbed/postgresql.conf:ro
       - ./services/db/pg_hba.conf:/etc/testbed/pg_hba.conf:ro
     ports:
@@ -359,12 +361,14 @@ services:
   mysql-legacy:
     <<: [*tls-fixture-base, *service-hardening]
     environment:
+      OPENSSL_CONF: /etc/testbed/openssl-lowsec.cnf
       SERVICE_HOSTNAME: mysql-legacy.testbed.local
       SERVICE_KIND: mysql-legacy-tls
       SERVICE_PORT: 3306
       TLS_PROTOCOLS: TLSv1.2
     volumes:
       - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./services/openssl-lowsec.cnf:/etc/testbed/openssl-lowsec.cnf:ro
       - ./certs/mysql-legacy:/etc/testbed/certs/service:ro
     networks:
       pqc-testbed-net:
@@ -578,12 +582,14 @@ services:
   legacy-java-app:
     <<: [*tls-fixture-base, *service-hardening]
     environment:
+      OPENSSL_CONF: /etc/testbed/openssl-lowsec.cnf
       SERVICE_HOSTNAME: legacy-java-app.testbed.local
       SERVICE_KIND: legacy-java-app
       SERVICE_PORT: 8443
       TLS_PROTOCOLS: TLSv1.2
     volumes:
       - ./services/tls-fixture/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./services/openssl-lowsec.cnf:/etc/testbed/openssl-lowsec.cnf:ro
       - ./certs/legacy-java-app:/etc/testbed/certs/service:ro
     networks:
       pqc-testbed-net:

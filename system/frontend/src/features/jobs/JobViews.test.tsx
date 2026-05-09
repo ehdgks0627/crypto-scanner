@@ -1,10 +1,72 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../api/client";
 import { services } from "../../api/services";
+import type { Schema } from "../../api/types";
 import { renderWithApp } from "../../test/test-utils";
-import { JobDetailView } from "./JobViews";
+import { JobDetailView, ScanNewView } from "./JobViews";
+
+function makeTarget(overrides: Partial<Schema<"Target">>): Schema<"Target"> {
+  return {
+    id: 1,
+    host: "web.testbed.local",
+    display_name: "Web Server",
+    ip: "10.10.10.21",
+    port: 443,
+    protocol_hint: "TLS",
+    sni: null,
+    transport: "TCP",
+    agent_enabled: false,
+    agent_url: null,
+    context: {
+      sensitivity: null,
+      lifespan_years: null,
+      criticality: null,
+      exposure: null,
+      service_role: null
+    },
+    created_at: "2026-04-29T00:00:00Z",
+    updated_at: "2026-04-29T00:00:00Z",
+    ...overrides
+  };
+}
+
+describe("ScanNewView", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("selects every target and scanner by default", async () => {
+    vi.spyOn(services.targets, "list").mockResolvedValue({
+      items: [
+        makeTarget({ id: 1, host: "web.testbed.local", display_name: "Web Server" }),
+        makeTarget({ id: 2, host: "ssh.testbed.local", display_name: null, port: 22, protocol_hint: "SSH" })
+      ],
+      total: 2,
+      offset: 0,
+      limit: 100
+    });
+    vi.spyOn(services.meta, "scanners").mockResolvedValue({
+      scanners: [
+        { id: "network", label: "네트워크", requires_agent: false },
+        { id: "agent.cert_store", label: "인증서 저장소", requires_agent: true }
+      ]
+    });
+
+    renderWithApp(<ScanNewView />);
+
+    expect(await screen.findByText("Web Server")).toBeInTheDocument();
+    expect(await screen.findByText("네트워크")).toBeInTheDocument();
+
+    await waitFor(() => {
+      const checkboxes = screen.getAllByRole("checkbox");
+      expect(checkboxes).toHaveLength(4);
+      checkboxes.forEach((checkbox) => expect(checkbox).toBeChecked());
+    });
+    expect(screen.getByRole("button", { name: /스캔 시작/ })).toBeEnabled();
+  });
+});
 
 describe("JobDetailView", () => {
   afterEach(() => {

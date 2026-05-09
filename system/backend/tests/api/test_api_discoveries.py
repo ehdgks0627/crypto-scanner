@@ -194,16 +194,49 @@ def test_api_dsc_002e_worker_calls_discovery_agent_and_persists_endpoints(client
         agent_requests.append((agent_arg.id, payload))
         return {
             "endpoints": [
-                {"host": "172.31.240.10", "port": 443, "transport": "TCP", "detected_protocol": "TLS", "suggested_protocol_hint": "TLS"},
+                {
+                    "host": "172.31.240.10",
+                    "port": 443,
+                    "transport": "TCP",
+                    "detected_protocol": "TLS",
+                    "suggested_protocol_hint": "TLS",
+                    "availability_metrics": {
+                        "measurement_type": "tls_availability_check",
+                        "sample_count": 3,
+                        "successful_handshakes": 3,
+                        "tcp_connect_ms": {"p50": 2.0, "p95": 3.0, "samples": 3},
+                        "handshake_ms": {"p50": 12.0, "p95": 15.0, "samples": 3},
+                        "failure_rate": 0.0,
+                        "timeout_rate": 0.0,
+                        "handshake_bytes_sent": 1800,
+                        "handshake_bytes_received": 3200,
+                    },
+                },
                 {"host": "172.31.240.12", "port": 22, "transport": "TCP", "detected_protocol": "SSH", "suggested_protocol_hint": "SSH"},
-            ]
+            ],
+            "availability_report": {
+                "measured_endpoint_count": 1,
+                "tls_endpoint_count": 1,
+                "sample_count": 3,
+                "averages": {"handshake_p95_ms": 15.0},
+            },
         }
 
     monkeypatch.setattr(services.agent_client, "post_discover", fake_post_discover)
 
     result = services.process_discovery_task(task.id)
 
-    assert result == {"discovery_id": discovery.id, "executor_type": "agent", "endpoints_count": 2}
+    assert result == {
+        "discovery_id": discovery.id,
+        "executor_type": "agent",
+        "endpoints_count": 2,
+        "availability_report": {
+            "measured_endpoint_count": 1,
+            "tls_endpoint_count": 1,
+            "sample_count": 3,
+            "averages": {"handshake_p95_ms": 15.0},
+        },
+    }
     assert agent_requests == [
         (
             agent.id,
@@ -219,12 +252,19 @@ def test_api_dsc_002e_worker_calls_discovery_agent_and_persists_endpoints(client
         ("172.31.240.10", 443, "TLS"),
         ("172.31.240.12", 22, "SSH"),
     }
+    tls_endpoint = DiscoveredEndpoint.objects.get(discovery=discovery, port=443)
+    assert tls_endpoint.availability_metrics["handshake_ms"]["p95"] == 15.0
+    endpoint_response = client.get(f"/api/discoveries/{discovery.id}/endpoints")
+    assert endpoint_response.json()["items"][0]["availability_metrics"]["measurement_type"] == "tls_availability_check"
     task.refresh_from_db()
     discovery.refresh_from_db()
     discovery.async_job.refresh_from_db()
     assert task.status == QueuedTask.COMPLETED
     assert discovery.status == AsyncJob.COMPLETED
     assert discovery.async_job.progress == {"current": 2, "total": 2, "percent": 100}
+    assert discovery.async_job.result["availability_report"]["sample_count"] == 3
+    detail_response = client.get(f"/api/discoveries/{discovery.id}")
+    assert detail_response.json()["availability_report"]["measured_endpoint_count"] == 1
 
 
 def test_api_dsc_002f_create_discovery_rejects_invalid_scope_values(client):

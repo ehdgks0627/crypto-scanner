@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
 import type { JobStatus, Schema } from "../../api/types";
+import { MetricCard } from "../../components/charts/MetricCard";
 import { StatusBadge } from "../../components/common/Badges";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { PageHeader } from "../../components/common/PageHeader";
@@ -19,7 +20,7 @@ import { DataTable } from "../../components/ui/table";
 import { statusLabel, yesNoLabel } from "../../domain/displayLabels";
 import { canCancelJob, isActiveJobStatus, pageHasActiveJob } from "../../domain/jobStatus";
 import { JobProgressModel } from "../../domain/models";
-import { formatDateTime } from "../../lib/format";
+import { formatDateTime, formatNumber } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import {
   buildDiscoveryCreatePayload,
@@ -52,6 +53,8 @@ const discoveryScopePlaceholders: Record<DiscoveryScopeInputType, string> = {
   host: "172.20.0.10 또는 app.testbed.local"
 };
 
+type JsonRecord = Record<string, unknown>;
+
 function discoveryScopeLabel(discovery: Schema<"Discovery">) {
   return discovery.scope_value || discovery.cidr;
 }
@@ -73,6 +76,50 @@ function formatDiscoveryExecutor(discovery: Schema<"Discovery">) {
     return discovery.agent_hostname || "Discovery Agent";
   }
   return discoveryExecutorLabels.central;
+}
+
+function asRecord(value: unknown): JsonRecord {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
+}
+
+function metricNumber(value: unknown, ...path: string[]): number | undefined {
+  let current = value;
+  for (const key of path) {
+    const record = asRecord(current);
+    if (!(key in record)) {
+      return undefined;
+    }
+    current = record[key];
+  }
+  return typeof current === "number" && Number.isFinite(current) ? current : undefined;
+}
+
+function hasAvailabilityReport(report: unknown) {
+  return Boolean(metricNumber(report, "measured_endpoint_count") || metricNumber(report, "sample_count"));
+}
+
+function endpointMetricP95(endpoint: Schema<"DiscoveredEndpoint">, key: "tcp_connect_ms" | "handshake_ms" | "ttfb_ms" | "total_request_ms") {
+  return metricNumber(endpoint.availability_metrics, key, "p95");
+}
+
+function endpointNumberMetric(endpoint: Schema<"DiscoveredEndpoint">, key: "failure_rate" | "timeout_rate") {
+  return metricNumber(endpoint.availability_metrics, key);
+}
+
+function formatCount(value?: number) {
+  return typeof value === "number" ? formatNumber(value) : "-";
+}
+
+function formatMs(value?: number) {
+  return typeof value === "number" ? `${value.toFixed(1)} ms` : "-";
+}
+
+function formatPercent(value?: number) {
+  return typeof value === "number" ? `${(value * 100).toFixed(1)}%` : "-";
+}
+
+function formatBytes(value?: number) {
+  return typeof value === "number" ? `${formatNumber(Math.round(value))} B` : "-";
 }
 
 export function DiscoveriesView() {
@@ -502,6 +549,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
           </CardContent>
         </Card>
       </div>
+      <DiscoveryAvailabilitySummary report={discovery.data.availability_report} />
       <Card>
         <CardHeader>
           <CardTitle>엔드포인트</CardTitle>
@@ -533,6 +581,9 @@ export function DiscoveryDetailView({ id }: { id: number }) {
                 { key: "host", header: "호스트/IP", render: (endpoint) => endpoint.suggested_host ?? endpoint.ip },
                 { key: "port", header: "포트", render: (endpoint) => endpoint.port },
                 { key: "protocol", header: "프로토콜", render: (endpoint) => endpoint.suggested_protocol_hint ?? endpoint.detected_protocol ?? "-" },
+                { key: "handshake", header: "핸드셰이크 p95", align: "right", render: (endpoint) => formatMs(endpointMetricP95(endpoint, "handshake_ms")) },
+                { key: "ttfb", header: "TTFB p95", align: "right", render: (endpoint) => formatMs(endpointMetricP95(endpoint, "ttfb_ms")) },
+                { key: "failure", header: "실패율", align: "right", render: (endpoint) => formatPercent(endpointNumberMetric(endpoint, "failure_rate")) },
                 { key: "promoted", header: "승인 여부", render: (endpoint) => yesNoLabel(endpoint.promoted) },
                 { key: "target", header: "스캔 대상", render: (endpoint) => endpoint.target_id ? `#${endpoint.target_id}` : "-" }
               ]}
@@ -541,5 +592,53 @@ export function DiscoveryDetailView({ id }: { id: number }) {
         </CardContent>
       </Card>
     </Section>
+  );
+}
+
+function DiscoveryAvailabilitySummary({ report }: { report?: Schema<"Discovery">["availability_report"] }) {
+  if (!hasAvailabilityReport(report)) {
+    return null;
+  }
+
+  return (
+    <>
+      <div className="content-grid content-grid--4">
+        <MetricCard
+          label="측정 엔드포인트"
+          value={formatCount(metricNumber(report, "measured_endpoint_count"))}
+          meta={`TLS ${formatCount(metricNumber(report, "tls_endpoint_count"))}`}
+        />
+        <MetricCard
+          label="핸드셰이크 p95 평균"
+          value={formatMs(metricNumber(report, "averages", "handshake_p95_ms"))}
+          meta={`최대 ${formatMs(metricNumber(report, "max", "handshake_p95_ms"))}`}
+        />
+        <MetricCard
+          label="TTFB p95 평균"
+          value={formatMs(metricNumber(report, "averages", "ttfb_p95_ms"))}
+          meta={`요청 ${formatMs(metricNumber(report, "averages", "total_request_p95_ms"))}`}
+        />
+        <MetricCard
+          label="실패율"
+          value={formatPercent(metricNumber(report, "rates", "failure_rate"))}
+          meta={`Timeout ${formatPercent(metricNumber(report, "rates", "timeout_rate"))}`}
+        />
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>가용성 검사 리포트</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="detail-list">
+            <div><dt>샘플 수</dt><dd>{formatCount(metricNumber(report, "sample_count"))}</dd></div>
+            <div><dt>TCP 연결 p95 평균</dt><dd>{formatMs(metricNumber(report, "averages", "tcp_connect_p95_ms"))}</dd></div>
+            <div><dt>최대 TTFB p95</dt><dd>{formatMs(metricNumber(report, "max", "ttfb_p95_ms"))}</dd></div>
+            <div><dt>최대 요청 p95</dt><dd>{formatMs(metricNumber(report, "max", "total_request_p95_ms"))}</dd></div>
+            <div><dt>Handshake 송신 p95</dt><dd>{formatBytes(metricNumber(report, "handshake_bytes", "sent"))}</dd></div>
+            <div><dt>Handshake 수신 p95</dt><dd>{formatBytes(metricNumber(report, "handshake_bytes", "received"))}</dd></div>
+          </dl>
+        </CardContent>
+      </Card>
+    </>
   );
 }

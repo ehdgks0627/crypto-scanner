@@ -22,9 +22,18 @@ def capabilities() -> list[str]:
 
 
 def discovery_findings(payload: dict) -> list[dict]:
+    return discovery_result(payload)["endpoints"]
+
+
+def discovery_result(payload: dict) -> dict:
     from discovery.runner import discover_endpoints
 
-    return discover_endpoints(payload)
+    try:
+        from discovery.runner import discover
+
+        return discover(payload)
+    except ImportError:
+        return {"endpoints": discover_endpoints(payload), "availability_report": {}}
 
 
 def scan_findings(payload: dict) -> dict:
@@ -159,7 +168,7 @@ class Handler(BaseHTTPRequestHandler):
             if os.getenv("AGENT_ROLE", "host") != "discovery":
                 self._send_json(403, {"error": "role_unsupported"})
                 return
-            self._send_json(200, {"endpoints": discovery_findings(self._read_json())})
+            self._send_json(200, discovery_result(self._read_json()))
             return
         self._send_json(404, {"error": "not_found"})
 

@@ -876,6 +876,7 @@ export interface components {
             /** Format: date-time */
             finished_at?: string | null;
             error?: string | null;
+            availability_report?: components["schemas"]["DiscoveryAvailabilityReport"];
         };
         DiscoveryPage: components["schemas"]["PageBase"] & {
             items: components["schemas"]["Discovery"][];
@@ -893,6 +894,15 @@ export interface components {
             target_id?: number | null;
             suggested_protocol_hint?: (string & components["schemas"]["ProtocolHint"]) | null;
             suggested_host?: string | null;
+            availability_metrics?: components["schemas"]["DiscoveryAvailabilityMetrics"];
+        };
+        /** @description Aggregate endpoint availability checks reported by a Discovery Agent. */
+        DiscoveryAvailabilityReport: {
+            [key: string]: unknown;
+        } | null;
+        /** @description Per-endpoint availability and connectivity checks captured during discovery. */
+        DiscoveryAvailabilityMetrics: {
+            [key: string]: unknown;
         };
         DiscoveredEndpointPage: components["schemas"]["PageBase"] & {
             items: components["schemas"]["DiscoveredEndpoint"][];
@@ -938,6 +948,7 @@ export interface components {
             discovery_id?: number | null;
             /** @description Number of RiskScore rows updated by a completed recompute job. */
             updated_scores_count?: number | null;
+            availability_report?: components["schemas"]["DiscoveryAvailabilityReport"];
         };
         JobEnvelope: {
             /** @description API-visible asynchronous job id, unique across all job kinds. */
