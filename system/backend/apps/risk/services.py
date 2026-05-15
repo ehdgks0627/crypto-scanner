@@ -1,10 +1,11 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.utils import timezone
 
 from apps.jobs.models import AsyncJob, QueuedTask
 from apps.jobs.services import enqueue_task, serialize_dt
 from apps.risk.models import RiskScore, RiskWeights
-from risk_engine import DEFAULT_WEIGHTS, compute_risk, normalize_weights
+from risk_engine import DEFAULT_WEIGHTS, compute_dhs_risk, compute_risk, normalize_weights
 
 
 class EnqueueUnavailable(Exception):
@@ -23,6 +24,7 @@ def serialize_risk_score(risk_score):
         "score": round(risk_score.score),
         "tier": risk_score.tier,
         "factors": normalize_factors(risk_score.factors),
+        "dhs_risk": _serialized_dhs_risk(risk_score),
         "computed_at": serialize_dt(risk_score.computed_at),
     }
 
@@ -48,6 +50,7 @@ def serialize_risk_detail(risk_score):
         "weights": risk_score.factors.get("weights", {"wA": 1, "wD": 1, "wE": 1, "wL": 1, "wC": 1})
         if isinstance(risk_score.factors, dict)
         else {"wA": 1, "wD": 1, "wE": 1, "wL": 1, "wC": 1},
+        "dhs_risk": _serialized_dhs_risk(risk_score),
     }
 
 
@@ -211,6 +214,9 @@ def _upsert_asset_risk(asset, weights: dict[str, float]) -> RiskScore:
         "context": context,
         "engine_version": result.engine_version,
     }
+    dhs_risk = _compute_asset_dhs_risk(asset)
+    if dhs_risk:
+        factors["dhs_risk"] = dhs_risk
     existing = list(RiskScore.objects.filter(asset=asset).order_by("id"))
     if existing:
         risk_score = existing[0]
@@ -230,6 +236,21 @@ def _upsert_asset_risk(asset, weights: dict[str, float]) -> RiskScore:
         tier=result.tier,
         factors=factors,
     )
+
+
+def _compute_asset_dhs_risk(asset) -> dict | None:
+    try:
+        assessment = asset.qualitative_assessment
+    except ObjectDoesNotExist:
+        return None
+    return compute_dhs_risk(assessment.dhs_criteria).to_dict()
+
+
+def _serialized_dhs_risk(risk_score) -> dict | None:
+    if not risk_score or not isinstance(risk_score.factors, dict):
+        return None
+    value = risk_score.factors.get("dhs_risk")
+    return value if isinstance(value, dict) else None
 
 
 def _resolved_weights(weights: dict | None = None) -> dict[str, float]:

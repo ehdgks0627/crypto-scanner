@@ -1080,6 +1080,25 @@ export interface components {
             /** Format: float */
             factor_c: number;
             weights: components["schemas"]["RiskWeightsInput"];
+            dhs_risk: components["schemas"]["DhsRiskResult"] | null;
+        };
+        DhsRiskResult: {
+            score_10: number;
+            /** @enum {string} */
+            priority: "P1" | "P2" | "P3";
+            weighted_raw: number;
+            weights: {
+                [key: string]: number;
+            };
+            criteria: {
+                [key: string]: {
+                    score: number;
+                    weight: number;
+                    weighted_score: number;
+                };
+            };
+            missing_criteria: string[];
+            engine_version: string;
         };
         QualitativeAssessment: {
             provider: string;
@@ -1087,6 +1106,10 @@ export interface components {
             summary: string;
             threat_scenarios: string[];
             migration_recommendation: string;
+            dhs_criteria: {
+                [key: string]: unknown;
+            };
+            dhs_risk: components["schemas"]["DhsRiskResult"];
             confidence: number;
             /** Format: date-time */
             generated_at: string;
@@ -1167,6 +1190,7 @@ export interface components {
             score: number;
             tier: components["schemas"]["RiskTier"];
             factors: components["schemas"]["RiskFactors"];
+            dhs_risk: components["schemas"]["DhsRiskResult"] | null;
             /** Format: date-time */
             computed_at: string;
         };

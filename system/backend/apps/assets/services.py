@@ -7,6 +7,7 @@ from django.utils import timezone
 from apps.jobs.models import AsyncJob, QueuedTask
 from apps.jobs.services import enqueue_task, serialize_dt
 from apps.risk import services as risk_services
+from risk_engine import compute_dhs_risk
 from risk_engine.prompts import (
     QualitativeRiskResponseParseError,
     build_qualitative_risk_prompt,
@@ -988,6 +989,7 @@ def serialize_qualitative(assessment):
         "threat_scenarios": assessment.threat_scenarios,
         "migration_recommendation": assessment.migration_recommendation,
         "dhs_criteria": assessment.dhs_criteria,
+        "dhs_risk": compute_dhs_risk(assessment.dhs_criteria).to_dict(),
         "confidence": assessment.confidence,
         "generated_at": serialize_dt(assessment.generated_at),
     }

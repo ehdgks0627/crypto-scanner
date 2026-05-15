@@ -16,6 +16,7 @@ from apps.performance import services as performance_services
 from apps.risk.models import RiskScore, RiskWeights
 from apps.snapshots.models import CbomSnapshot
 from apps.targets.models import Target
+from risk_engine import compute_dhs_risk
 
 
 SCENARIO = "testbed_demo"
@@ -350,7 +351,7 @@ class Command(BaseCommand):
                 algorithm_family=asset_data.algorithm_family,
             )
             created_assets[asset_data.bom_ref] = asset
-            RiskScore.objects.create(
+            risk_score = RiskScore.objects.create(
                 snapshot=snapshot,
                 asset=asset,
                 score=asset_data.score,
@@ -358,7 +359,12 @@ class Command(BaseCommand):
                 factors={**asset_data.factors, "weights": {"wA": 1.4, "wD": 1.2, "wE": 1.1, "wL": 1.3, "wC": 1.5}},
             )
             if asset_data.tier in {"CRITICAL", "HIGH"}:
-                self._seed_qualitative(asset)
+                assessment = self._seed_qualitative(asset)
+                risk_score.factors = {
+                    **risk_score.factors,
+                    "dhs_risk": compute_dhs_risk(assessment.dhs_criteria).to_dict(),
+                }
+                risk_score.save(update_fields=["factors"])
             if asset_data.bom_ref == "postgres:client:tls-policy":
                 AssetContextOverride.objects.create(
                     asset=asset,
@@ -448,7 +454,7 @@ class Command(BaseCommand):
                 )
 
     def _seed_qualitative(self, asset):
-        QualitativeAssessment.objects.create(
+        return QualitativeAssessment.objects.create(
             asset=asset,
             provider="demo-rulebook",
             summary=f"{asset.name} uses {asset.algorithm}, which is exposed to quantum migration planning.",

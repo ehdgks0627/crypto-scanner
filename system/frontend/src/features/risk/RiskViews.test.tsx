@@ -22,6 +22,7 @@ const riskScore = {
   score: 95,
   tier: "CRITICAL",
   factors: { a: 0.95, d: 1, e: 1, l: 1, c: 1 },
+  dhs_risk: null,
   computed_at: "2026-04-30T00:00:00Z"
 } satisfies Schema<"RiskScore">;
 

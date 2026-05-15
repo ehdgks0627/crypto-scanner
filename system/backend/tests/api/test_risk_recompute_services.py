@@ -85,6 +85,41 @@ def test_recompute_asset_uses_asset_override_before_target_context():
     assert score.factors["sources"]["e"] == "asset_override"
 
 
+def test_recompute_asset_stores_dhs_weighted_risk_when_qualitative_exists():
+    from apps.assets.models import QualitativeAssessment
+    from apps.risk import services
+    from apps.risk.models import RiskScore
+
+    asset = create_asset(algorithm="RSA-2048", algorithm_family="RSA")
+    QualitativeAssessment.objects.create(
+        asset=asset,
+        provider="test",
+        prompt_version="test",
+        summary="summary",
+        threat_scenarios=["harvest_now_decrypt_later"],
+        migration_recommendation="recommend",
+        dhs_criteria={
+            "asset_value": {"rating": "high", "score": 0.8},
+            "protected_information": {"rating": "critical", "score": 0.9},
+            "communication_scope": {"rating": "high", "score": 0.7},
+            "sharing_level": {"rating": "medium", "score": 0.5},
+            "critical_infrastructure": {"rating": "critical", "score": 0.85},
+            "protection_duration": {"rating": "critical", "score": 1.0},
+        },
+        confidence=0.8,
+    )
+
+    services.recompute_asset_risk(asset.id)
+
+    score = RiskScore.objects.get(asset=asset)
+    dhs_risk = score.factors["dhs_risk"]
+    assert dhs_risk["score_10"] == 8.2
+    assert dhs_risk["priority"] == "P1"
+    assert dhs_risk["weights"]["protection_duration"] == max(dhs_risk["weights"].values())
+    assert services.serialize_risk_score(score)["dhs_risk"]["priority"] == "P1"
+    assert services.serialize_risk_detail(score)["dhs_risk"]["engine_version"] == "dhs-risk-v1"
+
+
 def test_recompute_task_processes_queued_job_and_persists_weights():
     from apps.jobs.models import AsyncJob, QueuedTask
     from apps.risk import services

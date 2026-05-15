@@ -2516,7 +2516,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/AssetRiskSummary'
         - type: object
-          required: [factor_a, factor_d, factor_e, factor_l, factor_c, weights]
+          required: [factor_a, factor_d, factor_e, factor_l, factor_c, weights, dhs_risk]
           properties:
             factor_a:
               type: number
@@ -2535,6 +2535,50 @@ components:
               format: float
             weights:
               $ref: '#/components/schemas/RiskWeightsInput'
+            dhs_risk:
+              nullable: true
+              allOf:
+                - $ref: '#/components/schemas/DhsRiskResult'
+
+    DhsRiskResult:
+      type: object
+      required: [score_10, priority, weighted_raw, weights, criteria, missing_criteria, engine_version]
+      properties:
+        score_10:
+          type: number
+          minimum: 0
+          maximum: 10
+        priority:
+          type: string
+          enum: [P1, P2, P3]
+        weighted_raw:
+          type: number
+          minimum: 0
+          maximum: 1
+        weights:
+          type: object
+          additionalProperties:
+            type: number
+        criteria:
+          type: object
+          additionalProperties:
+            type: object
+            required: [score, weight, weighted_score]
+            properties:
+              score:
+                type: number
+                minimum: 0
+                maximum: 1
+              weight:
+                type: number
+              weighted_score:
+                type: number
+        missing_criteria:
+          type: array
+          items:
+            type: string
+        engine_version:
+          type: string
 
     QualitativeAssessment:
       type: object
@@ -2544,6 +2588,8 @@ components:
         - summary
         - threat_scenarios
         - migration_recommendation
+        - dhs_criteria
+        - dhs_risk
         - confidence
         - generated_at
       properties:
@@ -2559,6 +2605,11 @@ components:
             type: string
         migration_recommendation:
           type: string
+        dhs_criteria:
+          type: object
+          additionalProperties: true
+        dhs_risk:
+          $ref: '#/components/schemas/DhsRiskResult'
         confidence:
           type: number
           minimum: 0
@@ -2753,6 +2804,7 @@ components:
         - score
         - tier
         - factors
+        - dhs_risk
         - computed_at
       properties:
         asset_id:
@@ -2769,6 +2821,10 @@ components:
           $ref: '#/components/schemas/RiskTier'
         factors:
           $ref: '#/components/schemas/RiskFactors'
+        dhs_risk:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DhsRiskResult'
         computed_at:
           type: string
           format: date-time

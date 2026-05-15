@@ -389,6 +389,9 @@ def test_api_ast_006_qualitative_request_uses_asset_context_and_risk(client):
     assert rsa_body["dhs_criteria"]["protection_duration"]["lifespan_years"] == 12
     assert rsa_body["dhs_criteria"]["protection_duration"]["hndl_exposure"] in {"high", "critical"}
     assert "quantum_vulnerable:true" in rsa_body["dhs_criteria"]["protection_duration"]["signals"]
+    assert rsa_body["dhs_risk"]["score_10"] >= 8
+    assert rsa_body["dhs_risk"]["priority"] == "P1"
+    assert rsa_body["dhs_risk"]["weights"]["protection_duration"] == max(rsa_body["dhs_risk"]["weights"].values())
 
 
 def test_api_ast_007_qualitative_worker_processes_asset_task():
@@ -460,6 +463,9 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
     assert assessment.dhs_criteria["protection_duration"]["lifespan_years"] == 15
     assert assessment.dhs_criteria["protection_duration"]["hndl_exposure"] == "critical"
     assert "quantum_vulnerable:true" in assessment.dhs_criteria["protection_duration"]["signals"]
+    serialized = services.serialize_qualitative(assessment)
+    assert serialized["dhs_risk"]["priority"] == "P1"
+    assert serialized["dhs_risk"]["criteria"]["protection_duration"]["weighted_score"] >= 1.3
     assert isinstance(assessment.confidence, float)
 
 
