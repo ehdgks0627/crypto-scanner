@@ -1083,6 +1083,7 @@ export interface components {
         };
         QualitativeAssessment: {
             provider: string;
+            prompt_version: string;
             summary: string;
             threat_scenarios: string[];
             migration_recommendation: string;

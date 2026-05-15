@@ -300,6 +300,7 @@ def test_api_ast_005_qualitative_request_updates_existing_record(client):
     body = response.json()
     assert {
         "provider",
+        "prompt_version",
         "summary",
         "threat_scenarios",
         "migration_recommendation",
@@ -309,6 +310,8 @@ def test_api_ast_005_qualitative_request_updates_existing_record(client):
     assert QualitativeAssessment.objects.count() == 1
     assessment.refresh_from_db()
     assert assessment.summary == body["summary"]
+    assert assessment.prompt_version == body["prompt_version"]
+    assert assessment.prompt_payload["asset"]["id"] == asset.id
 
 
 def test_api_ast_006_qualitative_request_uses_asset_context_and_risk(client):
@@ -365,6 +368,8 @@ def test_api_ast_006_qualitative_request_uses_asset_context_and_risk(client):
     assert "harvest_now_decrypt_later" in rsa_body["threat_scenarios"]
     assert 0 <= rsa_body["confidence"] <= 1
     assert 0 <= pqc_body["confidence"] <= 1
+    assert rsa_body["prompt_version"] == "qualitative-risk-v1"
+    assert pqc_body["prompt_version"] == "qualitative-risk-v1"
 
 
 def test_api_ast_007_qualitative_worker_processes_asset_task():
@@ -404,3 +409,6 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
     }
     assert "worker API certificate" in assessment.summary
     assert "harvest_now_decrypt_later" in assessment.threat_scenarios
+    assert assessment.prompt_version == "qualitative-risk-v1"
+    assert assessment.prompt_payload["asset"]["name"] == "worker API certificate"
+    assert assessment.prompt_payload["context"]["exposure"] == "public_internet"

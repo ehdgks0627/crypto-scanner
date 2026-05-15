@@ -1,5 +1,6 @@
 {
   "provider": "mock",
+  "prompt_version": "qualitative-risk-v1",
   "summary": "RSA-2048 certificate protects a high-criticality service.",
   "threat_scenarios": ["Harvest-now-decrypt-later exposure for long-lived data."],
   "migration_recommendation": "Use a hybrid certificate profile during the transition period.",

@@ -4,6 +4,7 @@ from django.utils import timezone
 from apps.jobs.models import AsyncJob, QueuedTask
 from apps.jobs.services import enqueue_task, serialize_dt
 from apps.risk import services as risk_services
+from risk_engine.prompts import build_qualitative_risk_prompt
 
 
 CONTEXT_FIELDS = ["sensitivity", "lifespan_years", "criticality", "exposure", "service_role"]
@@ -133,14 +134,54 @@ def refresh_qualitative_assessment(asset_or_id):
 def generate_qualitative_assessment(asset):
     override = getattr(asset, "context_override", None)
     context = effective_context(asset, override)
+    sources = context_sources(asset, override)
     risk_score = asset.risk_scores.order_by("-id").first()
     score = risk_score.score if risk_score else _heuristic_qualitative_score(asset, context)
+    prompt = build_qualitative_risk_prompt(
+        asset=_qualitative_asset_payload(asset),
+        context=context,
+        context_sources=sources,
+        risk=_qualitative_risk_payload(risk_score, score),
+    )
     return {
         "provider": "mock-rulebook",
+        "prompt_version": prompt["version"],
+        "prompt_payload": prompt["payload"],
         "summary": _qualitative_summary(asset, context, score),
         "threat_scenarios": _qualitative_threat_scenarios(asset, context),
         "migration_recommendation": _qualitative_migration_recommendation(asset, score),
         "confidence": _qualitative_confidence(asset, context, risk_score, score),
+    }
+
+
+def _qualitative_asset_payload(asset):
+    return {
+        "id": asset.id,
+        "snapshot_id": asset.snapshot_id,
+        "bom_ref": asset.bom_ref,
+        "name": asset.name,
+        "asset_class": asset.asset_class,
+        "asset_type": asset.asset_type,
+        "algorithm": asset.algorithm,
+        "algorithm_family": asset.algorithm_family,
+        "target_label": target_label(asset),
+        "metadata": asset.metadata or {},
+    }
+
+
+def _qualitative_risk_payload(risk_score, fallback_score):
+    if risk_score:
+        return {
+            "score": round(risk_score.score),
+            "tier": risk_score.tier,
+            "factors": risk_score.factors,
+            "source": "risk_score",
+        }
+    return {
+        "score": round(fallback_score),
+        "tier": None,
+        "factors": {},
+        "source": "heuristic",
     }
 
 
@@ -383,6 +424,7 @@ def serialize_history(asset):
 def serialize_qualitative(assessment):
     return {
         "provider": assessment.provider,
+        "prompt_version": assessment.prompt_version,
         "summary": assessment.summary,
         "threat_scenarios": assessment.threat_scenarios,
         "migration_recommendation": assessment.migration_recommendation,

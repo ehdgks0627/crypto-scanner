@@ -66,6 +66,8 @@ class AssetContextOverride(models.Model):
 class QualitativeAssessment(models.Model):
     asset = models.OneToOneField(Asset, on_delete=models.CASCADE, related_name="qualitative_assessment")
     provider = models.CharField(max_length=64)
+    prompt_version = models.CharField(max_length=64, default="")
+    prompt_payload = models.JSONField(default=dict)
     summary = models.TextField()
     threat_scenarios = models.JSONField(default=list)
     migration_recommendation = models.TextField()
