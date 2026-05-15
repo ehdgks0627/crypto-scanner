@@ -25,6 +25,7 @@ VULNERABLE_ALGORITHM_FAMILIES = {"RSA", "ECDSA", "ECDH", "DH"}
 EXPIRING_CERTIFICATE_WINDOW_DAYS = 90
 CERTIFICATE_EXPIRY_KEYS = ("expires_at", "not_after", "valid_to", "valid_until", "expiration")
 PRIVATE_KEY_ASSET_TYPES = {"key", "ssh_user_key", "keystore_entry", "package_key"}
+PIPELINE_JOB_KINDS = ("discovery", "recompute")
 
 
 class DemoSeedPayload(StrictSchema):
@@ -49,7 +50,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             "by_asset_type": {},
             "by_algorithm_family": {},
             "quantum_vulnerable_ratio": {"vulnerable": 0, "safe": 0, "unknown": 0},
-            "kpis": _dashboard_kpis(None, [], 0, 0, 0, 0),
+            "kpis": _dashboard_kpis(None, [], 0, 0, 0, 0, 0),
             "recent_jobs": recent_jobs,
             "agents_status": agent_status,
             "trend": [],
@@ -84,6 +85,8 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             }
         )
     trend.reverse()
+    automated_runtime_minutes = _snapshot_scan_duration_minutes(latest)
+    pipeline_runtime_minutes = _pipeline_runtime_minutes(latest, automated_runtime_minutes)
     return {
         "snapshot": {
             "id": latest.id,
@@ -104,7 +107,8 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             vulnerable_count,
             _expiring_certificate_count(assets),
             _dormant_private_key_count(assets),
-            _snapshot_scan_duration_minutes(latest),
+            automated_runtime_minutes,
+            pipeline_runtime_minutes,
         ),
         "recent_jobs": recent_jobs,
         "agents_status": agent_status,
@@ -141,6 +145,7 @@ def _dashboard_kpis(
     expiring_certificate_count: int,
     dormant_private_key_count: int,
     automated_runtime_minutes: int,
+    pipeline_runtime_minutes: int,
 ) -> dict:
     return {
         "discovered_crypto_assets_per_scan": {
@@ -175,6 +180,13 @@ def _dashboard_kpis(
             "value": automated_runtime_minutes,
             "unit": "minutes",
             "source": "scan_job_timestamps",
+            "snapshot_id": snapshot.id if snapshot else None,
+            "scan_job_id": snapshot.scan_job_id if snapshot else None,
+        },
+        "full_pipeline_runtime_minutes": {
+            "value": pipeline_runtime_minutes,
+            "unit": "minutes",
+            "source": "pipeline_job_timestamps",
             "snapshot_id": snapshot.id if snapshot else None,
             "scan_job_id": snapshot.scan_job_id if snapshot else None,
         }
@@ -283,6 +295,32 @@ def _snapshot_scan_duration_minutes(snapshot: CbomSnapshot | None) -> int:
         return 0
     async_job = snapshot.scan_job.async_job
     return _duration_minutes(async_job.started_at, async_job.finished_at)
+
+
+def _pipeline_runtime_minutes(snapshot: CbomSnapshot | None, scan_runtime_minutes: int) -> int:
+    if snapshot is None or snapshot.scan_job_id is None:
+        return 0
+    scenario = (snapshot.scan_job.async_job.request_payload or {}).get("scenario")
+    if not scenario:
+        return scan_runtime_minutes
+    return scan_runtime_minutes + sum(_latest_completed_job_duration_minutes(scenario, kind) for kind in PIPELINE_JOB_KINDS)
+
+
+def _latest_completed_job_duration_minutes(scenario: str, kind: str) -> int:
+    job = (
+        AsyncJob.objects.filter(
+            kind=kind,
+            status=AsyncJob.COMPLETED,
+            request_payload__scenario=scenario,
+            started_at__isnull=False,
+            finished_at__isnull=False,
+        )
+        .order_by("-finished_at", "-id")
+        .first()
+    )
+    if job is None:
+        return 0
+    return _duration_minutes(job.started_at, job.finished_at)
 
 
 def _duration_minutes(started_at, finished_at) -> int:

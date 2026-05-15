@@ -45,6 +45,8 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert body["kpis"]["dormant_private_keys_per_scan"]["scan_job_id"] == latest.scan_job_id
     assert body["kpis"]["automated_inventory_runtime_minutes_per_scan"]["value"] == 6
     assert body["kpis"]["automated_inventory_runtime_minutes_per_scan"]["scan_job_id"] == latest.scan_job_id
+    assert body["kpis"]["full_pipeline_runtime_minutes"]["value"] == 9
+    assert body["kpis"]["full_pipeline_runtime_minutes"]["scan_job_id"] == latest.scan_job_id
     assert body["by_tier"]["CRITICAL"] == 18
     assert body["by_tier"]["HIGH"] == 31
     assert body["quantum_vulnerable_ratio"]["vulnerable"] == 52

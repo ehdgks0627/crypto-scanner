@@ -71,6 +71,13 @@
       "source": "scan_job_timestamps",
       "snapshot_id": 56,
       "scan_job_id": 123
+    },
+    "full_pipeline_runtime_minutes": {
+      "value": 9,
+      "unit": "minutes",
+      "source": "pipeline_job_timestamps",
+      "snapshot_id": 56,
+      "scan_job_id": 123
     }
   },
   "recent_jobs": [

@@ -152,6 +152,7 @@ export function DashboardView() {
   const expiringCertificatesKpi = summary.data.kpis.expiring_certificates_90d_per_scan;
   const dormantPrivateKeysKpi = summary.data.kpis.dormant_private_keys_per_scan;
   const automatedRuntimeKpi = summary.data.kpis.automated_inventory_runtime_minutes_per_scan;
+  const pipelineRuntimeKpi = summary.data.kpis.full_pipeline_runtime_minutes;
 
   return (
     <Section>
@@ -202,6 +203,12 @@ export function DashboardView() {
           label="자동화 실행 시간"
           value={`${formatNumber(automatedRuntimeKpi.value)}분`}
           meta={automatedRuntimeKpi.scan_job_id ? `스캔 #${automatedRuntimeKpi.scan_job_id}` : "스냅샷 기준"}
+          onClick={() => navigate("/scans")}
+        />
+        <MetricCard
+          label="전체 파이프라인"
+          value={`${formatNumber(pipelineRuntimeKpi.value)}분`}
+          meta="10분 이내"
           onClick={() => navigate("/scans")}
         />
         <MetricCard

@@ -559,7 +559,7 @@ class Command(BaseCommand):
             },
             progress={"completed": len(DISCOVERY_ENDPOINTS), "total": len(DISCOVERY_ENDPOINTS)},
             started_at=created_at,
-            finished_at=created_at + timedelta(minutes=6),
+            finished_at=created_at + timedelta(minutes=2),
             result={"endpoint_count": len(DISCOVERY_ENDPOINTS), "promoted_count": promoted_count},
         )
         discovery = Discovery.objects.create(
@@ -577,8 +577,8 @@ class Command(BaseCommand):
         )
         async_job.resource_id = discovery.id
         async_job.save(update_fields=["resource_id"])
-        self._timestamp(async_job, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=6))
-        self._timestamp(discovery, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=6))
+        self._timestamp(async_job, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=2))
+        self._timestamp(discovery, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=2))
         for host, port, transport, detected_protocol, suggested_protocol_hint, promoted, target_key in DISCOVERY_ENDPOINTS:
             DiscoveredEndpoint.objects.create(
                 discovery=discovery,
@@ -604,12 +604,12 @@ class Command(BaseCommand):
             },
             progress={"completed": snapshot.assets.count(), "total": snapshot.assets.count()},
             started_at=created_at,
-            finished_at=created_at + timedelta(minutes=2),
+            finished_at=created_at + timedelta(minutes=1),
             result={"updated_scores": snapshot.assets.count()},
         )
         async_job.resource_id = async_job.id
         async_job.save(update_fields=["resource_id"])
-        self._timestamp(async_job, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=2))
+        self._timestamp(async_job, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=1))
 
     def _seed_failed_scan_job(self, targets, created_at):
         db_target = targets[("db.testbed.local", 5432, "TCP")]

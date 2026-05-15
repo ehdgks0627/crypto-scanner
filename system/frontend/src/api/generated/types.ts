@@ -1665,6 +1665,7 @@ export interface components {
             expiring_certificates_90d_per_scan: components["schemas"]["DashboardKpiMetric"];
             dormant_private_keys_per_scan: components["schemas"]["DashboardKpiMetric"];
             automated_inventory_runtime_minutes_per_scan: components["schemas"]["DashboardKpiMetric"];
+            full_pipeline_runtime_minutes: components["schemas"]["DashboardKpiMetric"];
         };
         DashboardKpiMetric: {
             value: number;

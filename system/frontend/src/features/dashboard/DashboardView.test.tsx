@@ -50,6 +50,13 @@ describe("DashboardView", () => {
           source: "scan_job_timestamps",
           snapshot_id: null,
           scan_job_id: null
+        },
+        full_pipeline_runtime_minutes: {
+          value: 0,
+          unit: "minutes",
+          source: "pipeline_job_timestamps",
+          snapshot_id: null,
+          scan_job_id: null
         }
       },
       recent_jobs: [],
@@ -102,6 +109,13 @@ describe("DashboardView", () => {
           value: 0,
           unit: "minutes",
           source: "scan_job_timestamps",
+          snapshot_id: null,
+          scan_job_id: null
+        },
+        full_pipeline_runtime_minutes: {
+          value: 0,
+          unit: "minutes",
+          source: "pipeline_job_timestamps",
           snapshot_id: null,
           scan_job_id: null
         }
@@ -181,6 +195,13 @@ describe("DashboardView", () => {
           source: "scan_job_timestamps",
           snapshot_id: snapshotId ?? 1,
           scan_job_id: 44
+        },
+        full_pipeline_runtime_minutes: {
+          value: snapshotId === 2 ? 9 : 0,
+          unit: "minutes",
+          source: "pipeline_job_timestamps",
+          snapshot_id: snapshotId ?? 1,
+          scan_job_id: 44
         }
       },
       recent_jobs: [],
@@ -258,6 +279,9 @@ describe("DashboardView", () => {
     expect(screen.getByText("미사용 파일")).toBeInTheDocument();
     expect(screen.getByText("자동화 실행 시간")).toBeInTheDocument();
     expect(screen.getByText("6분")).toBeInTheDocument();
+    expect(screen.getByText("전체 파이프라인")).toBeInTheDocument();
+    expect(screen.getByText("9분")).toBeInTheDocument();
+    expect(screen.getByText("10분 이내")).toBeInTheDocument();
     expect(await screen.findByText("네트워크 암호 노출 현황")).toBeInTheDocument();
   });
 });
