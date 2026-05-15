@@ -60,6 +60,11 @@ def read_json_or_kv(path: Path) -> dict:
 
 
 def parse_certificate_algorithm(path: Path) -> str | None:
+    metadata = parse_certificate_metadata(path)
+    return metadata.get("algorithm") if metadata else None
+
+
+def parse_certificate_metadata(path: Path) -> dict | None:
     try:
         text = subprocess.check_output(
             ["openssl", "x509", "-in", str(path), "-noout", "-text"],
@@ -67,9 +72,20 @@ def parse_certificate_algorithm(path: Path) -> str | None:
             stderr=subprocess.DEVNULL,
             timeout=5,
         )
+        der = subprocess.check_output(
+            ["openssl", "x509", "-in", str(path), "-outform", "DER"],
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
     except (OSError, subprocess.SubprocessError):
         return None
-    return certificate_algorithm_from_openssl_text(text)
+    algorithm = certificate_algorithm_from_openssl_text(text)
+    if not algorithm:
+        return None
+    return {
+        "algorithm": algorithm,
+        "fingerprint_sha256": hashlib.sha256(der).hexdigest(),
+    }
 
 
 def certificate_algorithm_from_openssl_text(text: str) -> str | None:

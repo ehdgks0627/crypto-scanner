@@ -8,6 +8,7 @@ from .crypto_utils import (
     extract_key_references_from_config,
     iter_files,
     parse_certificate_algorithm,
+    parse_certificate_metadata,
     parse_jwks_algorithms,
     parse_pkcs12_algorithm,
     parse_private_key_metadata,
@@ -73,11 +74,11 @@ def _scan_cert_store(options: dict) -> tuple[list[dict], list[dict]]:
     )
     findings, errors = [], []
     for path in iter_files(paths, CERT_SUFFIXES, _max_files(options)):
-        algorithm = parse_certificate_algorithm(path)
-        if not algorithm:
+        metadata = parse_certificate_metadata(path)
+        if not metadata:
             errors.append({"capability": CAPABILITY_CERT_STORE, "path": str(path), "error": "certificate_parse_failed"})
             continue
-        findings.append({"type": _cert_store_type(path), "path": str(path), "algorithm": algorithm})
+        findings.append({"type": _cert_store_type(path), "path": str(path), **metadata})
     return findings, errors
 
 
@@ -147,11 +148,11 @@ def _scan_app_cert_files(options: dict) -> tuple[list[dict], list[dict]]:
     )
     findings, errors = [], []
     for path in iter_files(paths, CERT_SUFFIXES + (".pem",), _max_files(options)):
-        algorithm = parse_certificate_algorithm(path)
-        if not algorithm:
+        metadata = parse_certificate_metadata(path)
+        if not metadata:
             errors.append({"capability": CAPABILITY_APP_CERT_FILES, "path": str(path), "error": "certificate_parse_failed"})
             continue
-        findings.append({"type": _app_cert_type(path), "path": str(path), "algorithm": algorithm})
+        findings.append({"type": _app_cert_type(path), "path": str(path), **metadata})
     return findings, errors
 
 

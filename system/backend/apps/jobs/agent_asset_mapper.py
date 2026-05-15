@@ -101,6 +101,9 @@ def _metadata_for_finding(finding: dict, source_scanner: str, path: str) -> dict
         "in_use",
         "dormant",
         "referenced_by",
+        "source_scanners",
+        "source_paths",
+        "source_bom_refs",
         "format",
         "minimum_tls_version",
     ]:

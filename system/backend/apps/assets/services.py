@@ -221,7 +221,7 @@ def asset_summary(asset):
         "algorithm_family": asset.algorithm_family,
     }
     metadata = asset.metadata or {}
-    for key in ["scanner", "path", "fingerprint_sha256", "in_use", "dormant"]:
+    for key in ["scanner", "path", "fingerprint_sha256", "in_use", "dormant", "merged"]:
         if key in metadata:
             summary[key] = metadata[key]
     return summary
@@ -245,7 +245,20 @@ def asset_properties(asset):
         "bom_ref": asset.bom_ref,
     }
     metadata = asset.metadata or {}
-    for key in ["scanner", "type", "path", "format", "minimum_tls_version", "in_use", "dormant", "referenced_by"]:
+    for key in [
+        "scanner",
+        "type",
+        "path",
+        "format",
+        "minimum_tls_version",
+        "in_use",
+        "dormant",
+        "referenced_by",
+        "source_scanners",
+        "source_paths",
+        "source_bom_refs",
+        "merged",
+    ]:
         if key in metadata and metadata[key] is not None:
             properties[key] = metadata[key]
     return properties

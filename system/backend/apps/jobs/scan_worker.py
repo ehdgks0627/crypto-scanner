@@ -1,4 +1,5 @@
 from collections import Counter
+from dataclasses import replace
 from uuid import uuid4
 
 from django.db import transaction
@@ -232,8 +233,62 @@ def _persist_snapshot(scan_job, candidates: list) -> CbomSnapshot:
 def _dedupe_candidates(candidates: list):
     by_ref = {}
     for candidate in candidates:
-        by_ref.setdefault(candidate.bom_ref, candidate)
+        key = _dedupe_key(candidate)
+        if key in by_ref:
+            by_ref[key] = _merge_candidates(by_ref[key], candidate)
+        else:
+            by_ref[key] = candidate
     return list(by_ref.values())
+
+
+def _dedupe_key(candidate) -> str:
+    metadata = candidate.metadata or {}
+    fingerprint = metadata.get("fingerprint_sha256")
+    if fingerprint:
+        return f"{candidate.asset_type}:fingerprint:{str(fingerprint).lower()}"
+    return f"bom_ref:{candidate.bom_ref}"
+
+
+def _merge_candidates(existing, incoming):
+    existing_metadata = dict(existing.metadata or {})
+    incoming_metadata = dict(incoming.metadata or {})
+    merged_metadata = {**incoming_metadata, **existing_metadata}
+    source_scanners = _merged_values(existing_metadata.get("source_scanners"), existing_metadata.get("scanner") or existing.scanner_kind)
+    source_scanners = _merged_values(source_scanners, incoming_metadata.get("source_scanners"))
+    source_scanners = _merged_values(source_scanners, incoming_metadata.get("scanner") or incoming.scanner_kind)
+    source_paths = _merged_values(existing_metadata.get("source_paths"), existing_metadata.get("path"))
+    source_paths = _merged_values(source_paths, incoming_metadata.get("source_paths"))
+    source_paths = _merged_values(source_paths, incoming_metadata.get("path"))
+    source_bom_refs = _merged_values(existing_metadata.get("source_bom_refs"), existing.bom_ref)
+    source_bom_refs = _merged_values(source_bom_refs, incoming_metadata.get("source_bom_refs"))
+    source_bom_refs = _merged_values(source_bom_refs, incoming.bom_ref)
+
+    merged_metadata["source_scanners"] = source_scanners
+    merged_metadata["source_bom_refs"] = source_bom_refs
+    if source_paths:
+        merged_metadata["source_paths"] = source_paths
+    if len(source_scanners) > 1:
+        merged_metadata["scanner"] = "multiple"
+        merged_metadata["merged"] = True
+    return replace(existing, metadata=merged_metadata)
+
+
+def _merged_values(current, value):
+    result = []
+    for item in _as_list(current) + _as_list(value):
+        if item is None or item == "":
+            continue
+        if item not in result:
+            result.append(item)
+    return result
+
+
+def _as_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
 
 
 def _snapshot_summary(candidates: list) -> dict:

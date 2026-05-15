@@ -95,6 +95,10 @@ def _asset_metadata_properties(asset):
         "in_use": "evidence.in_use",
         "dormant": "evidence.dormant",
         "referenced_by": "evidence.referenced_by",
+        "source_scanners": "evidence.source_scanners",
+        "source_paths": "evidence.source_paths",
+        "source_bom_refs": "evidence.source_bom_refs",
+        "merged": "evidence.merged",
         "minimum_tls_version": "crypto.minimum_tls_version",
         "format": "crypto.format",
     }

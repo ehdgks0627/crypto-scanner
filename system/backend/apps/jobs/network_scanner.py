@@ -351,6 +351,11 @@ def _ssh_host_key_candidate(target, line: str) -> AssetCandidate | None:
         algorithm=parsed["algorithm"],
         algorithm_family=parsed["algorithm_family"],
         bom_ref=f"network:ssh-host-key:{fingerprint}",
+        metadata={
+            "scanner": "network",
+            "type": "ssh_host_key",
+            "ssh_fingerprint": fingerprint,
+        },
     )
 
 
@@ -597,6 +602,14 @@ def _certificate_candidate(target, der: bytes | None, source: str, sni: str | No
         algorithm=algorithm,
         algorithm_family=family,
         bom_ref=f"network:{source}:cert:{sni_label}:{chain_index}:{fingerprint}",
+        metadata={
+            "scanner": "network",
+            "type": "certificate",
+            "fingerprint_sha256": fingerprint,
+            "sni": sni_label,
+            "chain_index": chain_index,
+            "source": source,
+        },
     )
 
 

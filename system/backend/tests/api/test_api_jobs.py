@@ -281,6 +281,84 @@ def test_api_job_005d_scan_worker_maps_private_key_findings_without_key_material
     }
 
 
+def test_api_job_005e_scan_worker_merges_network_and_host_certificate_by_fingerprint(monkeypatch):
+    from apps.agents.models import Agent
+    from apps.jobs import agent_client, network_scanner, scan_worker
+    from apps.jobs.models import QueuedTask
+    from apps.jobs.scan_assets import AssetCandidate
+    from apps.snapshots.models import CbomSnapshot
+
+    target = create_target(host="merge-cert.testbed.local", port=443, protocol_hint="TLS", agent_enabled=True)
+    Agent.objects.create(
+        hostname=target.host,
+        agent_role="host",
+        agent_url="http://merge-cert.testbed.local:9100",
+        capabilities=["agent.app_cert_files"],
+        agent_token_hash="hash",
+        agent_runtime_token="runtime-token",
+        active=True,
+        last_seen=timezone.now(),
+    )
+    async_job = create_async_job(kind="scan_job", status="PENDING")
+    scan_job = create_scan_job(async_job=async_job, target_ids=[target.id], scanner_selection=["network", "agent.app_cert_files"])
+    task = QueuedTask.objects.create(
+        async_job=async_job,
+        task_name="scan_job",
+        payload={"scan_job_id": scan_job.id, "target_ids": [target.id], "scanners": ["network", "agent.app_cert_files"]},
+        status=QueuedTask.QUEUED,
+        available_at=timezone.now(),
+    )
+    fingerprint = "b" * 64
+
+    def fake_scan_network_target(target_arg):
+        return [
+            AssetCandidate(
+                target_id=target_arg.id,
+                scanner_kind="network",
+                name="merge-cert network certificate",
+                asset_type="certificate",
+                algorithm="RSA-2048",
+                algorithm_family="RSA",
+                bom_ref="network:tls:cert:merge-cert",
+                metadata={
+                    "scanner": "network",
+                    "type": "certificate",
+                    "fingerprint_sha256": fingerprint,
+                    "sni": "merge-cert.testbed.local",
+                },
+            )
+        ]
+
+    def fake_post_scan(agent, capabilities):
+        assert capabilities == ["agent.app_cert_files"]
+        return {
+            "findings": [
+                {
+                    "type": "certificate_file",
+                    "path": "/etc/nginx/ssl/server.crt",
+                    "algorithm": "RSA-2048",
+                    "fingerprint_sha256": fingerprint,
+                }
+            ]
+        }
+
+    monkeypatch.setattr(network_scanner, "scan_network_target", fake_scan_network_target)
+    monkeypatch.setattr(agent_client, "post_scan", fake_post_scan)
+
+    result = scan_worker.process_scan_job_task(task.id)
+
+    snapshot = CbomSnapshot.objects.get(id=result["snapshot_id"])
+    asset = snapshot.assets.get()
+    assert result["assets_count"] == 1
+    assert asset.bom_ref == "network:tls:cert:merge-cert"
+    assert asset.metadata["merged"] is True
+    assert asset.metadata["scanner"] == "multiple"
+    assert asset.metadata["source_scanners"] == ["network", "agent.app_cert_files"]
+    assert asset.metadata["source_bom_refs"][0] == "network:tls:cert:merge-cert"
+    assert asset.metadata["source_bom_refs"][1].startswith("agent.app_cert_files:")
+    assert asset.metadata["source_paths"] == ["/etc/nginx/ssl/server.crt"]
+
+
 def test_api_job_006_failed_job_returns_error_and_finished_at(client):
     finished_at = timezone.now()
     job = create_async_job(
