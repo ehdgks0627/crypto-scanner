@@ -1,3 +1,4 @@
+import re
 from typing import Literal
 
 from django.db import transaction
@@ -93,15 +94,17 @@ def diff_snapshots(request, snapshot_id: int, other: int):
     shared_keys = set(assets_a) & set(assets_b)
     modified_keys = {key for key in shared_keys if _diff_field_changes(assets_a[key], assets_b[key])}
     unchanged_keys = shared_keys - modified_keys
+    modified = [
+        {**_diff_asset(assets_b[key]), "field_changes": _diff_field_changes(assets_a[key], assets_b[key])}
+        for key in sorted(modified_keys)
+    ]
     return {
         "snapshot_a": snapshot_a.id,
         "snapshot_b": snapshot_b.id,
         "added": [_diff_asset(assets_b[key]) for key in sorted(added_keys)],
         "removed": [_diff_asset(assets_a[key]) for key in sorted(removed_keys)],
-        "modified": [
-            {**_diff_asset(assets_b[key]), "field_changes": _diff_field_changes(assets_a[key], assets_b[key])}
-            for key in sorted(modified_keys)
-        ],
+        "modified": modified,
+        "regressions": _diff_regressions(assets_a, assets_b, removed_keys, modified_keys),
         "unchanged_count": len(unchanged_keys),
     }
 
@@ -126,6 +129,120 @@ def _diff_field_changes(before, after):
         if before_value != after_value:
             changes[field] = [before_value, after_value]
     return changes
+
+
+def _diff_regressions(assets_a, assets_b, removed_keys, modified_keys):
+    regressions = []
+    for key in sorted(removed_keys):
+        before = assets_a[key]
+        regressions.append(
+            {
+                "kind": "asset_removed",
+                "severity": "high",
+                "bom_ref": before.bom_ref,
+                "asset_type": before.asset_type,
+                "message": "Asset is missing from the post-migration snapshot.",
+                "before": _regression_asset_state(before),
+                "after": None,
+            }
+        )
+
+    for key in sorted(modified_keys):
+        regression = _algorithm_regression(assets_a[key], assets_b[key])
+        if regression:
+            regressions.append(regression)
+    return regressions
+
+
+def _algorithm_regression(before, after):
+    if before.algorithm and not after.algorithm:
+        return {
+            "kind": "algorithm_removed",
+            "severity": "high",
+            "bom_ref": before.bom_ref,
+            "asset_type": before.asset_type,
+            "message": "Algorithm metadata was removed from the post-migration snapshot.",
+            "before": _regression_asset_state(before),
+            "after": _regression_asset_state(after),
+        }
+
+    before_strength = _algorithm_strength(before)
+    after_strength = _algorithm_strength(after)
+    if before_strength[0] == 0 or after_strength[0] == 0:
+        return None
+    if after_strength >= before_strength:
+        return None
+    return {
+        "kind": "algorithm_downgrade",
+        "severity": "high",
+        "bom_ref": after.bom_ref,
+        "asset_type": after.asset_type,
+        "message": "Algorithm strength decreased in the post-migration snapshot.",
+        "before": _regression_asset_state(before),
+        "after": _regression_asset_state(after),
+    }
+
+
+def _regression_asset_state(asset):
+    return {
+        "bom_ref": asset.bom_ref,
+        "type": asset.asset_type,
+        "name": asset.name,
+        "algorithm": asset.algorithm,
+        "algorithm_family": asset.algorithm_family,
+    }
+
+
+def _algorithm_strength(asset):
+    family = _normalized_algorithm_family(asset.algorithm_family, asset.algorithm)
+    family_rank = {
+        "ML-KEM": 500,
+        "ML-DSA": 500,
+        "SLH-DSA": 500,
+        "EDDSA": 360,
+        "ECDSA": 340,
+        "ECDH": 340,
+        "X25519": 340,
+        "RSA": 300,
+        "DH": 200,
+        "DSA": 150,
+    }.get(family, 0)
+    return family_rank, _algorithm_size(asset)
+
+
+def _normalized_algorithm_family(family: str, algorithm: str) -> str:
+    value = f"{family} {algorithm}".upper().replace("_", "-")
+    if "ML-KEM" in value or "KYBER" in value:
+        return "ML-KEM"
+    if "ML-DSA" in value or "DILITHIUM" in value:
+        return "ML-DSA"
+    if "SLH-DSA" in value or "SPHINCS" in value:
+        return "SLH-DSA"
+    if "ED25519" in value or "ED448" in value or "EDDSA" in value:
+        return "EDDSA"
+    if "ECDSA" in value:
+        return "ECDSA"
+    if "ECDH" in value or "X25519" in value or "CURVE25519" in value:
+        return "ECDH"
+    if "RSA" in value:
+        return "RSA"
+    if "DIFFIE" in value or "MODP" in value or re.search(r"\bDH\b", value):
+        return "DH"
+    if re.search(r"\bDSA\b", value):
+        return "DSA"
+    return ""
+
+
+def _algorithm_size(asset) -> int:
+    metadata = asset.metadata or {}
+    for key in ("key_size_bits", "key_size", "bits"):
+        value = metadata.get(key)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+    values = [int(match) for match in re.findall(r"\d+", f"{asset.algorithm} {asset.algorithm_family}")]
+    return max(values) if values else 0
 
 
 def _risk_for_asset(asset):

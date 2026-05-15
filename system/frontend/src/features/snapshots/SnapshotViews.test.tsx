@@ -159,6 +159,23 @@ describe("SnapshotDiffView", () => {
           }
         }
       ],
+      regressions: [
+        {
+          kind: "asset_removed",
+          severity: "high",
+          bom_ref: "cert:removed",
+          asset_type: "certificate",
+          message: "Asset is missing from the post-migration snapshot.",
+          before: {
+            bom_ref: "cert:removed",
+            type: "certificate",
+            name: "old cert",
+            algorithm: "RSA-2048",
+            algorithm_family: "RSA"
+          },
+          after: null
+        }
+      ],
       unchanged_count: 7
     });
     vi.spyOn(services.snapshots, "assets").mockImplementation(async (snapshotId) => ({
@@ -187,7 +204,10 @@ describe("SnapshotDiffView", () => {
     expect(screen.getAllByText("스냅샷 #2").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("최신").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("cert:added")).toBeInTheDocument();
-    expect(screen.getByText("cert:removed")).toBeInTheDocument();
+    expect(screen.getAllByText("cert:removed").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("회귀 감지")).toBeInTheDocument();
+    expect(screen.getByText("자산 누락")).toBeInTheDocument();
+    expect(screen.getByText("전환 후 스냅샷에서 자산이 사라졌습니다.")).toBeInTheDocument();
     expect(screen.getAllByText("cert:algo").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("cert:same")).not.toBeInTheDocument();
     const getDiffRows = () => {

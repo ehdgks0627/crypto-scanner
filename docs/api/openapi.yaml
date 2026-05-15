@@ -2394,7 +2394,7 @@ components:
 
     CbomDiff:
       type: object
-      required: [snapshot_a, snapshot_b, added, removed, modified, unchanged_count]
+      required: [snapshot_a, snapshot_b, added, removed, modified, regressions, unchanged_count]
       properties:
         snapshot_a:
           type: integer
@@ -2412,6 +2412,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CbomDiffModifiedAsset'
+        regressions:
+          type: array
+          description: Policy-level regression warnings such as missing assets or downgraded algorithms.
+          items:
+            $ref: '#/components/schemas/CbomDiffRegression'
         unchanged_count:
           type: integer
 
@@ -2439,6 +2444,31 @@ components:
                 minItems: 2
                 maxItems: 2
                 items: {}
+
+    CbomDiffRegression:
+      type: object
+      required: [kind, severity, bom_ref, asset_type, message, before, after]
+      properties:
+        kind:
+          type: string
+          enum: [asset_removed, algorithm_removed, algorithm_downgrade]
+        severity:
+          type: string
+          enum: [medium, high]
+        bom_ref:
+          type: string
+        asset_type:
+          type: string
+        message:
+          type: string
+        before:
+          type: object
+          nullable: true
+          additionalProperties: true
+        after:
+          type: object
+          nullable: true
+          additionalProperties: true
 
     AssetRiskSummary:
       type: object

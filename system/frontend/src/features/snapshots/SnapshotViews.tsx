@@ -482,8 +482,10 @@ export function SnapshotDiffView({ id }: { id: number }) {
             <MetricCard label="추가" value={diff.data.added.length} />
             <MetricCard label="삭제" value={diff.data.removed.length} />
             <MetricCard label="변경" value={diff.data.modified.length} />
+            <MetricCard label="회귀" value={diff.data.regressions.length} />
             <MetricCard label="동일" value={diff.data.unchanged_count} />
           </div>
+          {diff.data.regressions.length > 0 ? <DiffRegressionReport regressions={diff.data.regressions} /> : null}
           <SelectedAssetComparison
             snapshotA={diff.data.snapshot_a}
             snapshotB={diff.data.snapshot_b}
@@ -522,6 +524,7 @@ export function SnapshotDiffView({ id }: { id: number }) {
 const DIFF_ASSET_QUERY = { limit: 100, sort: "name" } as const;
 
 type DiffAsset = Schema<"AssetListItem">;
+type DiffRegression = Schema<"CbomDiffRegression">;
 type DiffAssetStatus = "added" | "removed" | "modified" | "unchanged";
 type DiffSide = "previous" | "current";
 
@@ -537,6 +540,31 @@ type DiffIndex = {
   removed: Set<string>;
   modified: Map<string, Schema<"CbomDiffModifiedAsset">>;
 };
+
+function DiffRegressionReport({ regressions }: { regressions: DiffRegression[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>회귀 감지</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <DataTable
+          items={regressions}
+          getRowKey={(item, index) => `${item.kind}:${item.bom_ref}:${index}`}
+          empty={<EmptyState title="감지된 회귀가 없습니다" />}
+          columns={[
+            { key: "severity", header: "심각도", render: (item) => <RegressionSeverityBadge severity={item.severity} /> },
+            { key: "kind", header: "유형", render: (item) => regressionKindLabel(item.kind) },
+            { key: "asset", header: "자산", render: (item) => <span className="mono">{item.bom_ref}</span> },
+            { key: "before", header: "이전", render: (item) => regressionStateLabel(item.before) },
+            { key: "after", header: "현재", render: (item) => regressionStateLabel(item.after) },
+            { key: "message", header: "설명", render: (item) => regressionMessageLabel(item.message) }
+          ]}
+        />
+      </CardContent>
+    </Card>
+  );
+}
 
 function DiffAssetTable({
   title,
@@ -732,6 +760,10 @@ function DiffStatusBadge({ status }: { status: DiffAssetStatus }) {
   return <Badge tone="neutral">동일</Badge>;
 }
 
+function RegressionSeverityBadge({ severity }: { severity: DiffRegression["severity"] }) {
+  return <Badge tone={severity === "high" ? "red" : "yellow"}>{severity === "high" ? "높음" : "중간"}</Badge>;
+}
+
 function DiffChangeSummary({ fieldChanges }: { fieldChanges: Record<string, unknown[]> }) {
   const changes = Object.entries(fieldChanges);
   if (!changes.length) {
@@ -858,6 +890,33 @@ function formatDiffFieldValue(field: string, value: unknown) {
     return riskTierLabel(String(value));
   }
   return contextValueLabel(field, value) === "-" ? formatDiffValue(value) : contextValueLabel(field, value);
+}
+
+function regressionKindLabel(kind: DiffRegression["kind"]) {
+  const labels: Record<DiffRegression["kind"], string> = {
+    asset_removed: "자산 누락",
+    algorithm_removed: "알고리즘 삭제",
+    algorithm_downgrade: "알고리즘 다운그레이드"
+  };
+  return labels[kind];
+}
+
+function regressionMessageLabel(message: string) {
+  const labels: Record<string, string> = {
+    "Asset is missing from the post-migration snapshot.": "전환 후 스냅샷에서 자산이 사라졌습니다.",
+    "Algorithm metadata was removed from the post-migration snapshot.": "전환 후 스냅샷에서 알고리즘 정보가 삭제되었습니다.",
+    "Algorithm strength decreased in the post-migration snapshot.": "전환 후 스냅샷에서 알고리즘 강도가 낮아졌습니다."
+  };
+  return labels[message] ?? message;
+}
+
+function regressionStateLabel(state: DiffRegression["before"]) {
+  if (!state) {
+    return "-";
+  }
+  const algorithm = typeof state.algorithm === "string" && state.algorithm ? state.algorithm : "-";
+  const family = typeof state.algorithm_family === "string" && state.algorithm_family ? state.algorithm_family : "";
+  return family ? `${algorithm} (${family})` : algorithm;
 }
 
 function diffFieldLabel(field: string) {

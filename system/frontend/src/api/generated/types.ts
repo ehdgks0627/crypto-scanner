@@ -1030,6 +1030,8 @@ export interface components {
             added: components["schemas"]["CbomDiffAsset"][];
             removed: components["schemas"]["CbomDiffAsset"][];
             modified: components["schemas"]["CbomDiffModifiedAsset"][];
+            /** @description Policy-level regression warnings such as missing assets or downgraded algorithms. */
+            regressions: components["schemas"]["CbomDiffRegression"][];
             unchanged_count: number;
         };
         CbomDiffAsset: {
@@ -1041,6 +1043,21 @@ export interface components {
             field_changes: {
                 [key: string]: unknown[];
             };
+        };
+        CbomDiffRegression: {
+            /** @enum {string} */
+            kind: "asset_removed" | "algorithm_removed" | "algorithm_downgrade";
+            /** @enum {string} */
+            severity: "medium" | "high";
+            bom_ref: string;
+            asset_type: string;
+            message: string;
+            before: {
+                [key: string]: unknown;
+            } | null;
+            after: {
+                [key: string]: unknown;
+            } | null;
         };
         AssetRiskSummary: {
             score: number;

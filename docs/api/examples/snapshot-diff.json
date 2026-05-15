@@ -19,5 +19,28 @@
       }
     }
   ],
+  "regressions": [
+    {
+      "kind": "algorithm_downgrade",
+      "severity": "high",
+      "bom_ref": "cert-web-leaf",
+      "asset_type": "certificate",
+      "message": "Algorithm strength decreased in the post-migration snapshot.",
+      "before": {
+        "bom_ref": "cert-web-leaf",
+        "type": "certificate",
+        "name": "web leaf certificate",
+        "algorithm": "ML-DSA-65",
+        "algorithm_family": "ML-DSA"
+      },
+      "after": {
+        "bom_ref": "cert-web-leaf",
+        "type": "certificate",
+        "name": "web leaf certificate",
+        "algorithm": "RSA-2048",
+        "algorithm_family": "RSA"
+      }
+    }
+  ],
   "unchanged_count": 138
 }

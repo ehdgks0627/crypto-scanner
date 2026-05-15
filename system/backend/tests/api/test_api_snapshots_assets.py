@@ -109,6 +109,8 @@ def test_api_snp_004_diff_snapshots_returns_summary(client):
     create_asset(snapshot=snapshot_a, bom_ref="cert:modified", name="before")
     create_asset(snapshot=snapshot_a, bom_ref="cert:algo", name="same", algorithm="RSA-2048", algorithm_family="RSA")
     create_asset(snapshot=snapshot_b, bom_ref="cert:algo", name="same", algorithm="ML-DSA-65", algorithm_family="ML-DSA")
+    create_asset(snapshot=snapshot_a, bom_ref="cert:downgrade", name="same", algorithm="ML-DSA-65", algorithm_family="ML-DSA")
+    create_asset(snapshot=snapshot_b, bom_ref="cert:downgrade", name="same", algorithm="RSA-2048", algorithm_family="RSA")
 
     response = client.get(f"/api/snapshots/{snapshot_b.id}/diff?other={snapshot_a.id}")
 
@@ -124,6 +126,14 @@ def test_api_snp_004_diff_snapshots_returns_summary(client):
     algorithm_modified = next(item for item in body["modified"] if item["bom_ref"] == "cert:algo")
     assert algorithm_modified["field_changes"]["algorithm"] == ["RSA-2048", "ML-DSA-65"]
     assert algorithm_modified["field_changes"]["algorithm_family"] == ["RSA", "ML-DSA"]
+    assert {item["kind"] for item in body["regressions"]} == {"asset_removed", "algorithm_downgrade"}
+    removed_regression = next(item for item in body["regressions"] if item["kind"] == "asset_removed")
+    assert removed_regression["bom_ref"] == "cert:removed"
+    assert removed_regression["after"] is None
+    downgrade_regression = next(item for item in body["regressions"] if item["kind"] == "algorithm_downgrade")
+    assert downgrade_regression["bom_ref"] == "cert:downgrade"
+    assert downgrade_regression["before"]["algorithm"] == "ML-DSA-65"
+    assert downgrade_regression["after"]["algorithm"] == "RSA-2048"
 
 
 def test_api_ast_001_list_assets_with_filters_and_risk(client):
