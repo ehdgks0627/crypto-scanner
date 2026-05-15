@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
+import re
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 
-QUANTUM_VULNERABLE_FAMILIES = {"RSA", "DSA", "ECDSA", "ECDH", "DH", "ED25519", "ED448", "X25519", "X448"}
-PQC_MARKERS = ("ML-KEM", "ML-DSA", "SLH-DSA", "FALCON", "FN-DSA")
+MAPPING_RULES_PATH = Path(__file__).with_name("mapping_rules.json")
 AGILITY_CAPABILITIES = {
     "config_policy": 20,
     "automated_rotation": 20,
@@ -77,30 +80,10 @@ def candidate_for_algorithm(algorithm: str, algorithm_family: str | None, asset_
     text = normalize(algorithm)
     family = normalize(algorithm_family)
     combined = f"{family} {text}".strip()
-    if any(marker in combined for marker in PQC_MARKERS):
-        return {"kind": "pqc", "hybrid_set": [algorithm], "replace_set": [algorithm], "classically_weak": False}
-    if "SHA-1" in combined or "SHA1" in combined:
-        return {"kind": "hash", "hybrid_set": [], "replace_set": ["SHA-256+"], "classically_weak": True}
-    if "AES-128" in combined:
-        return {"kind": "symmetric", "hybrid_set": [], "replace_set": ["AES-256"], "classically_weak": False}
-    if "AES-192" in combined or "AES-256" in combined or "CHACHA20" in combined or "HMAC" in combined:
-        return {"kind": "safe_classical", "hybrid_set": [algorithm], "replace_set": [algorithm], "classically_weak": False}
-    if "ECDSA" in combined:
-        target = "ML-DSA-87" if "384" in combined or "521" in combined else "ML-DSA-65"
-        curve = "ECDSA P-384" if target == "ML-DSA-87" else "ECDSA P-256"
-        return {"kind": "signature", "hybrid_set": [curve, target], "replace_set": [target], "classically_weak": False}
-    if "ED25519" in combined or "ED448" in combined:
-        return {"kind": "signature", "hybrid_set": [algorithm, "ML-DSA-65"], "replace_set": ["ML-DSA-65"], "classically_weak": False}
-    if "ECDH" in combined or "X25519" in combined or "X448" in combined:
-        kem = "ML-KEM-1024" if "384" in combined or "521" in combined or "X448" in combined else "ML-KEM-768"
-        classical = "X448" if kem == "ML-KEM-1024" else "X25519"
-        return {"kind": "kem", "hybrid_set": [classical, kem], "replace_set": [kem], "classically_weak": False}
-    if "DH" in combined:
-        return {"kind": "kem", "hybrid_set": ["X25519", "ML-KEM-768"], "replace_set": ["ML-KEM-768"], "classically_weak": "1024" in combined}
-    if "RSA" in combined:
-        if asset_type in {"key", "protocol"}:
-            return {"kind": "kem", "hybrid_set": ["X25519", "ML-KEM-768"], "replace_set": ["ML-KEM-768"], "classically_weak": "1024" in combined}
-        return {"kind": "signature", "hybrid_set": ["RSA-2048", "ML-DSA-65"], "replace_set": ["ML-DSA-65"], "classically_weak": "1024" in combined}
+    for rule in mapping_rules():
+        if not _rule_matches(rule, combined, asset_type):
+            continue
+        return _candidate_from_rule(rule, algorithm, combined)
     return {"kind": "unknown", "hybrid_set": [algorithm], "replace_set": [algorithm], "classically_weak": False}
 
 
@@ -263,9 +246,9 @@ def confidence_for(strategy: str, blockers: list[str]) -> float:
 
 def is_quantum_vulnerable(algorithm: str, algorithm_family: str | None) -> bool:
     combined = f"{normalize(algorithm_family)} {normalize(algorithm)}"
-    if any(marker in combined for marker in PQC_MARKERS):
+    if any(marker in combined for marker in pqc_markers()):
         return False
-    return any(family in combined for family in QUANTUM_VULNERABLE_FAMILIES)
+    return any(marker in combined for marker in quantum_vulnerable_markers())
 
 
 def infer_key_size(algorithm: str) -> int | None:
@@ -277,3 +260,52 @@ def infer_key_size(algorithm: str) -> int | None:
 
 def normalize(value: str | None) -> str:
     return (value or "").upper().strip()
+
+
+@lru_cache
+def mapping_config() -> dict[str, Any]:
+    with MAPPING_RULES_PATH.open(encoding="utf-8") as file:
+        data = json.load(file)
+    return data
+
+
+def mapping_rules() -> list[Mapping[str, Any]]:
+    return list(mapping_config().get("rules") or [])
+
+
+def pqc_markers() -> tuple[str, ...]:
+    return tuple(normalize(marker) for marker in mapping_config().get("pqc_markers", []))
+
+
+def quantum_vulnerable_markers() -> tuple[str, ...]:
+    return tuple(normalize(marker) for marker in mapping_config().get("quantum_vulnerable_markers", []))
+
+
+def _rule_matches(rule: Mapping[str, Any], combined: str, asset_type: str | None) -> bool:
+    asset_types = rule.get("asset_types")
+    if asset_types and asset_type not in set(asset_types):
+        return False
+    pattern = rule.get("match_regex")
+    if not pattern:
+        return False
+    return re.search(str(pattern), combined) is not None
+
+
+def _candidate_from_rule(rule: Mapping[str, Any], algorithm: str, combined: str) -> dict:
+    if rule.get("preserve_current"):
+        hybrid_set = [algorithm]
+        replace_set = [algorithm]
+    else:
+        hybrid_set = _render_algorithm_set(rule.get("hybrid_set", []), algorithm)
+        replace_set = _render_algorithm_set(rule.get("replace_set", []), algorithm)
+    weak_markers = [normalize(value) for value in rule.get("classically_weak_if_contains", [])]
+    return {
+        "kind": str(rule.get("kind", "unknown")),
+        "hybrid_set": hybrid_set,
+        "replace_set": replace_set,
+        "classically_weak": bool(rule.get("classically_weak")) or any(marker in combined for marker in weak_markers),
+    }
+
+
+def _render_algorithm_set(values: Iterable[str], algorithm: str) -> list[str]:
+    return [str(value).replace("{algorithm}", algorithm) for value in values]

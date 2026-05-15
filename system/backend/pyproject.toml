@@ -28,6 +28,9 @@ py-modules = []
 where = ["."]
 include = ["pqc_ras*", "apps*", "risk_engine*", "migration_engine*", "performance_engine*"]
 
+[tool.setuptools.package-data]
+migration_engine = ["*.json"]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "pqc_ras.settings"
 python_files = ["test_*.py"]

@@ -1,4 +1,26 @@
-from migration_engine.engine import recommend_migration
+from migration_engine.engine import MAPPING_RULES_PATH, candidate_for_algorithm, mapping_config, recommend_migration
+
+
+def test_migration_mapping_rules_are_loaded_from_external_config():
+    config = mapping_config()
+
+    assert MAPPING_RULES_PATH.name == "mapping_rules.json"
+    assert MAPPING_RULES_PATH.exists()
+    assert config["version"] == "migration-mapping-v1"
+    assert {rule["id"] for rule in config["rules"]} >= {"rsa-signature", "rsa-kem-like", "ecdsa-default", "dh-default"}
+    assert candidate_for_algorithm("RSA-2048", "RSA", "certificate") == {
+        "kind": "signature",
+        "hybrid_set": ["RSA-2048", "ML-DSA-65"],
+        "replace_set": ["ML-DSA-65"],
+        "classically_weak": False,
+    }
+
+
+def test_migration_mapping_rules_classify_kem_and_signature_paths_separately():
+    assert candidate_for_algorithm("RSA-2048", "RSA", "key")["kind"] == "kem"
+    assert candidate_for_algorithm("ECDSA-P384", "ECDSA", "certificate")["replace_set"] == ["ML-DSA-87"]
+    assert candidate_for_algorithm("ECDH-P384", "ECDH", "protocol")["replace_set"] == ["ML-KEM-1024"]
+    assert candidate_for_algorithm("SHA-256", "SHA", "algorithm")["kind"] == "safe_classical"
 
 
 def test_migration_engine_recommends_hybrid_first_for_long_lived_rsa():
