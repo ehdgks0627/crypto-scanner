@@ -3235,7 +3235,27 @@ components:
         attempted_handshakes:
           type: integer
           minimum: 0
+        successful_negotiations:
+          type: integer
+          minimum: 0
+        failed_negotiations:
+          type: integer
+          minimum: 0
+        total_negotiations:
+          type: integer
+          minimum: 0
+        attempted_negotiations:
+          type: integer
+          minimum: 0
+        availability_success_rate:
+          type: number
+          minimum: 0
+          maximum: 1
         handshake_success_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+        negotiation_success_rate:
           type: number
           minimum: 0
           maximum: 1

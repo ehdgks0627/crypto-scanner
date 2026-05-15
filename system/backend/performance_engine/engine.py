@@ -60,7 +60,7 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
             average_deltas[key] = round(sum(values) / len(values), 2)
 
     average_metrics = {}
-    for key in ("handshake_success_rate", "failure_rate", "timeout_rate"):
+    for key in ("availability_success_rate", "handshake_success_rate", "negotiation_success_rate", "failure_rate", "timeout_rate"):
         values = [
             value
             for result in results
@@ -83,21 +83,36 @@ def normalize_availability_metrics(metrics: dict[str, Any] | None) -> dict[str, 
     normalized = dict(metrics or {})
     if normalized.get("protocol"):
         normalized["protocol"] = str(normalized["protocol"]).upper()
+    success_key = _success_rate_key(normalized)
     success = _number(normalized.get("successful_handshakes"))
     failed = _number(normalized.get("failed_handshakes"))
     total = _number(normalized.get("total_handshakes")) or _number(normalized.get("attempted_handshakes"))
+    if success is None:
+        success = _number(normalized.get("successful_negotiations"))
+        failed = _number(normalized.get("failed_negotiations"))
+        total = _number(normalized.get("total_negotiations")) or _number(normalized.get("attempted_negotiations"))
 
     if total is None and success is not None:
         total = success + (failed or 0.0)
     if total and total > 0 and success is not None:
         success_rate = _clamp_rate(success / total)
-        normalized["handshake_success_rate"] = round(success_rate, 4)
+        normalized[success_key] = round(success_rate, 4)
+        normalized["availability_success_rate"] = round(success_rate, 4)
         normalized.setdefault("failure_rate", round(_clamp_rate(1 - success_rate), 4))
-        normalized.setdefault("total_handshakes", int(total) if total.is_integer() else total)
-    elif "handshake_success_rate" not in normalized:
+        total_key = "total_negotiations" if success_key == "negotiation_success_rate" else "total_handshakes"
+        normalized.setdefault(total_key, int(total) if total.is_integer() else total)
+    elif "availability_success_rate" not in normalized:
         failure_rate = _number(normalized.get("failure_rate"))
         if failure_rate is not None:
-            normalized["handshake_success_rate"] = round(_clamp_rate(1 - failure_rate), 4)
+            success_rate = round(_clamp_rate(1 - failure_rate), 4)
+            normalized["availability_success_rate"] = success_rate
+            normalized.setdefault(success_key, success_rate)
+    elif success_key not in normalized:
+        normalized[success_key] = normalized["availability_success_rate"]
+    if "availability_success_rate" not in normalized:
+        direct_success_rate = _number(normalized.get(success_key))
+        if direct_success_rate is not None:
+            normalized["availability_success_rate"] = round(_clamp_rate(direct_success_rate), 4)
     return normalized
 
 
@@ -111,7 +126,13 @@ def _summarize_by_protocol(results: list[dict[str, Any]]) -> dict[str, Any]:
             {
                 "total_results": 0,
                 "by_status": {"PASS": 0, "WARN": 0, "FAIL": 0, "ERROR": 0},
-                "_metrics": {"handshake_success_rate": [], "failure_rate": [], "timeout_rate": []},
+                "_metrics": {
+                    "availability_success_rate": [],
+                    "handshake_success_rate": [],
+                    "negotiation_success_rate": [],
+                    "failure_rate": [],
+                    "timeout_rate": [],
+                },
             },
         )
         entry["total_results"] += 1
@@ -162,12 +183,16 @@ def _collect_signals(metrics: dict[str, Any], deltas: dict[str, float], compatib
 
     failure_rate = _number(metrics.get("failure_rate"), 0.0)
     timeout_rate = _number(metrics.get("timeout_rate"), 0.0)
-    handshake_success_rate = _number(metrics.get("handshake_success_rate"))
-    if handshake_success_rate is not None:
+    success_metric = _success_rate_key(metrics)
+    success_rate = _number(metrics.get(success_metric))
+    if success_rate is None:
+        success_metric = "availability_success_rate"
+        success_rate = _number(metrics.get(success_metric))
+    if success_rate is not None:
         _append_min_rate_signal(
             signals,
-            "handshake_success_rate",
-            handshake_success_rate,
+            success_metric,
+            success_rate,
             thresholds["warn_handshake_success_rate"],
             thresholds["fail_handshake_success_rate"],
         )
@@ -200,6 +225,11 @@ def _append_min_rate_signal(signals: list[dict[str, Any]], key: str, value: floa
         signals.append({"level": "FAIL", "reason": f"{key}_below_fail_threshold", "value": value})
     elif value < warn:
         signals.append({"level": "WARN", "reason": f"{key}_below_warn_threshold", "value": value})
+
+
+def _success_rate_key(metrics: dict[str, Any]) -> str:
+    protocol = str(metrics.get("protocol") or "").upper()
+    return "negotiation_success_rate" if protocol == "IKE" else "handshake_success_rate"
 
 
 def _status_from_signals(signals: list[dict[str, Any]]) -> str:

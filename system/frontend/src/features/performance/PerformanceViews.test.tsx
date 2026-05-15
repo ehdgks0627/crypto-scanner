@@ -30,6 +30,11 @@ const run = {
         total_results: 1,
         by_status: { PASS: 1, WARN: 0, FAIL: 0, ERROR: 0 },
         average_metrics: { handshake_success_rate: 0.95 }
+      },
+      IKE: {
+        total_results: 1,
+        by_status: { PASS: 1, WARN: 0, FAIL: 0, ERROR: 0 },
+        average_metrics: { negotiation_success_rate: 1.0 }
       }
     },
     overall_status: "WARN"
@@ -91,6 +96,31 @@ const detail = {
       recommendation: "proceed",
       error_message: "",
       measured_at: "2026-05-01T00:01:05Z"
+    },
+    {
+      id: 92,
+      run_id: 44,
+      asset_id: 9,
+      asset_name: "ipsec policy",
+      bom_ref: "ike:policy:ipsec",
+      target_label: "ipsec.testbed.local:500",
+      protocol: "IKE",
+      status: "PASS",
+      compatibility_status: "PASS",
+      negotiated_algorithm: "IKEv2 DH group14 + AES-GCM",
+      metrics: {
+        protocol: "IKE",
+        handshake_ms: { p50: 45, p95: 80, samples: 10 },
+        availability_success_rate: 1,
+        negotiation_success_rate: 1,
+        failure_rate: 0,
+        timeout_rate: 0
+      },
+      deltas: { handshake_p95_percent: 0 },
+      signals: [],
+      recommendation: "proceed",
+      error_message: "",
+      measured_at: "2026-05-01T00:01:10Z"
     }
   ]
 } satisfies Schema<"PerformanceEvaluationRunDetail">;
@@ -109,12 +139,15 @@ describe("PerformanceEvaluationView", () => {
     expect(await screen.findByText("스냅샷 #3 가용성 검사")).toBeInTheDocument();
     expect(await screen.findByText("tls:web:leaf")).toBeInTheDocument();
     expect(screen.getByText("ssh:host:rsa")).toBeInTheDocument();
+    expect(screen.getByText("ike:policy:ipsec")).toBeInTheDocument();
     expect(screen.getByText("post_migration")).toBeInTheDocument();
-    expect(screen.getByText("96.5%")).toBeInTheDocument();
+    expect(screen.getByText("97.7%")).toBeInTheDocument();
     expect(screen.getByText("98.0%")).toBeInTheDocument();
     expect(screen.getByText("95.0%")).toBeInTheDocument();
+    expect(screen.getByText("100.0%")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "프로토콜" })).toBeInTheDocument();
     expect(screen.getByText("SSH")).toBeInTheDocument();
+    expect(screen.getByText("IKE")).toBeInTheDocument();
     expect(screen.getByText("118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("+18.2%")).toBeInTheDocument();
     expect(screen.getByText("canary_more")).toBeInTheDocument();

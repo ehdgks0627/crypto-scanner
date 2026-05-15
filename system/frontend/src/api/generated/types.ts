@@ -1343,7 +1343,13 @@ export interface components {
             failed_handshakes?: number;
             total_handshakes?: number;
             attempted_handshakes?: number;
+            successful_negotiations?: number;
+            failed_negotiations?: number;
+            total_negotiations?: number;
+            attempted_negotiations?: number;
+            availability_success_rate?: number;
             handshake_success_rate?: number;
+            negotiation_success_rate?: number;
             failure_rate?: number;
             timeout_rate?: number;
             session_resumption_rate?: number;

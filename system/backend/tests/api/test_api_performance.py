@@ -199,3 +199,43 @@ def test_api_perf_006_records_ssh_handshake_success_rate_by_protocol(client):
     detail = client.get(f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}").json()
     assert detail["summary"]["by_protocol"]["SSH"]["total_results"] == 1
     assert detail["summary"]["by_protocol"]["SSH"]["average_metrics"]["handshake_success_rate"] == 1.0
+
+
+def test_api_perf_007_records_ike_negotiation_success_rate_by_protocol(client):
+    snapshot = create_snapshot()
+    ike_target = create_target(host="ipsec.testbed.local", port=500, protocol_hint="IKE", transport="UDP")
+    asset = create_asset(
+        snapshot=snapshot,
+        target=ike_target,
+        bom_ref="ike:policy:ipsec",
+        asset_type="protocol",
+        algorithm="IKEv2 DH group14",
+        algorithm_family="DH",
+    )
+    run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
+
+    response = client.post(
+        f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}/results",
+        data={
+            "asset_id": asset.id,
+            "negotiated_algorithm": "IKEv2 DH group14 + AES-GCM",
+            "metrics": {
+                "successful_negotiations": 10,
+                "failed_negotiations": 0,
+                "handshake_ms": {"p50": 45, "p95": 80, "samples": 10},
+            },
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["protocol"] == "IKE"
+    assert body["metrics"]["protocol"] == "IKE"
+    assert body["metrics"]["total_negotiations"] == 10
+    assert body["metrics"]["negotiation_success_rate"] == 1.0
+    assert body["metrics"]["availability_success_rate"] == 1.0
+
+    detail = client.get(f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}").json()
+    assert detail["summary"]["by_protocol"]["IKE"]["total_results"] == 1
+    assert detail["summary"]["by_protocol"]["IKE"]["average_metrics"]["negotiation_success_rate"] == 1.0

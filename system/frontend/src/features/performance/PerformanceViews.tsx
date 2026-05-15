@@ -106,7 +106,7 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
 function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDetail"> }) {
   const summary = run.summary;
   const warnFailCount = (summary.by_status.WARN ?? 0) + (summary.by_status.FAIL ?? 0) + (summary.by_status.ERROR ?? 0);
-  const handshakeSuccessRate = averageNumber(run.results.map((result) => numberMetric(result, "handshake_success_rate")));
+  const successRate = averageNumber(run.results.map((result) => successRateMetric(result)));
   const protocolCount = new Set(run.results.map((result) => result.protocol || metricProtocol(result))).size;
   return (
     <div className="section-stack">
@@ -114,7 +114,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
         <MetricCard label="전체 상태" value={performanceStatusLabel(summary.overall_status)} />
         <MetricCard label="결과 수" value={formatNumber(summary.total_results)} />
         <MetricCard label="경고/실패" value={formatNumber(warnFailCount)} />
-        <MetricCard label="핸드셰이크 성공률" value={formatPercent(handshakeSuccessRate)} />
+        <MetricCard label="성공률" value={formatPercent(successRate)} />
         <MetricCard label="프로토콜" value={formatNumber(protocolCount)} />
         <MetricCard label="기준 스냅샷" value={run.baseline_snapshot_id ? `#${run.baseline_snapshot_id}` : "-"} />
       </div>
@@ -148,8 +148,8 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
               { key: "status", header: "상태", render: (item) => <PerformanceStatusBadge status={item.status} /> },
               { key: "compatibility", header: "호환성", render: (item) => <PerformanceStatusBadge status={item.compatibility_status} /> },
               { key: "algorithm", header: "협상 알고리즘", render: (item) => item.negotiated_algorithm || "-" },
-              { key: "success", header: "성공률", align: "right", render: (item) => formatPercent(numberMetric(item, "handshake_success_rate")) },
-              { key: "handshake", header: "핸드셰이크 p95", align: "right", render: (item) => formatMs(metricP95(item, "handshake_ms")) },
+              { key: "success", header: "성공률", align: "right", render: (item) => formatPercent(successRateMetric(item)) },
+              { key: "handshake", header: "핸드셰이크/협상 p95", align: "right", render: (item) => formatMs(metricP95(item, "handshake_ms")) },
               { key: "ttfb", header: "TTFB p95", align: "right", render: (item) => formatMs(metricP95(item, "ttfb_ms")) },
               { key: "failure", header: "실패율", align: "right", render: (item) => formatPercent(numberMetric(item, "failure_rate")) },
               { key: "delta", header: "핸드셰이크 변화율", align: "right", render: (item) => formatSignedPercent(item.deltas.handshake_p95_percent) },
@@ -185,9 +185,16 @@ function metricP95(result: PerformanceResult, key: "tcp_connect_ms" | "handshake
   return undefined;
 }
 
-function numberMetric(result: PerformanceResult, key: "failure_rate" | "timeout_rate" | "session_resumption_rate" | "handshake_success_rate") {
+function numberMetric(
+  result: PerformanceResult,
+  key: "failure_rate" | "timeout_rate" | "session_resumption_rate" | "availability_success_rate" | "handshake_success_rate" | "negotiation_success_rate"
+) {
   const value = result.metrics[key];
   return typeof value === "number" ? value : undefined;
+}
+
+function successRateMetric(result: PerformanceResult) {
+  return numberMetric(result, "availability_success_rate") ?? numberMetric(result, "handshake_success_rate") ?? numberMetric(result, "negotiation_success_rate");
 }
 
 function metricProtocol(result: PerformanceResult) {

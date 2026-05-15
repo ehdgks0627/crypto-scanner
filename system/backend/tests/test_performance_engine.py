@@ -69,3 +69,17 @@ def test_performance_engine_summarizes_ssh_handshake_success_rate_by_protocol():
     assert summary["by_protocol"]["SSH"]["by_status"]["WARN"] == 1
     assert summary["by_protocol"]["SSH"]["average_metrics"]["handshake_success_rate"] == 0.975
     assert summary["by_protocol"]["TLS"]["average_metrics"]["handshake_success_rate"] == 1.0
+
+
+def test_performance_engine_normalizes_ike_negotiation_success_rate_by_protocol():
+    metrics = normalize_availability_metrics({"protocol": "IKE", "successful_negotiations": 9, "failed_negotiations": 1})
+
+    result = evaluate_asset_performance(metrics=metrics, compatibility_status="PASS")
+    summary = summarize_results([{"status": result["status"], "deltas": result["deltas"], "metrics": metrics}])
+
+    assert metrics["total_negotiations"] == 10
+    assert metrics["negotiation_success_rate"] == 0.9
+    assert metrics["availability_success_rate"] == 0.9
+    assert result["status"] == "FAIL"
+    assert any(signal["reason"] == "negotiation_success_rate_below_fail_threshold" for signal in result["signals"])
+    assert summary["by_protocol"]["IKE"]["average_metrics"]["negotiation_success_rate"] == 0.9
