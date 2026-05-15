@@ -32,6 +32,9 @@ MIGRATION_SCOPE_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "migration-scope-ev
 CRYPTOSCAN_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "cryptoscan-evidence.json"
 CBOMKIT_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "cbomkit-evidence.json"
 AQTIVE_GUARD_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "aqtive-guard-evidence.json"
+CSNP_QRAMM_QUOTE_EVIDENCE_PATH = (
+    REPO_ROOT / "docs" / "kpi" / "csnp-qramm-quote-evidence.json"
+)
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -236,3 +239,20 @@ def test_aqtive_guard_evidence_marks_commercial_ai_platform_scope():
     assert "CBOM/compliance evidence reporting" in supported_scope
     assert "AQtive Guard user guide" in official_sources
     assert "AQtive Guard cryptography/PQC page" in official_sources
+
+
+def test_csnp_qramm_quote_evidence_uses_exact_source_and_scope():
+    evidence = json.loads(CSNP_QRAMM_QUOTE_EVIDENCE_PATH.read_text())
+    evidence_findings = [item["finding"] for item in evidence["official_evidence"]]
+
+    assert evidence["claim_level"] == "verified_exact_quote"
+    assert evidence["quote"] == "You can't migrate what you can't find."
+    assert evidence["quote_source_label"] == "CSNP CryptoScan README (QRAMM Toolkit)"
+    assert evidence["observed_commit"] == "3af1302cfa897eafce6c8992f888313bbf25ada0"
+    assert evidence["scope_label"] == "source_code_cryptographic_discovery"
+    assert evidence["repository"] == "https://github.com/csnp/cryptoscan"
+    assert evidence["observed_commit"] in evidence["citation_url"]
+    assert evidence["observed_commit"] in evidence["toolkit_context_url"]
+    assert any("QRAMM Toolkit" in finding for finding in evidence_findings)
+    assert any("exact quote" in finding for finding in evidence_findings)
+    assert any("not as a NIST" in item for item in evidence["presentation_guidance"])

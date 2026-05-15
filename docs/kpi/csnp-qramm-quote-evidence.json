@@ -1,0 +1,30 @@
+{
+  "id": "csnp_qramm_quote_evidence_v1",
+  "quote": "You can't migrate what you can't find.",
+  "quote_source_label": "CSNP CryptoScan README (QRAMM Toolkit)",
+  "claim_level": "verified_exact_quote",
+  "observed_at": "2026-05-16",
+  "repository": "https://github.com/csnp/cryptoscan",
+  "observed_commit": "3af1302cfa897eafce6c8992f888313bbf25ada0",
+  "citation_url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/README.md#L38-L44",
+  "toolkit_context_url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/README.md#L26-L34",
+  "scope_label": "source_code_cryptographic_discovery",
+  "quote_context": "The README presents CryptoScan as part of the QRAMM Toolkit and uses the quote while describing lack of visibility into cryptographic algorithms in codebases, configurations, and dependencies.",
+  "presentation_guidance": [
+    "Cite the quote as CSNP CryptoScan README (QRAMM Toolkit), not as a NIST or generic QRAMM standard quote.",
+    "Use it as a framing statement for cryptographic discovery: migration requires first finding cryptographic usage.",
+    "Do not imply that the quote by itself proves our implementation scope."
+  ],
+  "official_evidence": [
+    {
+      "source": "CryptoScan README",
+      "url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/README.md#L26-L34",
+      "finding": "The README identifies CryptoScan as part of the QRAMM Toolkit."
+    },
+    {
+      "source": "CryptoScan README",
+      "url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/README.md#L38-L44",
+      "finding": "The README contains the exact quote and explains codebase cryptographic visibility as the surrounding context."
+    }
+  ]
+}

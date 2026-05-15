@@ -61,6 +61,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   · CryptoScan은 코드베이스/설정/의존성 정적 스캔 도구로 확인하고 네트워크 탐색 도구로 설명하지 않는다.
   · IBM CBOMkit은 CBOM 생성/조회/정책검증과 소스코드/파일시스템/컨테이너 스캔 도구로 확인하고 네트워크 트래픽 분석 도구로 설명하지 않는다.
   · SandboxAQ AQtive Guard는 상용 비공개 플랫폼이며 AI 기반 위험 분석과 네트워크/runtime 가시성을 공식 지원하는 것으로 확인한다.
+  · CSNP/QRAMM 인용은 CSNP CryptoScan README(QRAMM Toolkit) 원문으로 고정하고 NIST/표준 문구처럼 설명하지 않는다.
   · pqc-tls 테스트베드는 ML-KEM/ML-DSA readiness endpoint를 노출하고 Discovery/Scanner가 이를 PQC 자산으로 수집한다.
   · 네트워크 스캔과 Host Agent가 같은 인증서를 발견하면 fingerprint 기반으로 단일 자산으로 병합한다.
   · Discovery Agent, 대시보드, CBOM 스냅샷, 마이그레이션 추천, 가용성 검사 UI는 코드 기준으로 반영한다.
@@ -363,8 +364,8 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
    slide 10 · slide 11 · slide 14 · slide 16의 인용이 정확해야 함
 ════════════════════════════════════════════════════════════════════════════════
 
-    [ ] 8.1  CSNP / QRAMM Toolkit — "You can't migrate what you can't find."
-             (현재 슬라이드 9 anchor box 인용 — 출처 정확성 확인)
+    [x] 8.1  CSNP / QRAMM Toolkit — "You can't migrate what you can't find."
+             (docs/kpi/csnp-qramm-quote-evidence.json 기준: CSNP CryptoScan README(QRAMM Toolkit) 원문 확인, source-code cryptographic discovery 맥락으로 제한)
     [ ] 8.2  CISA (2024) — 평균 마이그레이션 5~10년 보고서 출처 명확화
     [ ] 8.3  백악관 NSM-10 (2022) — 연방기관 암호 자산 목록 제출 의무화
     [ ] 8.4  국정원 · KISA (2023) — 양자내성암호 마스터플랜
@@ -431,12 +432,12 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   5. 시연 플로우 6단계                     8      0       0      0      8    100.0%
   6. KPI                                   7      0       0      0      7    100.0%
   7. 비교 클레임                          10      0       0      0     10    100.0%
-  8. 인용 사실 확인                        1      0       6      0      7     14.3%
+  8. 인용 사실 확인                        2      0       5      0      7     28.6%
   9. 비기능                                2      7       3      0     12     16.7%
   10. 발표 직전 점검                       0      0       5      0      5      0.0%
   ─────────────────────────────────────  ────   ────   ──────   ────   ────   ──────
-  TOTAL                                 124      7      14      3    148     85.5%
-  참고: 부분 구현([~])까지 포함하면 131 / 145 = 90.3%
+  TOTAL                                 125      7      13      3    148     86.2%
+  참고: 부분 구현([~])까지 포함하면 132 / 145 = 91.0%
 
 
 ════════════════════════════════════════════════════════════════════════════════
