@@ -24,13 +24,28 @@ flowchart LR
 | 통신 모델 | **Hybrid (14c)**: 기동 시 Push 자기등록, 작업은 Pull 트리거 |
 | 인증 | 등록 시 발급 토큰 + Bootstrap 토큰 (15c) |
 | 호환성 | Linux x86_64 (Debian/Ubuntu/Alpine/RHEL 계열). 본 캡스톤은 Alpine + Debian 기반 컨테이너만 검증 |
-| 배포 단위 | 컨테이너 내부 멀티 프로세스 (테스트베드 한정). 실 환경에서는 systemd 서비스로 가정 (명세 외) |
+| 배포 단위 | 테스트베드는 컨테이너 내부 프로세스. 원격 Linux 호스트는 `scripts/deploy-host-agent.sh`로 systemd 서비스 배포 |
 | 권한 | 스캔 대상 경로에 대한 read 권한만 필요. 쓰기 불필요 |
 
 | 역할 | `agent_role` | 설명 |
 |---|---|---|
 | Host Agent | `host` | 자기 호스트 내부 crypto asset 탐색 |
 | Discovery Agent | `discovery` | 배치된 네트워크 위치에서 CIDR/IP/domain 후보 엔드포인트 탐색 |
+
+### 4.2.1 원격 Host Agent 배포
+
+원격 Linux 호스트는 SSH 접근이 가능한 경우 다음 스크립트로 Host Agent를 배포할 수 있다.
+
+```bash
+scripts/deploy-host-agent.sh \
+  --host ubuntu@web.example.com \
+  --backend-url http://backend.example.com:8000 \
+  --bootstrap-token "$AGENT_BOOTSTRAP_TOKEN" \
+  --agent-hostname web.example.com \
+  --agent-url http://web.example.com:9100
+```
+
+스크립트는 `testbed/agent`의 Host Agent 구현을 원격 호스트의 `/opt/pqc-host-agent`에 전송하고, `/etc/pqc-host-agent.env` 환경 파일과 `pqc-host-agent.service` systemd 유닛을 생성한다. systemd가 없는 환경에서는 동일 환경 파일을 사용해 `nohup` 백그라운드 프로세스로 실행한다.
 
 ## 4.3 Agent 책임
 
