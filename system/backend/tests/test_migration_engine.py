@@ -21,6 +21,8 @@ def test_migration_mapping_rules_are_loaded_from_external_config():
         "purpose": "digital_signature",
         "hybrid_set": ["RSA-2048", "ML-DSA-65"],
         "replace_set": ["ML-DSA-65"],
+        "long_term_hybrid_set": ["RSA-2048", "SLH-DSA-SHA2-128s"],
+        "long_term_replace_set": ["SLH-DSA-SHA2-128s"],
         "classically_weak": False,
     }
 
@@ -164,6 +166,39 @@ def test_migration_engine_maps_x25519_and_dh_aliases_to_ml_kem_768():
     assert dh_item["current"]["quantum_vulnerable"] is True
     assert dh_item["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
     assert dh_item["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
+
+
+def test_migration_engine_maps_long_term_signatures_to_slh_dsa():
+    archive_item = recommend_migration(
+        asset_id=15,
+        asset_name="artifact archive signing certificate",
+        asset_type="certificate",
+        algorithm="ECDSA-P-256",
+        algorithm_family="ECDSA",
+        risk_score=86,
+        tier="HIGH",
+        context={"service_role": "archive-signing", "lifespan_years": 25, "criticality": "high"},
+        capabilities=["runtime_pqc_supported", "config_policy", "rescan_validation", "rollback_supported"],
+    )
+    default_item = recommend_migration(
+        asset_id=16,
+        asset_name="regular web signing certificate",
+        asset_type="certificate",
+        algorithm="ECDSA-P-256",
+        algorithm_family="ECDSA",
+        risk_score=86,
+        tier="HIGH",
+        context={"service_role": "web-frontend", "lifespan_years": 25, "criticality": "high"},
+        capabilities=["runtime_pqc_supported", "config_policy", "rescan_validation", "rollback_supported"],
+    )
+
+    assert archive_item["asset_purpose"] == "long_term_signature"
+    assert archive_item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "SLH-DSA-SHA2-128s"]
+    assert archive_item["recommendation"]["final_algorithm_set"] == ["SLH-DSA-SHA2-128s"]
+    assert "hash-based SLH-DSA" in archive_item["recommendation"]["rationale"]
+    assert default_item["asset_purpose"] == "digital_signature"
+    assert default_item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "ML-DSA-65"]
+    assert default_item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
 
 
 def test_migration_engine_marks_pqc_assets_as_no_change_with_high_agility():

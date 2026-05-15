@@ -17,6 +17,19 @@ AGILITY_CAPABILITIES = {
     "canary_supported": 10,
     "inventory_fresh": 5,
 }
+LONG_TERM_SIGNATURE_MARKERS = (
+    "archive",
+    "audit",
+    "backup",
+    "code_signing",
+    "codesign",
+    "legal",
+    "notary",
+    "package",
+    "records",
+    "timestamp",
+    "tsa",
+)
 
 
 def recommend_migration(
@@ -34,7 +47,7 @@ def recommend_migration(
     context = dict(context or {})
     capability_set = set(capabilities or [])
     current_algorithm = algorithm or algorithm_family or "Unknown"
-    candidate = candidate_for_algorithm(current_algorithm, algorithm_family, asset_type)
+    candidate = specialize_candidate_for_context(candidate_for_algorithm(current_algorithm, algorithm_family, asset_type), context)
     recommendation = build_recommendation(current_algorithm, algorithm_family, asset_type, context, capability_set, candidate)
     agility = build_agility(capability_set, recommendation["blockers"])
     return {
@@ -94,6 +107,16 @@ def candidate_for_algorithm(algorithm: str, algorithm_family: str | None, asset_
             continue
         return _candidate_from_rule(rule, algorithm, combined)
     return {"kind": "unknown", "purpose": "unknown", "hybrid_set": [algorithm], "replace_set": [algorithm], "classically_weak": False}
+
+
+def specialize_candidate_for_context(candidate: Mapping[str, Any], context: Mapping[str, Any]) -> dict:
+    if not _is_long_term_signature_context(candidate, context):
+        return dict(candidate)
+    specialized = dict(candidate)
+    specialized["purpose"] = "long_term_signature"
+    specialized["hybrid_set"] = list(specialized.get("long_term_hybrid_set") or specialized["hybrid_set"])
+    specialized["replace_set"] = list(specialized.get("long_term_replace_set") or specialized["replace_set"])
+    return specialized
 
 
 def choose_strategy(candidate: Mapping[str, Any], context: Mapping[str, Any]) -> str:
@@ -237,6 +260,8 @@ def rationale_for(strategy: str, algorithm: str, target_algorithm: str, context:
         return f"{algorithm} is already PQC-safe or does not require immediate migration under the current policy."
     if strategy == "replace":
         return f"{algorithm} should be replaced with {target_algorithm} because the current primitive is weak or has a direct safer successor."
+    if candidate.get("purpose") == "long_term_signature":
+        return f"{algorithm} protects long-term signatures; use {target_algorithm} as a hybrid transition before converging to hash-based SLH-DSA."
     details = []
     if context.get("lifespan_years") is not None:
         details.append(f"lifespan={context['lifespan_years']}y")
@@ -267,8 +292,8 @@ def infer_key_size(algorithm: str) -> int | None:
     return None
 
 
-def normalize(value: str | None) -> str:
-    return (value or "").upper().strip()
+def normalize(value: object | None) -> str:
+    return str(value or "").upper().strip()
 
 
 @lru_cache
@@ -308,13 +333,18 @@ def _candidate_from_rule(rule: Mapping[str, Any], algorithm: str, combined: str)
         hybrid_set = _render_algorithm_set(rule.get("hybrid_set", []), algorithm)
         replace_set = _render_algorithm_set(rule.get("replace_set", []), algorithm)
     weak_markers = [normalize(value) for value in rule.get("classically_weak_if_contains", [])]
-    return {
+    candidate = {
         "kind": str(rule.get("kind", "unknown")),
         "purpose": str(rule.get("purpose") or _infer_purpose(rule, combined)),
         "hybrid_set": hybrid_set,
         "replace_set": replace_set,
         "classically_weak": bool(rule.get("classically_weak")) or any(marker in combined for marker in weak_markers),
     }
+    if "long_term_hybrid_set" in rule:
+        candidate["long_term_hybrid_set"] = _render_algorithm_set(rule.get("long_term_hybrid_set", []), algorithm)
+    if "long_term_replace_set" in rule:
+        candidate["long_term_replace_set"] = _render_algorithm_set(rule.get("long_term_replace_set", []), algorithm)
+    return candidate
 
 
 def _render_algorithm_set(values: Iterable[str], algorithm: str) -> list[str]:
@@ -343,3 +373,19 @@ def _infer_purpose(rule: Mapping[str, Any], combined: str) -> str:
         if any(marker in combined for marker in ("SHA", "HMAC")):
             return "hash_integrity"
     return "unknown"
+
+
+def _is_long_term_signature_context(candidate: Mapping[str, Any], context: Mapping[str, Any]) -> bool:
+    if candidate.get("kind") != "signature":
+        return False
+    if not candidate.get("long_term_replace_set"):
+        return False
+    if context.get("long_term_signature") is True:
+        return True
+    profile = normalize(context.get("signature_profile")).replace("-", "_")
+    if profile in {"LONG_TERM", "LONG_TERM_SIGNATURE", "ARCHIVE", "ARCHIVAL"}:
+        return True
+    role = normalize(context.get("service_role")).replace("-", "_")
+    purpose = normalize(context.get("purpose")).replace("-", "_")
+    combined = f"{role} {purpose}"
+    return any(marker.upper() in combined for marker in LONG_TERM_SIGNATURE_MARKERS)

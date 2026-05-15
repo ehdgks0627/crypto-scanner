@@ -412,6 +412,33 @@ def test_api_mig_006d_migration_plan_maps_x25519_and_dh_aliases_to_ml_kem(client
     assert by_asset[dh_asset.id]["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
 
 
+def test_api_mig_006e_migration_plan_maps_long_term_signature_to_slh_dsa(client):
+    snapshot = create_snapshot()
+    archive_asset = create_asset(
+        snapshot=snapshot,
+        name="artifact archive signing certificate",
+        asset_type="certificate",
+        algorithm="ECDSA-P-256",
+        algorithm_family="ECDSA",
+        bom_ref="mig:signature:archive",
+    )
+    create_risk_score(
+        archive_asset,
+        score=89.0,
+        tier="HIGH",
+        factors={"context": {"service_role": "archive-signing", "lifespan_years": 25, "criticality": "high"}},
+    )
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/migration-plan?asset_ids={archive_asset.id}")
+
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert item["asset_purpose"] == "long_term_signature"
+    assert item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "SLH-DSA-SHA2-128s"]
+    assert item["recommendation"]["final_algorithm_set"] == ["SLH-DSA-SHA2-128s"]
+    assert "hash-based SLH-DSA" in item["recommendation"]["rationale"]
+
+
 def test_api_mig_007_migration_plan_rejects_non_integer_asset_ids(client):
     snapshot = create_snapshot()
 
