@@ -38,6 +38,9 @@ CSNP_QRAMM_QUOTE_EVIDENCE_PATH = (
 CISA_MIGRATION_TIMELINE_EVIDENCE_PATH = (
     REPO_ROOT / "docs" / "kpi" / "cisa-migration-timeline-evidence.json"
 )
+WHITE_HOUSE_NSM10_INVENTORY_EVIDENCE_PATH = (
+    REPO_ROOT / "docs" / "kpi" / "white-house-nsm10-inventory-evidence.json"
+)
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -275,3 +278,21 @@ def test_cisa_migration_timeline_evidence_does_not_overstate_5_to_10_years():
     assert any("automated cryptography discovery and inventory tools" in item for item in verified_points)
     assert any("long transition period" in item for item in verified_points)
     assert any("Do not say" in item for item in evidence["presentation_guidance"])
+
+
+def test_white_house_nsm10_inventory_evidence_scopes_federal_requirement():
+    evidence = json.loads(WHITE_HOUSE_NSM10_INVENTORY_EVIDENCE_PATH.read_text())
+    verified_points = set(evidence["verified_points"])
+    scope_limits = set(evidence["scope_limits"])
+    guidance = set(evidence["presentation_guidance"])
+
+    assert evidence["claim_level"] == "verified_with_scope"
+    assert evidence["source"]["publisher"] == "The White House"
+    assert evidence["source"]["memorandum_id"] == "NSM-10"
+    assert evidence["source"]["publication_date"] == "2022-05-04"
+    assert "bidenwhitehouse.archives.gov" in evidence["source"]["archive_url"]
+    assert any("Federal Civilian Executive Branch" in item for item in verified_points)
+    assert any("current cryptographic methods" in item for item in verified_points)
+    assert any("National Security Systems have a separate path" in item for item in scope_limits)
+    assert any("Do not describe NSM-10" in item for item in guidance)
+    assert evidence["related_policy"][0]["title"].startswith("OMB M-23-02")

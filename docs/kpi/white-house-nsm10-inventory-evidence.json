@@ -1,0 +1,36 @@
+{
+  "id": "white_house_nsm10_inventory_evidence_v1",
+  "claim": "White House NSM-10 requires federal civilian agencies to submit inventories related to quantum-vulnerable cryptographic systems.",
+  "claim_level": "verified_with_scope",
+  "observed_at": "2026-05-16",
+  "source": {
+    "title": "National Security Memorandum on Promoting United States Leadership in Quantum Computing While Mitigating Risks to Vulnerable Cryptographic Systems",
+    "memorandum_id": "NSM-10",
+    "publisher": "The White House",
+    "archive_url": "https://bidenwhitehouse.archives.gov/briefing-room/statements-releases/2022/05/04/national-security-memorandum-on-promoting-united-states-leadership-in-quantum-computing-while-mitigating-risks-to-vulnerable-cryptographic-systems/",
+    "publication_date": "2022-05-04"
+  },
+  "verified_points": [
+    "NSM-10 directs the United States to begin the multi-year process of migrating vulnerable computer systems to quantum-resistant cryptography.",
+    "Section 3(c)(iv) requires OMB, in consultation with CISA, NIST, the National Cyber Director, and NSA, to establish requirements for inventorying currently deployed cryptographic systems, excluding National Security Systems.",
+    "Section 3(c)(v) requires heads of Federal Civilian Executive Branch agencies, within 1 year of the memorandum and annually thereafter, to deliver to the Director of CISA and the National Cyber Director an inventory of IT systems that remain vulnerable to CRQCs.",
+    "The required inventories should include current cryptographic methods used on IT systems, including administrator protocols, software and firmware that require upgraded digital signatures, and other key assets."
+  ],
+  "scope_limits": [
+    "The direct NSM-10 submission requirement in section 3(c)(v) is scoped to Federal Civilian Executive Branch agency IT systems that remain vulnerable to CRQCs, with focus on High Value Assets and High Impact Systems.",
+    "National Security Systems have a separate path under NSA National Manager guidance in sections 3(c)(x) through 3(c)(xiii).",
+    "For detailed inventory data items and the May 4, 2023 first submission implementation, cite OMB M-23-02 rather than NSM-10 alone."
+  ],
+  "presentation_guidance": [
+    "It is accurate to say NSM-10 made cryptographic inventory a federal action item for PQC migration.",
+    "For precision, say FCEB agencies must submit inventories of IT systems that remain vulnerable to CRQCs, and those inventories should include current cryptographic methods.",
+    "Do not describe NSM-10 as a direct requirement for every public or private organization to submit all cryptographic assets."
+  ],
+  "related_policy": [
+    {
+      "title": "OMB M-23-02, Migrating to Post-Quantum Cryptography",
+      "url": "https://www.whitehouse.gov/wp-content/uploads/2022/11/M-23-02-M-Memo-on-Migrating-to-Post-Quantum-Cryptography.pdf",
+      "relationship": "Operationalizes NSM-10 for prioritized cryptographic-system inventory reporting."
+    }
+  ]
+}
