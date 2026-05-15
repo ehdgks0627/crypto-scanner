@@ -2,8 +2,14 @@ import pytest
 from django.core.management import call_command
 
 from apps.agents.models import Agent
-from apps.core.management.commands.seed_testbed_demo import DORMANT_PRIVATE_KEY_PATHS, EXPIRING_CERTIFICATE_DAYS, LATEST_ASSETS
+from apps.core.management.commands.seed_testbed_demo import (
+    DORMANT_PRIVATE_KEY_PATHS,
+    EXPIRING_CERTIFICATE_DAYS,
+    LATEST_ASSETS,
+    SCAN_SCANNERS,
+)
 from apps.discoveries.models import Discovery
+from apps.jobs.models import ScanRunLog
 from apps.risk.models import RiskScore
 from apps.snapshots.models import CbomSnapshot
 from apps.targets.models import Target
@@ -53,6 +59,23 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert body["agents_status"]["total"] == 11
     assert len(body["recent_jobs"]) == 5
     assert {job["status"] for job in body["recent_jobs"]} >= {"COMPLETED", "FAILED", "CANCELLED"}
+
+    agent_scanners = [scanner for scanner in SCAN_SCANNERS if scanner.startswith("agent.")]
+    agent_run_logs = ScanRunLog.objects.filter(
+        async_job=latest.scan_job.async_job,
+        scanner_kind__startswith="agent.",
+    ).order_by("scanner_kind")
+    assert agent_run_logs.count() == Target.objects.filter(agent_enabled=True).count() * len(agent_scanners)
+    assert set(agent_run_logs.values_list("scanner_kind", flat=True)) == set(agent_scanners)
+    assert set(agent_run_logs.values_list("status", flat=True)) == {"COMPLETED"}
+
+    dormant_assets = [asset for asset in latest.assets.all() if (asset.metadata or {}).get("dormant") is True]
+    assert {asset.bom_ref for asset in dormant_assets} == set(DORMANT_PRIVATE_KEY_PATHS)
+    for asset in dormant_assets:
+        metadata = asset.metadata
+        assert metadata["source_scanners"] == ["agent.private_key_files"]
+        assert metadata["private_key_paths"] == DORMANT_PRIVATE_KEY_PATHS[asset.bom_ref]
+        assert not {"private_key", "private_key_pem", "key_material", "pem"} & set(metadata)
 
 
 def test_seed_testbed_demo_api_loads_resettable_demo_data(client):

@@ -1,0 +1,63 @@
+{
+  "id": "host_agent_evidence_v1",
+  "title": "Host Agent internal inspection evidence for the demo seed",
+  "scenario": "current testbed demo seed",
+  "claim": "The system performs host-side internal inspection and identifies dormant private keys without storing private key material.",
+  "claim_ko": "현재 데모 시드는 Host Agent 기반 내부 점검을 실행한 증거와 잠든 개인키 탐지 결과를 포함한다.",
+  "scope": {
+    "host_agent_count": 10,
+    "agent_enabled_target_count": 10,
+    "host_agent_scanner_count": 8,
+    "expected_host_agent_run_log_count": 80,
+    "dormant_private_key_count": 3
+  },
+  "host_agent_scanners": [
+    "agent.cert_store",
+    "agent.ssh_userkey",
+    "agent.ssh_config",
+    "agent.keystore",
+    "agent.pkg_keyring",
+    "agent.app_cert_files",
+    "agent.private_key_files",
+    "agent.app_config"
+  ],
+  "dormant_private_key_assets": [
+    {
+      "bom_ref": "ssh:user:deploy:rsa",
+      "paths": ["/home/deploy/.ssh/id_rsa.old"],
+      "source_scanner": "agent.private_key_files"
+    },
+    {
+      "bom_ref": "postgres:jks:app:rsa",
+      "paths": ["/opt/postgres/legacy/app-server.key"],
+      "source_scanner": "agent.private_key_files"
+    },
+    {
+      "bom_ref": "legacy-java:jks:app:rsa1024",
+      "paths": ["/opt/legacy-java/conf/old-client.key"],
+      "source_scanner": "agent.private_key_files"
+    }
+  ],
+  "safety": {
+    "private_key_plaintext_stored": false,
+    "stored_private_key_fields": [
+      "path",
+      "algorithm",
+      "key_size_bits",
+      "fingerprint_sha256",
+      "in_use",
+      "dormant"
+    ],
+    "forbidden_private_key_fields": [
+      "private_key",
+      "private_key_pem",
+      "key_material",
+      "pem"
+    ]
+  },
+  "presentation_guidance": [
+    "Use this as implementation evidence for the host-side inspection claim, not as a performance benchmark.",
+    "Phrase the claim as 'Host Agent covers internal files and configuration that cannot be observed from the network alone'.",
+    "Mention dormant private keys as metadata-only findings; never imply that private key contents are collected."
+  ]
+}
