@@ -431,11 +431,13 @@ class Command(BaseCommand):
             base_ttfb += 12
         elif asset.algorithm_family in {"RSA", "ECDSA", "DH"}:
             base_handshake += 8
+        throughput_rps = 1000 - host_weight * 18 - (120 if migrated else 0)
         return {
             "tcp_connect_ms": {"p50": 8 + host_weight, "p95": 15 + host_weight, "samples": 30},
             "handshake_ms": {"p50": base_handshake * 0.62, "p95": base_handshake, "samples": 30},
             "ttfb_ms": {"p50": base_ttfb * 0.66, "p95": base_ttfb, "samples": 30},
             "total_request_ms": {"p50": (base_ttfb + 50) * 0.68, "p95": base_ttfb + 50, "samples": 30},
+            "throughput_rps": throughput_rps,
             "failure_rate": 0.0 if asset.algorithm_family != "UNKNOWN" else 0.015,
             "timeout_rate": 0.0,
             "session_resumption_rate": 0.72,

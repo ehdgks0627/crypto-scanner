@@ -3170,6 +3170,18 @@ components:
                 type: number
               delta_percent:
                 type: number
+        throughput_comparison:
+          type: object
+          additionalProperties:
+            type: object
+            required: [baseline_value, candidate_value, delta_percent]
+            properties:
+              baseline_value:
+                type: number
+              candidate_value:
+                type: number
+              delta_percent:
+                type: number
         by_protocol:
           type: object
           additionalProperties:
@@ -3252,6 +3264,15 @@ components:
           $ref: '#/components/schemas/PerformanceMetricSeries'
         total_request_ms:
           $ref: '#/components/schemas/PerformanceMetricSeries'
+        throughput_rps:
+          type: number
+          minimum: 0
+        requests_per_second:
+          type: number
+          minimum: 0
+        connections_per_second:
+          type: number
+          minimum: 0
         successful_handshakes:
           type: integer
           minimum: 0

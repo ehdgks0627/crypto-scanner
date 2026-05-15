@@ -66,6 +66,36 @@ def test_performance_engine_summarizes_latency_before_after_comparison():
     assert summary["latency_comparison"]["ttfb_ms"]["delta_percent"] == 6.0
 
 
+def test_performance_engine_flags_throughput_drop_and_summarizes_before_after_comparison():
+    result = evaluate_asset_performance(
+        metrics={"throughput_rps": 650.0},
+        baseline_metrics={"throughput_rps": 1000.0},
+        compatibility_status="PASS",
+    )
+    summary = summarize_results(
+        [
+            {
+                "status": result["status"],
+                "deltas": result["deltas"],
+                "metrics": {
+                    "throughput_rps": 650.0,
+                    "baseline_metrics": {"throughput_rps": 1000.0},
+                },
+            }
+        ]
+    )
+
+    assert result["status"] == "FAIL"
+    assert result["deltas"]["throughput_rps_percent"] == -35.0
+    assert any(signal["reason"] == "throughput_rps_percent_below_fail_threshold" for signal in result["signals"])
+    assert summary["average_metrics"]["throughput_rps"] == 650.0
+    assert summary["throughput_comparison"]["throughput_rps"] == {
+        "baseline_value": 1000.0,
+        "candidate_value": 650.0,
+        "delta_percent": -35.0,
+    }
+
+
 def test_performance_engine_normalizes_tls_handshake_success_rate_and_flags_regression():
     metrics = normalize_availability_metrics({"successful_handshakes": 98, "failed_handshakes": 2})
 

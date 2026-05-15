@@ -108,6 +108,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
   const warnFailCount = (summary.by_status.WARN ?? 0) + (summary.by_status.FAIL ?? 0) + (summary.by_status.ERROR ?? 0);
   const successRate = averageNumber(run.results.map((result) => successRateMetric(result)));
   const handshakeComparison = summary.latency_comparison?.handshake_ms;
+  const throughputComparison = primaryThroughputComparison(summary.throughput_comparison);
   const protocolCount = new Set(run.results.map((result) => result.protocol || metricProtocol(result))).size;
   return (
     <div className="section-stack">
@@ -117,6 +118,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
         <MetricCard label="경고/실패" value={formatNumber(warnFailCount)} />
         <MetricCard label="성공률" value={formatPercent(successRate)} />
         <MetricCard label="핸드셰이크 전/후" value={formatLatencyComparison(handshakeComparison)} />
+        <MetricCard label="처리량 전/후" value={formatThroughputComparison(throughputComparison)} />
         <MetricCard label="프로토콜" value={formatNumber(protocolCount)} />
         <MetricCard label="기준 스냅샷" value={run.baseline_snapshot_id ? `#${run.baseline_snapshot_id}` : "-"} />
       </div>
@@ -156,8 +158,11 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
               { key: "baselineHandshake", header: "기준 p95", align: "right", render: (item) => formatMs(baselineMetricP95(item, "handshake_ms")) },
               { key: "handshake", header: "핸드셰이크/협상 p95", align: "right", render: (item) => formatMs(metricP95(item, "handshake_ms")) },
               { key: "ttfb", header: "TTFB p95", align: "right", render: (item) => formatMs(metricP95(item, "ttfb_ms")) },
+              { key: "baselineThroughput", header: "기준 처리량", align: "right", render: (item) => formatRps(baselineThroughputMetric(item)) },
+              { key: "throughput", header: "처리량", align: "right", render: (item) => formatRps(throughputMetric(item)) },
               { key: "failure", header: "실패율", align: "right", render: (item) => formatPercent(numberMetric(item, "failure_rate")) },
               { key: "delta", header: "핸드셰이크 변화율", align: "right", render: (item) => formatSignedPercent(item.deltas.handshake_p95_percent) },
+              { key: "throughputDelta", header: "처리량 변화율", align: "right", render: (item) => formatSignedPercent(throughputDelta(item)) },
               { key: "recommendation", header: "권고", render: (item) => item.recommendation }
             ]}
           />
@@ -204,7 +209,16 @@ function baselineMetricP95(result: PerformanceResult, key: "tcp_connect_ms" | "h
 
 function numberMetric(
   result: PerformanceResult,
-  key: "failure_rate" | "timeout_rate" | "session_resumption_rate" | "availability_success_rate" | "handshake_success_rate" | "negotiation_success_rate"
+  key:
+    | "failure_rate"
+    | "timeout_rate"
+    | "session_resumption_rate"
+    | "availability_success_rate"
+    | "handshake_success_rate"
+    | "negotiation_success_rate"
+    | "throughput_rps"
+    | "requests_per_second"
+    | "connections_per_second"
 ) {
   const value = result.metrics[key];
   return typeof value === "number" ? value : undefined;
@@ -212,6 +226,28 @@ function numberMetric(
 
 function successRateMetric(result: PerformanceResult) {
   return numberMetric(result, "availability_success_rate") ?? numberMetric(result, "handshake_success_rate") ?? numberMetric(result, "negotiation_success_rate");
+}
+
+function throughputMetric(result: PerformanceResult) {
+  return numberMetric(result, "throughput_rps") ?? numberMetric(result, "requests_per_second") ?? numberMetric(result, "connections_per_second");
+}
+
+function throughputDelta(result: PerformanceResult) {
+  return result.deltas.throughput_rps_percent ?? result.deltas.requests_per_second_percent ?? result.deltas.connections_per_second_percent;
+}
+
+function baselineThroughputMetric(result: PerformanceResult) {
+  const baseline = result.metrics.baseline_metrics;
+  if (!baseline || typeof baseline !== "object" || Array.isArray(baseline)) {
+    return undefined;
+  }
+  const metrics = baseline as Record<string, unknown>;
+  const value = metrics.throughput_rps ?? metrics.requests_per_second ?? metrics.connections_per_second;
+  return typeof value === "number" ? value : undefined;
+}
+
+function primaryThroughputComparison(comparison?: Schema<"PerformanceRunSummary">["throughput_comparison"]) {
+  return comparison?.throughput_rps ?? comparison?.requests_per_second ?? comparison?.connections_per_second;
 }
 
 function metricProtocol(result: PerformanceResult) {
@@ -237,6 +273,17 @@ function formatLatencyComparison(comparison?: { baseline_p95?: number; candidate
     return "-";
   }
   return `${comparison.baseline_p95.toFixed(1)} -> ${comparison.candidate_p95.toFixed(1)} ms`;
+}
+
+function formatThroughputComparison(comparison?: { baseline_value?: number; candidate_value?: number }) {
+  if (typeof comparison?.baseline_value !== "number" || typeof comparison.candidate_value !== "number") {
+    return "-";
+  }
+  return `${comparison.baseline_value.toFixed(1)} -> ${comparison.candidate_value.toFixed(1)} req/s`;
+}
+
+function formatRps(value?: number) {
+  return typeof value === "number" ? `${value.toFixed(1)} req/s` : "-";
 }
 
 function averageNumber(values: Array<number | undefined>) {

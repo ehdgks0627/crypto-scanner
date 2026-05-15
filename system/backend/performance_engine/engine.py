@@ -14,9 +14,13 @@ DEFAULT_THRESHOLDS = {
     "fail_timeout_rate": 0.03,
     "warn_handshake_bytes_delta_percent": 50.0,
     "fail_handshake_bytes_delta_percent": 100.0,
+    "warn_throughput_drop_percent": 10.0,
+    "fail_throughput_drop_percent": 30.0,
 }
 
 LATENCY_SERIES = ("tcp_connect_ms", "handshake_ms", "ttfb_ms", "total_request_ms")
+THROUGHPUT_SERIES = ("throughput_rps", "requests_per_second", "connections_per_second")
+THROUGHPUT_DELTA_KEYS = {f"{series}_percent" for series in THROUGHPUT_SERIES}
 
 
 def evaluate_asset_performance(
@@ -60,7 +64,14 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
             average_deltas[key] = round(sum(values) / len(values), 2)
 
     average_metrics = {}
-    for key in ("availability_success_rate", "handshake_success_rate", "negotiation_success_rate", "failure_rate", "timeout_rate"):
+    for key in (
+        "availability_success_rate",
+        "handshake_success_rate",
+        "negotiation_success_rate",
+        "failure_rate",
+        "timeout_rate",
+        *THROUGHPUT_SERIES,
+    ):
         values = [
             value
             for result in results
@@ -75,6 +86,7 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "average_deltas": average_deltas,
         "average_metrics": average_metrics,
         "latency_comparison": _summarize_latency_comparison(results),
+        "throughput_comparison": _summarize_throughput_comparison(results),
         "by_protocol": _summarize_by_protocol(results),
         "overall_status": _overall_status(counts),
     }
@@ -135,6 +147,9 @@ def _summarize_by_protocol(results: list[dict[str, Any]]) -> dict[str, Any]:
                     "negotiation_success_rate": [],
                     "failure_rate": [],
                     "timeout_rate": [],
+                    "throughput_rps": [],
+                    "requests_per_second": [],
+                    "connections_per_second": [],
                 },
                 "response_codes": {},
                 "failure_reasons": {},
@@ -193,12 +208,42 @@ def _summarize_latency_comparison(results: list[dict[str, Any]]) -> dict[str, An
     return comparison
 
 
+def _summarize_throughput_comparison(results: list[dict[str, Any]]) -> dict[str, Any]:
+    comparison = {}
+    for series in THROUGHPUT_SERIES:
+        candidate_values = []
+        baseline_values = []
+        for result in results:
+            metrics = result.get("metrics") or {}
+            baseline_metrics = metrics.get("baseline_metrics") if isinstance(metrics.get("baseline_metrics"), dict) else {}
+            candidate_value = _number(metrics.get(series))
+            baseline_value = _number(baseline_metrics.get(series))
+            if candidate_value is not None and baseline_value is not None:
+                candidate_values.append(candidate_value)
+                baseline_values.append(baseline_value)
+        if not candidate_values or not baseline_values:
+            continue
+        candidate_value = round(sum(candidate_values) / len(candidate_values), 2)
+        baseline_value = round(sum(baseline_values) / len(baseline_values), 2)
+        comparison[series] = {
+            "baseline_value": baseline_value,
+            "candidate_value": candidate_value,
+            "delta_percent": _percent_delta(candidate_value, baseline_value),
+        }
+    return comparison
+
+
 def _calculate_deltas(metrics: dict[str, Any], baseline_metrics: dict[str, Any]) -> dict[str, float]:
     deltas: dict[str, float] = {}
     for series in LATENCY_SERIES:
         delta = _percent_delta(_metric_value(metrics, series, "p95"), _metric_value(baseline_metrics, series, "p95"))
         if delta is not None:
             deltas[f"{series.removesuffix('_ms')}_p95_percent"] = delta
+
+    for series in THROUGHPUT_SERIES:
+        delta = _percent_delta(_number(metrics.get(series)), _number(baseline_metrics.get(series)))
+        if delta is not None:
+            deltas[f"{series}_percent"] = delta
 
     candidate_bytes = _handshake_bytes(metrics)
     baseline_bytes = _handshake_bytes(baseline_metrics)
@@ -234,6 +279,14 @@ def _collect_signals(metrics: dict[str, Any], deltas: dict[str, float], compatib
     _append_rate_signal(signals, "timeout_rate", timeout_rate, thresholds["warn_timeout_rate"], thresholds["fail_timeout_rate"])
 
     for key, delta in deltas.items():
+        if key in THROUGHPUT_DELTA_KEYS:
+            warn = thresholds["warn_throughput_drop_percent"]
+            fail = thresholds["fail_throughput_drop_percent"]
+            if delta < -fail:
+                signals.append({"level": "FAIL", "reason": f"{key}_below_fail_threshold", "value": delta})
+            elif delta < -warn:
+                signals.append({"level": "WARN", "reason": f"{key}_below_warn_threshold", "value": delta})
+            continue
         if key == "handshake_bytes_percent":
             warn = thresholds["warn_handshake_bytes_delta_percent"]
             fail = thresholds["fail_handshake_bytes_delta_percent"]

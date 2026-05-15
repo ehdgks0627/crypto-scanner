@@ -40,6 +40,9 @@ const run = {
     latency_comparison: {
       handshake_ms: { baseline_p95: 100, candidate_p95: 118.2, delta_percent: 18.2 }
     },
+    throughput_comparison: {
+      throughput_rps: { baseline_value: 1000, candidate_value: 820, delta_percent: -18 }
+    },
     overall_status: "WARN"
   },
   started_at: "2026-05-01T00:00:00Z",
@@ -66,9 +69,11 @@ const detail = {
       metrics: {
         handshake_ms: { p50: 40, p95: 118.2, samples: 30 },
         ttfb_ms: { p50: 80, p95: 160.4, samples: 30 },
+        throughput_rps: 820,
         baseline_metrics: {
           handshake_ms: { p50: 35, p95: 100, samples: 30 },
-          ttfb_ms: { p50: 75, p95: 150, samples: 30 }
+          ttfb_ms: { p50: 75, p95: 150, samples: 30 },
+          throughput_rps: 1000
         },
         response_code: "tls_alert_bad_certificate",
         failure_reason: "handshake_p95_percent_above_warn_threshold",
@@ -78,7 +83,7 @@ const detail = {
         handshake_bytes_sent: 3400,
         handshake_bytes_received: 5200
       },
-      deltas: { handshake_p95_percent: 18.2 },
+      deltas: { handshake_p95_percent: 18.2, throughput_rps_percent: -18 },
       signals: [{ level: "WARN", reason: "handshake_p95_percent_above_warn_threshold", value: 18.2 }],
       recommendation: "canary_more",
       error_message: "",
@@ -105,7 +110,7 @@ const detail = {
         failure_rate: 0.05,
         timeout_rate: 0
       },
-      deltas: { handshake_p95_percent: 0 },
+      deltas: { handshake_p95_percent: 0, throughput_rps_percent: 0 },
       signals: [],
       recommendation: "proceed",
       error_message: "",
@@ -133,7 +138,7 @@ const detail = {
         failure_rate: 0,
         timeout_rate: 0
       },
-      deltas: { handshake_p95_percent: 0 },
+      deltas: { handshake_p95_percent: 0, throughput_rps_percent: 0 },
       signals: [],
       recommendation: "proceed",
       error_message: "",
@@ -160,6 +165,7 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("post_migration")).toBeInTheDocument();
     expect(screen.getByText("97.7%")).toBeInTheDocument();
     expect(screen.getByText("100.0 -> 118.2 ms")).toBeInTheDocument();
+    expect(screen.getByText("1000.0 -> 820.0 req/s")).toBeInTheDocument();
     expect(screen.getByText("98.0%")).toBeInTheDocument();
     expect(screen.getByText("95.0%")).toBeInTheDocument();
     expect(screen.getByText("100.0%")).toBeInTheDocument();
@@ -173,9 +179,15 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("SSH_MSG_KEXINIT")).toBeInTheDocument();
     expect(screen.getByText("IKE_AUTH_OK")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "기준 p95" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "기준 처리량" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "처리량" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "처리량 변화율" })).toBeInTheDocument();
     expect(screen.getByText("100.0 ms")).toBeInTheDocument();
     expect(screen.getByText("118.2 ms")).toBeInTheDocument();
+    expect(screen.getByText("1000.0 req/s")).toBeInTheDocument();
+    expect(screen.getByText("820.0 req/s")).toBeInTheDocument();
     expect(screen.getByText("+18.2%")).toBeInTheDocument();
+    expect(screen.getByText("-18.0%")).toBeInTheDocument();
     expect(screen.getByText("canary_more")).toBeInTheDocument();
   });
 });

@@ -6,12 +6,13 @@ from tests.api.factories import create_asset, create_snapshot, create_target
 pytestmark = pytest.mark.django_db
 
 
-def _metrics(handshake_p95=100, ttfb_p95=200, failure_rate=0.0):
+def _metrics(handshake_p95=100, ttfb_p95=200, failure_rate=0.0, throughput_rps=1000):
     return {
         "tcp_connect_ms": {"p50": 8, "p95": 15},
         "handshake_ms": {"p50": 40, "p95": handshake_p95},
         "ttfb_ms": {"p50": 100, "p95": ttfb_p95},
         "total_request_ms": {"p50": 160, "p95": ttfb_p95 + 60},
+        "throughput_rps": throughput_rps,
         "failure_rate": failure_rate,
         "timeout_rate": 0.0,
         "handshake_bytes_sent": 2800,
@@ -78,7 +79,7 @@ def test_api_perf_002_candidate_result_compares_to_baseline_by_bom_ref(client):
     ).json()
     client.post(
         f"/api/snapshots/{baseline_snapshot.id}/performance-runs/{baseline_run['id']}/results",
-        data={"asset_id": baseline_asset.id, "metrics": _metrics(handshake_p95=100, ttfb_p95=200)},
+        data={"asset_id": baseline_asset.id, "metrics": _metrics(handshake_p95=100, ttfb_p95=200, throughput_rps=1000)},
         content_type="application/json",
     )
     client.patch(
@@ -94,7 +95,7 @@ def test_api_perf_002_candidate_result_compares_to_baseline_by_bom_ref(client):
     ).json()
     result_response = client.post(
         f"/api/snapshots/{candidate_snapshot.id}/performance-runs/{candidate_run['id']}/results",
-        data={"asset_id": candidate_asset.id, "metrics": _metrics(handshake_p95=125, ttfb_p95=212)},
+        data={"asset_id": candidate_asset.id, "metrics": _metrics(handshake_p95=125, ttfb_p95=212, throughput_rps=820)},
         content_type="application/json",
     )
 
@@ -102,13 +103,20 @@ def test_api_perf_002_candidate_result_compares_to_baseline_by_bom_ref(client):
     result = result_response.json()
     assert result["status"] == "WARN"
     assert result["metrics"]["baseline_metrics"]["handshake_ms"]["p95"] == 100
+    assert result["metrics"]["baseline_metrics"]["throughput_rps"] == 1000
     assert result["deltas"]["handshake_p95_percent"] == 25.0
+    assert result["deltas"]["throughput_rps_percent"] == -18.0
     assert result["recommendation"] == "canary_more"
     detail = client.get(f"/api/snapshots/{candidate_snapshot.id}/performance-runs/{candidate_run['id']}").json()
     assert detail["summary"]["latency_comparison"]["handshake_ms"] == {
         "baseline_p95": 100.0,
         "candidate_p95": 125.0,
         "delta_percent": 25.0,
+    }
+    assert detail["summary"]["throughput_comparison"]["throughput_rps"] == {
+        "baseline_value": 1000.0,
+        "candidate_value": 820.0,
+        "delta_percent": -18.0,
     }
 
 

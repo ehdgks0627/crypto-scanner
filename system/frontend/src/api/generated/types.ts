@@ -1314,6 +1314,13 @@ export interface components {
                     delta_percent: number;
                 };
             };
+            throughput_comparison?: {
+                [key: string]: {
+                    baseline_value: number;
+                    candidate_value: number;
+                    delta_percent: number;
+                };
+            };
             by_protocol?: {
                 [key: string]: {
                     total_results: number;
@@ -1357,6 +1364,9 @@ export interface components {
             handshake_ms?: components["schemas"]["PerformanceMetricSeries"];
             ttfb_ms?: components["schemas"]["PerformanceMetricSeries"];
             total_request_ms?: components["schemas"]["PerformanceMetricSeries"];
+            throughput_rps?: number;
+            requests_per_second?: number;
+            connections_per_second?: number;
             successful_handshakes?: number;
             failed_handshakes?: number;
             total_handshakes?: number;
