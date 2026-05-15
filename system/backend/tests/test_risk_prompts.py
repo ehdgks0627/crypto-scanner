@@ -37,13 +37,14 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
 
     assert prompt["version"] == QUALITATIVE_RISK_PROMPT_VERSION
     assert "PQC migration risk analyst" in prompt["system"]
-    assert prompt["version"] == "qualitative-risk-v4"
+    assert prompt["version"] == "qualitative-risk-v5"
     assert "RSA-2048" in prompt["user"]
     assert "/etc/nginx/server.crt" in prompt["user"]
     assert "public_internet" in prompt["user"]
     assert "DHS Q1 asset_value" in prompt["user"]
     assert "DHS Q2 protected_information" in prompt["user"]
     assert "DHS Q3 communication_scope" in prompt["user"]
+    assert "DHS Q4 sharing_level" in prompt["user"]
     assert "operational_context" in prompt["user"]
     assert "Required JSON schema" in prompt["user"]
     assert "dhs_criteria" in prompt["user"]
@@ -87,6 +88,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
               "direction": "EXTERNAL_BIDIRECTIONAL",
               "rationale": "The service is reachable from the public internet.",
               "signals": ["exposure:public_internet", "direction:external_bidirectional"]
+            },
+            "sharing_level": {
+              "question": "Q4: sharing level based on third-party or partner integration.",
+              "rating": "HIGH",
+              "score": 82,
+              "sharing_scope": "PUBLIC",
+              "external_parties": ["public_clients", "customer_clients"],
+              "rationale": "The API is shared with customer clients.",
+              "signals": ["service_role:customer-api", "exposure:public_internet"]
             }
           },
           "confidence": 86
@@ -123,6 +133,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
                 "direction": "external_bidirectional",
                 "rationale": "The service is reachable from the public internet.",
                 "signals": ["exposure:public_internet", "direction:external_bidirectional"],
+            },
+            "sharing_level": {
+                "question": "Q4: sharing level based on third-party or partner integration.",
+                "rating": "high",
+                "score": 0.82,
+                "sharing_scope": "public",
+                "external_parties": ["public_clients", "customer_clients"],
+                "rationale": "The API is shared with customer clients.",
+                "signals": ["service_role:customer-api", "exposure:public_internet"],
             }
         },
         "confidence": 0.86,

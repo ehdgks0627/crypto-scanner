@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v4"
+QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v5"
 
 QUALITATIVE_RISK_SYSTEM_PROMPT = """You are a PQC migration risk analyst.
 Assess one cryptographic asset for quantum-era migration planning.
@@ -40,6 +40,15 @@ QUALITATIVE_RISK_RESPONSE_SCHEMA = {
             "direction": "none|internal_only|external_inbound|external_bidirectional|unknown",
             "rationale": "One-sentence evidence-based explanation.",
             "signals": ["exposure:public_internet", "direction:external_bidirectional"],
+        },
+        "sharing_level": {
+            "question": "Q4: sharing level based on third-party or partner integration.",
+            "rating": "low|medium|high|critical",
+            "score": 0.0,
+            "sharing_scope": "none|internal_only|partner|third_party|public|unknown",
+            "external_parties": ["partner_idp", "public_clients"],
+            "rationale": "One-sentence evidence-based explanation.",
+            "signals": ["service_role:api-gateway", "exposure:public_internet"],
         }
     },
     "confidence": 0.0,
@@ -71,6 +80,7 @@ def build_qualitative_risk_prompt(
         "For DHS Q1 asset_value, rate the asset by external exposure and business importance only.\n"
         "For DHS Q2 protected_information, rate the information protected by the asset using data classification and confidentiality needs.\n"
         "For DHS Q3 communication_scope, rate internal-only versus external bidirectional communication exposure.\n"
+        "For DHS Q4 sharing_level, rate third-party, partner, or public sharing paths.\n"
         "Do not invent facts not present in the payload.\n\n"
         f"Payload:\n{json.dumps(payload, sort_keys=True, indent=2)}\n\n"
         f"Required JSON schema:\n{json.dumps(QUALITATIVE_RISK_RESPONSE_SCHEMA, sort_keys=True, indent=2)}"
@@ -146,6 +156,7 @@ def _dhs_criteria(value: Any) -> dict[str, Any]:
         "asset_value": _dhs_asset_value(value.get("asset_value")),
         "protected_information": _dhs_protected_information(value.get("protected_information")),
         "communication_scope": _dhs_communication_scope(value.get("communication_scope")),
+        "sharing_level": _dhs_sharing_level(value.get("sharing_level")),
     }
 
 
@@ -205,6 +216,24 @@ def _dhs_communication_scope(value: Any) -> dict[str, Any]:
         "score": _confidence(value.get("score")),
         "exposure": exposure,
         "direction": direction,
+        "rationale": _required_string(value, "rationale"),
+        "signals": _string_list(value.get("signals")),
+    }
+
+
+def _dhs_sharing_level(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise QualitativeRiskResponseParseError("LLM response field 'dhs_criteria.sharing_level' must be an object")
+    rating = _rating(value, "dhs_criteria.sharing_level.rating")
+    sharing_scope = _required_string(value, "sharing_scope").lower()
+    if sharing_scope not in {"none", "internal_only", "partner", "third_party", "public", "unknown"}:
+        raise QualitativeRiskResponseParseError("LLM response field 'dhs_criteria.sharing_level.sharing_scope' has an invalid value")
+    return {
+        "question": str(value.get("question") or "Q4: sharing level based on third-party or partner integration."),
+        "rating": rating,
+        "score": _confidence(value.get("score")),
+        "sharing_scope": sharing_scope,
+        "external_parties": _string_list(value.get("external_parties")),
         "rationale": _required_string(value, "rationale"),
         "signals": _string_list(value.get("signals")),
     }

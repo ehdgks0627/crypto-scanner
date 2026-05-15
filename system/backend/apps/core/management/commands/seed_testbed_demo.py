@@ -478,6 +478,15 @@ class Command(BaseCommand):
                     "direction": "external_inbound",
                     "rationale": "Demo assets include internal services, DMZ services, and public-facing endpoints.",
                     "signals": ["exposure:demo", "direction:demo", "managed_target"],
+                },
+                "sharing_level": {
+                    "question": "Q4: sharing level based on third-party or partner integration.",
+                    "rating": "high",
+                    "score": 0.72,
+                    "sharing_scope": "third_party",
+                    "external_parties": ["third_party_integrations"],
+                    "rationale": "Demo assets include API, identity, mail, and public-facing integration paths.",
+                    "signals": ["service_role:demo", "exposure:demo", "managed_target"],
                 }
             },
             confidence=0.78,

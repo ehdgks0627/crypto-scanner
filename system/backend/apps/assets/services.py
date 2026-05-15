@@ -381,6 +381,7 @@ def _qualitative_dhs_criteria(asset, context, score):
         "asset_value": _qualitative_asset_value_criterion(asset, context, score),
         "protected_information": _qualitative_protected_information_criterion(asset, context, score),
         "communication_scope": _qualitative_communication_scope_criterion(asset, context, score),
+        "sharing_level": _qualitative_sharing_level_criterion(asset, context, score),
     }
 
 
@@ -559,6 +560,98 @@ def _qualitative_communication_scope_rationale(asset, exposure, direction, proto
     return (
         f"{name} has exposure={exposure or 'unknown'}, direction={direction}, "
         f"protocol={protocol or 'unknown'}, and target={target}; baseline migration score is {round(score)}."
+    )
+
+
+def _qualitative_sharing_level_criterion(asset, context, score):
+    metadata = asset.metadata or {}
+    exposure = context.get("exposure")
+    service_role = context.get("service_role") or asset.asset_type or "unknown"
+    sharing_scope = _qualitative_sharing_scope(service_role, exposure, metadata)
+    external_parties = _qualitative_external_parties(sharing_scope, service_role)
+    value_score = {
+        "none": 0.1,
+        "internal_only": 0.22,
+        "partner": 0.58,
+        "third_party": 0.68,
+        "public": 0.82,
+        "unknown": 0.32,
+    }[sharing_scope]
+    if context.get("sensitivity") in {"high", "critical"} and sharing_scope in {"partner", "third_party", "public"}:
+        value_score += 0.08
+    if asset.target_id and sharing_scope != "none":
+        value_score += 0.03
+    value_score = round(max(0.0, min(1.0, value_score)), 2)
+    signals = _dedupe_values(
+        [
+            f"sharing_scope:{sharing_scope}",
+            f"service_role:{service_role}",
+            f"exposure:{exposure or 'unknown'}",
+            f"target:{target_label(asset)}" if asset.target_id else "target:unmapped",
+            *[f"metadata:{item}" for item in _sharing_metadata_signals(metadata)],
+        ]
+    )
+    return {
+        "question": "Q4: sharing level based on third-party or partner integration.",
+        "rating": _qualitative_rating(value_score),
+        "score": value_score,
+        "sharing_scope": sharing_scope,
+        "external_parties": external_parties,
+        "rationale": _qualitative_sharing_level_rationale(asset, service_role, exposure, sharing_scope, score),
+        "signals": signals,
+    }
+
+
+def _qualitative_sharing_scope(service_role, exposure, metadata):
+    role = (service_role or "").lower()
+    metadata_text = json.dumps(metadata or {}, sort_keys=True).lower()
+    combined = f"{role} {metadata_text}"
+    if any(token in combined for token in ["third-party", "third_party", "vendor", "external"]):
+        return "third_party"
+    if any(token in combined for token in ["partner", "saml", "oidc", "oauth", "federation", "sso"]):
+        return "partner"
+    if exposure == "public_internet" or any(token in role for token in ["customer", "mobile", "public"]):
+        return "public"
+    if exposure in {"dmz"} or any(token in role for token in ["api", "gateway", "mail"]):
+        return "third_party"
+    if exposure in {"air_gapped"}:
+        return "none"
+    if exposure in {"internal_network"}:
+        return "internal_only"
+    return "unknown"
+
+
+def _qualitative_external_parties(sharing_scope, service_role):
+    if sharing_scope == "none":
+        return ["none_detected"]
+    if sharing_scope == "internal_only":
+        return ["internal_consumers"]
+    if sharing_scope == "partner":
+        return ["partner_systems"]
+    if sharing_scope == "third_party":
+        return ["third_party_integrations"]
+    if sharing_scope == "public":
+        role = (service_role or "").lower()
+        if "customer" in role:
+            return ["public_clients", "customer_clients"]
+        return ["public_clients"]
+    return ["unknown"]
+
+
+def _sharing_metadata_signals(metadata):
+    signals = []
+    for key in ["referenced_by", "source_scanners", "source_paths", "scanner"]:
+        for value in _metadata_list(metadata.get(key)):
+            if isinstance(value, str) and value:
+                signals.append(f"{key}:{value}")
+    return signals[:4]
+
+
+def _qualitative_sharing_level_rationale(asset, service_role, exposure, sharing_scope, score):
+    name = asset.name or asset.bom_ref or f"asset {asset.id}"
+    return (
+        f"{name} has sharing_scope={sharing_scope} from service_role={service_role or 'unknown'} "
+        f"and exposure={exposure or 'unknown'}; baseline migration score is {round(score)}."
     )
 
 
