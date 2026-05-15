@@ -748,13 +748,14 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 
 요청 본문 없음 (또는 `{}`).
 
-응답 (200): QualitativeAssessment 객체. 동일 Asset에는 QualitativeAssessment를 1개만 유지하며 재요청 시 기존 레코드를 갱신해 반환한다.
+응답 (200): QualitativeAssessment 객체. 동일 Asset에는 QualitativeAssessment를 1개만 유지한다. 재요청 시 prompt 입력이 같으면 기존 레코드를 캐시로 재사용하고, 자산 메타데이터·컨텍스트·risk 입력이 달라지면 기존 레코드를 갱신해 반환한다.
 
 백그라운드 실행이 필요한 경우 동일 생성 로직을 `qualitative_assessment` 큐 작업으로 실행할 수 있다. `process_queued_jobs` worker는 `scan_job`, `discovery`, `recompute`와 함께 `qualitative_assessment` 작업을 폴링한다.
 
 정성 분석 prompt payload는 `asset`, `context`, `context_sources`, `risk` 외에 `operational_context`를 포함한다. `operational_context`에는 연결 서비스(`host:port`, protocol), 파일/설정 경로, 데이터 분류 수준, 통신 노출 범위, 서비스 역할이 정규화되어 들어간다.
 LLM provider 응답은 자유 텍스트 안에 포함된 JSON 객체를 파싱하며, `summary`, `threat_scenarios`, `migration_recommendation`, `confidence` 필드를 구조화된 `QualitativeAssessment`로 정규화한다.
 provider 응답 파싱 실패 또는 타임아웃이 발생하면 자산 메타데이터와 컨텍스트 기반 휴리스틱 결과로 폴백한다. 이 경우 `provider`는 `mock-rulebook-fallback`으로 저장되고, `prompt_payload.llm_fallback`에 사용 여부와 실패 사유를 기록한다.
+정상 생성된 정성 분석은 `prompt_payload.llm_cache.key`에 prompt 입력 해시를 저장한다. 이후 같은 prompt 입력으로 다시 요청되면 provider 호출 없이 저장된 `QualitativeAssessment`를 반환한다.
 
 ## 8.9 Risk
 

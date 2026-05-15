@@ -1,4 +1,5 @@
 import json
+from hashlib import sha256
 
 from django.db import transaction
 from django.utils import timezone
@@ -17,6 +18,7 @@ CONTEXT_FIELDS = ["sensitivity", "lifespan_years", "criticality", "exposure", "s
 QUALITATIVE_TASK_NAME = "qualitative_assessment"
 QUALITATIVE_PROVIDER = "mock-rulebook"
 QUALITATIVE_FALLBACK_PROVIDER = "mock-rulebook-fallback"
+QUALITATIVE_PROMPT_METADATA_KEYS = {"llm_cache", "llm_fallback"}
 QUANTUM_VULNERABLE_FAMILIES = {"RSA", "DSA", "ECDSA", "ECDH", "DH"}
 CONTEXT_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 EXPOSURE_LEVELS = {"air_gapped": 0, "internal_network": 1, "dmz": 2, "public_internet": 3}
@@ -132,14 +134,18 @@ def refresh_qualitative_assessment(asset_or_id):
         asset = asset_or_id
     else:
         asset = Asset.objects.select_related("target").get(id=asset_or_id)
+    existing = QualitativeAssessment.objects.filter(asset=asset).first()
+    defaults = generate_qualitative_assessment(asset, cached_assessment=existing)
+    if defaults is None:
+        return existing
     assessment, _created = QualitativeAssessment.objects.update_or_create(
         asset=asset,
-        defaults=generate_qualitative_assessment(asset),
+        defaults=defaults,
     )
     return assessment
 
 
-def generate_qualitative_assessment(asset):
+def generate_qualitative_assessment(asset, cached_assessment=None):
     override = getattr(asset, "context_override", None)
     context = effective_context(asset, override)
     sources = context_sources(asset, override)
@@ -152,6 +158,10 @@ def generate_qualitative_assessment(asset):
         operational_context=_qualitative_operational_context(asset, context, sources),
         risk=_qualitative_risk_payload(risk_score, score),
     )
+    cache_key = _qualitative_prompt_cache_key(prompt["payload"])
+    if _qualitative_cache_hit(cached_assessment, prompt, cache_key):
+        return None
+
     fallback_response = _heuristic_qualitative_response(asset, context, risk_score, score)
     fallback_metadata = {"used": False, "reason": None}
     provider = QUALITATIVE_PROVIDER
@@ -165,9 +175,33 @@ def generate_qualitative_assessment(asset):
     return {
         "provider": provider,
         "prompt_version": prompt["version"],
-        "prompt_payload": {**prompt["payload"], "llm_fallback": fallback_metadata},
+        "prompt_payload": {
+            **prompt["payload"],
+            "llm_cache": {"key": cache_key},
+            "llm_fallback": fallback_metadata,
+        },
         **parsed_response,
     }
+
+
+def _qualitative_prompt_cache_key(payload: dict) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return sha256(encoded).hexdigest()
+
+
+def _qualitative_cache_hit(assessment, prompt: dict, cache_key: str) -> bool:
+    if assessment is None or assessment.prompt_version != prompt["version"]:
+        return False
+    prompt_payload = assessment.prompt_payload or {}
+    metadata = prompt_payload.get("llm_cache") or {}
+    if metadata.get("key") == cache_key:
+        return True
+    cached_payload = {
+        key: value
+        for key, value in prompt_payload.items()
+        if key not in QUALITATIVE_PROMPT_METADATA_KEYS
+    }
+    return cached_payload == prompt["payload"]
 
 
 def _heuristic_qualitative_response(asset, context, risk_score, score):

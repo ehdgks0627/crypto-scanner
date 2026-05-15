@@ -469,3 +469,49 @@ def test_api_ast_008_qualitative_worker_falls_back_when_llm_response_is_invalid(
     assert "harvest_now_decrypt_later" in assessment.threat_scenarios
     assert assessment.migration_recommendation
     assert 0 <= assessment.confidence <= 1
+
+
+def test_api_ast_009_qualitative_request_reuses_cache_until_prompt_changes(monkeypatch):
+    from apps.assets import services
+    from apps.assets.models import AssetContextOverride
+
+    target = create_target(
+        host="cache-api.testbed.local",
+        context={
+            "sensitivity": "low",
+            "lifespan_years": 2,
+            "criticality": "medium",
+            "exposure": "internal_network",
+            "service_role": "cache-api",
+        },
+    )
+    asset = create_asset(
+        target=target,
+        name="cache API certificate",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        bom_ref="qualitative:cache:rsa",
+    )
+    original_provider = services._mock_qualitative_llm_response
+    calls = {"count": 0}
+
+    def tracked_provider(payload):
+        calls["count"] += 1
+        return original_provider(payload)
+
+    monkeypatch.setattr(services, "_mock_qualitative_llm_response", tracked_provider)
+
+    first = services.refresh_qualitative_assessment(asset.id)
+    second = services.refresh_qualitative_assessment(asset.id)
+
+    assert first.id == second.id
+    assert calls["count"] == 1
+    assert second.prompt_payload["llm_cache"]["key"]
+    assert second.prompt_payload["llm_fallback"] == {"used": False, "reason": None}
+
+    AssetContextOverride.objects.create(asset=asset, sensitivity="critical")
+    third = services.refresh_qualitative_assessment(asset.id)
+
+    assert third.id == first.id
+    assert calls["count"] == 2
+    assert third.prompt_payload["context"]["sensitivity"] == "critical"
