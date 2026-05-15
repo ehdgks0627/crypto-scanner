@@ -4,6 +4,7 @@
       "asset_id": 9001,
       "asset_name": "web.testbed.local (leaf)",
       "asset_type": "certificate",
+      "asset_purpose": "digital_signature",
       "current": {
         "algorithm": "RSA-2048",
         "key_size_bits": 2048,

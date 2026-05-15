@@ -244,7 +244,8 @@ def test_api_mig_001_migration_plan_returns_recommendation_page(client):
 
     assert response.status_code == 200
     item = response.json()["items"][0]
-    assert {"asset_id", "asset_name", "asset_type", "current", "recommendation", "alternatives", "risk_score", "tier"} <= set(item)
+    assert {"asset_id", "asset_name", "asset_type", "asset_purpose", "current", "recommendation", "alternatives", "risk_score", "tier"} <= set(item)
+    assert item["asset_purpose"] == "digital_signature"
     assert item["recommendation"]["strategy"] in {"replace", "hybrid", "no_change"}
     assert {
         "strategy",
@@ -311,11 +312,13 @@ def test_api_mig_006_migration_plan_marks_rsa_hybrid_and_safe_no_change(client):
     assert response.status_code == 200
     by_asset = {item["asset_id"]: item for item in response.json()["items"]}
     assert by_asset[rsa_asset.id]["recommendation"]["strategy"] == "hybrid"
+    assert by_asset[rsa_asset.id]["asset_purpose"] == "digital_signature"
     assert by_asset[rsa_asset.id]["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
     assert by_asset[rsa_asset.id]["recommendation"]["phase"] == "hybrid_first"
     assert by_asset[rsa_asset.id]["current"]["quantum_vulnerable"] is True
     assert by_asset[rsa_asset.id]["risk_score"] == 95
     assert by_asset[pqc_asset.id]["recommendation"]["strategy"] == "no_change"
+    assert by_asset[pqc_asset.id]["asset_purpose"] == "digital_signature"
     assert by_asset[pqc_asset.id]["current"]["quantum_vulnerable"] is False
     assert by_asset[pqc_asset.id]["recommendation"]["phase"] == "monitor"
 

@@ -15,7 +15,7 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
-import { agilityLevelLabel, assetTypeLabel, riskTierLabel } from "../../domain/displayLabels";
+import { agilityLevelLabel, assetTypeLabel, migrationPurposeLabel, riskTierLabel } from "../../domain/displayLabels";
 import { parseRiskTierParam, riskTierOptions } from "../../domain/filterOptions";
 import { downloadText } from "../../lib/download";
 import { formatNumber, formatScore } from "../../lib/format";
@@ -163,6 +163,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                       />
                   },
                   { key: "asset", header: "자산", render: (item) => item.asset_name ?? item.current?.algorithm ?? "-" },
+                  { key: "purpose", header: "용도", render: (item) => migrationPurposeLabel(item.asset_purpose) },
                   { key: "current", header: "현재 알고리즘", render: (item) => item.current.algorithm ?? "-" },
                   { key: "strategy", header: "전략", render: (item) => item.recommendation.strategy },
                   { key: "phase", header: "단계", render: (item) => item.recommendation.phase },
@@ -203,6 +204,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
               getRowKey={(item) => item.asset_id}
               columns={[
                 { key: "asset", header: "자산", render: (item) => item.asset_name },
+                { key: "purpose", header: "용도", render: (item) => migrationPurposeLabel(item.asset_purpose) },
                 { key: "risk", header: "위험도", render: (item) => `${formatScore(item.risk_score)} / ${riskTierLabel(item.tier)}` },
                 { key: "recommendation", header: "권고", render: (item) => `${item.recommendation.strategy} → ${item.recommendation.target_algorithm}` },
                 { key: "agility", header: "민첩성", render: (item) => `${item.agility.score} / ${agilityLevelLabel(item.agility.level)}` },

@@ -34,12 +34,14 @@ def recommend_migration(
     context = dict(context or {})
     capability_set = set(capabilities or [])
     current_algorithm = algorithm or algorithm_family or "Unknown"
-    recommendation = build_recommendation(current_algorithm, algorithm_family, asset_type, context, capability_set)
+    candidate = candidate_for_algorithm(current_algorithm, algorithm_family, asset_type)
+    recommendation = build_recommendation(current_algorithm, algorithm_family, asset_type, context, capability_set, candidate)
     agility = build_agility(capability_set, recommendation["blockers"])
     return {
         "asset_id": asset_id,
         "asset_name": asset_name,
         "asset_type": asset_type,
+        "asset_purpose": candidate["purpose"],
         "current": {
             "algorithm": current_algorithm,
             "key_size_bits": infer_key_size(current_algorithm),
@@ -54,8 +56,15 @@ def recommend_migration(
     }
 
 
-def build_recommendation(algorithm: str, algorithm_family: str | None, asset_type: str, context: Mapping[str, Any], capabilities: set[str]) -> dict:
-    candidate = candidate_for_algorithm(algorithm, algorithm_family, asset_type)
+def build_recommendation(
+    algorithm: str,
+    algorithm_family: str | None,
+    asset_type: str,
+    context: Mapping[str, Any],
+    capabilities: set[str],
+    candidate: Mapping[str, Any] | None = None,
+) -> dict:
+    candidate = candidate or candidate_for_algorithm(algorithm, algorithm_family, asset_type)
     strategy = choose_strategy(candidate, context)
     target_set = candidate["hybrid_set"] if strategy == "hybrid" else candidate["replace_set"]
     final_set = candidate["replace_set"] or target_set
@@ -84,7 +93,7 @@ def candidate_for_algorithm(algorithm: str, algorithm_family: str | None, asset_
         if not _rule_matches(rule, combined, asset_type):
             continue
         return _candidate_from_rule(rule, algorithm, combined)
-    return {"kind": "unknown", "hybrid_set": [algorithm], "replace_set": [algorithm], "classically_weak": False}
+    return {"kind": "unknown", "purpose": "unknown", "hybrid_set": [algorithm], "replace_set": [algorithm], "classically_weak": False}
 
 
 def choose_strategy(candidate: Mapping[str, Any], context: Mapping[str, Any]) -> str:
@@ -301,6 +310,7 @@ def _candidate_from_rule(rule: Mapping[str, Any], algorithm: str, combined: str)
     weak_markers = [normalize(value) for value in rule.get("classically_weak_if_contains", [])]
     return {
         "kind": str(rule.get("kind", "unknown")),
+        "purpose": str(rule.get("purpose") or _infer_purpose(rule, combined)),
         "hybrid_set": hybrid_set,
         "replace_set": replace_set,
         "classically_weak": bool(rule.get("classically_weak")) or any(marker in combined for marker in weak_markers),
@@ -309,3 +319,27 @@ def _candidate_from_rule(rule: Mapping[str, Any], algorithm: str, combined: str)
 
 def _render_algorithm_set(values: Iterable[str], algorithm: str) -> list[str]:
     return [str(value).replace("{algorithm}", algorithm) for value in values]
+
+
+def _infer_purpose(rule: Mapping[str, Any], combined: str) -> str:
+    kind = str(rule.get("kind", "unknown"))
+    if "SLH-DSA" in combined:
+        return "long_term_signature"
+    if any(marker in combined for marker in ("ML-DSA", "FALCON", "FN-DSA")):
+        return "digital_signature"
+    if "ML-KEM" in combined:
+        return "key_exchange"
+    if kind == "signature":
+        return "digital_signature"
+    if kind == "kem":
+        return "key_exchange"
+    if kind == "hash":
+        return "hash_integrity"
+    if kind == "symmetric":
+        return "symmetric_encryption"
+    if kind == "safe_classical":
+        if any(marker in combined for marker in ("AES", "CHACHA")):
+            return "symmetric_encryption"
+        if any(marker in combined for marker in ("SHA", "HMAC")):
+            return "hash_integrity"
+    return "unknown"

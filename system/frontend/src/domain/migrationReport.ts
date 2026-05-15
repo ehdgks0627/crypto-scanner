@@ -1,6 +1,6 @@
 import type { Schema } from "../api/types";
 import { formatDateTime, formatScore } from "../lib/format";
-import { agilityLevelLabel, assetTypeLabel, riskTierLabel } from "./displayLabels";
+import { agilityLevelLabel, assetTypeLabel, migrationPurposeLabel, riskTierLabel } from "./displayLabels";
 
 type MigrationPlanItem = Schema<"MigrationPlanItem">;
 type MigrationImpact = Schema<"MigrationImpact">;
@@ -61,6 +61,7 @@ export class MigrationReportBuilder {
       "",
       `- 자산 ID: ${item.asset_id}`,
       `- 타입: ${assetTypeLabel(item.asset_type)}`,
+      `- 용도: ${migrationPurposeLabel(item.asset_purpose)}`,
       `- 위험도: ${formatScore(item.risk_score)} (${riskTierLabel(item.tier)})`,
       `- 현재: ${this.currentAlgorithm(item)}`,
       `- 권고: ${item.recommendation.strategy} -> ${item.recommendation.target_algorithm}`,

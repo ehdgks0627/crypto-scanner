@@ -11,6 +11,7 @@ const migrationItem = {
   asset_id: 9001,
   asset_name: "cert-leaf-web-rsa2048",
   asset_type: "certificate",
+  asset_purpose: "digital_signature",
   current: { algorithm: "RSA-2048", key_size_bits: 2048, quantum_vulnerable: true },
   recommendation: {
     strategy: "hybrid",
@@ -65,6 +66,7 @@ describe("MigrationPlanView", () => {
     renderWithApp(<MigrationPlanView snapshotId={3} />);
 
     expect(await screen.findByText("cert-leaf-web-rsa2048")).toBeInTheDocument();
+    expect(screen.getByText("디지털 서명")).toBeInTheDocument();
     expect(screen.getByText("hybrid_first")).toBeInTheDocument();
     expect(screen.getByText("36 · 낮음")).toBeInTheDocument();
 

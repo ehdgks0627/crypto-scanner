@@ -2924,6 +2924,10 @@ components:
       type: string
       enum: [hybrid_first, replace_now, monitor]
 
+    MigrationAssetPurpose:
+      type: string
+      enum: [key_exchange, digital_signature, key_agreement, long_term_signature, symmetric_encryption, hash_integrity, unknown]
+
     MigrationRecommendation:
       type: object
       required:
@@ -3023,6 +3027,7 @@ components:
         - asset_id
         - asset_name
         - asset_type
+        - asset_purpose
         - current
         - recommendation
         - alternatives
@@ -3037,6 +3042,8 @@ components:
           type: string
         asset_type:
           $ref: '#/components/schemas/AssetType'
+        asset_purpose:
+          $ref: '#/components/schemas/MigrationAssetPurpose'
         current:
           $ref: '#/components/schemas/MigrationCurrentState'
         recommendation:

@@ -90,6 +90,16 @@ const agilityLevelLabels: Record<string, string> = {
   LOW: "낮음"
 };
 
+const migrationPurposeLabels: Record<string, string> = {
+  key_exchange: "키 교환",
+  digital_signature: "디지털 서명",
+  key_agreement: "키 합의",
+  long_term_signature: "장기 서명",
+  symmetric_encryption: "대칭 암호화",
+  hash_integrity: "해시/무결성",
+  unknown: "미분류"
+};
+
 const relationLabels: Record<string, string> = {
   exposes: "노출",
   presents: "제공",
@@ -158,6 +168,10 @@ export function profileLabel(profile?: string | null) {
 
 export function agilityLevelLabel(level?: string | null) {
   return level ? agilityLevelLabels[level] ?? level : "-";
+}
+
+export function migrationPurposeLabel(purpose?: string | null) {
+  return purpose ? migrationPurposeLabels[purpose] ?? purpose : "-";
 }
 
 export function relationLabel(kind?: string | null) {

@@ -1226,6 +1226,8 @@ export interface components {
         };
         /** @enum {string} */
         MigrationRecommendationPhase: "hybrid_first" | "replace_now" | "monitor";
+        /** @enum {string} */
+        MigrationAssetPurpose: "key_exchange" | "digital_signature" | "key_agreement" | "long_term_signature" | "symmetric_encryption" | "hash_integrity" | "unknown";
         MigrationRecommendation: {
             /** @enum {string} */
             strategy: "replace" | "hybrid" | "no_change";
@@ -1262,6 +1264,7 @@ export interface components {
             asset_id: number;
             asset_name: string;
             asset_type: components["schemas"]["AssetType"];
+            asset_purpose: components["schemas"]["MigrationAssetPurpose"];
             current: components["schemas"]["MigrationCurrentState"];
             recommendation: components["schemas"]["MigrationRecommendation"];
             alternatives: components["schemas"]["MigrationAlternative"][];

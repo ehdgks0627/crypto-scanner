@@ -14,6 +14,7 @@
       "id": "sha1-signing",
       "match_regex": "(SHA-1|SHA1)",
       "kind": "hash",
+      "purpose": "digital_signature",
       "hybrid_set": [],
       "replace_set": ["SHA-256+"],
       "classically_weak": true
@@ -22,6 +23,7 @@
       "id": "aes128",
       "match_regex": "AES-128",
       "kind": "symmetric",
+      "purpose": "symmetric_encryption",
       "hybrid_set": [],
       "replace_set": ["AES-256"],
       "classically_weak": false
@@ -30,6 +32,7 @@
       "id": "safe-classical-hash",
       "match_regex": "(SHA-256|SHA-384|SHA-512|SHA2)",
       "kind": "safe_classical",
+      "purpose": "hash_integrity",
       "preserve_current": true,
       "classically_weak": false
     },
@@ -37,6 +40,7 @@
       "id": "safe-classical-symmetric",
       "match_regex": "(AES-192|AES-256|CHACHA20|HMAC)",
       "kind": "safe_classical",
+      "purpose": "symmetric_encryption",
       "preserve_current": true,
       "classically_weak": false
     },
@@ -44,6 +48,7 @@
       "id": "ecdsa-p384-p521",
       "match_regex": "ECDSA.*(384|521|P-384|P384|P-521|P521|SECP384|SECP521)",
       "kind": "signature",
+      "purpose": "digital_signature",
       "hybrid_set": ["ECDSA P-384", "ML-DSA-87"],
       "replace_set": ["ML-DSA-87"],
       "classically_weak": false
@@ -52,6 +57,7 @@
       "id": "ecdsa-default",
       "match_regex": "ECDSA",
       "kind": "signature",
+      "purpose": "digital_signature",
       "hybrid_set": ["ECDSA P-256", "ML-DSA-65"],
       "replace_set": ["ML-DSA-65"],
       "classically_weak": false
@@ -60,6 +66,7 @@
       "id": "eddsa-default",
       "match_regex": "(ED25519|ED448|EDDSA)",
       "kind": "signature",
+      "purpose": "digital_signature",
       "hybrid_set": ["{algorithm}", "ML-DSA-65"],
       "replace_set": ["ML-DSA-65"],
       "classically_weak": false
@@ -68,6 +75,7 @@
       "id": "ecdh-high-security",
       "match_regex": "ECDH.*(384|521)|X448",
       "kind": "kem",
+      "purpose": "key_agreement",
       "hybrid_set": ["X448", "ML-KEM-1024"],
       "replace_set": ["ML-KEM-1024"],
       "classically_weak": false
@@ -76,6 +84,7 @@
       "id": "ecdh-default",
       "match_regex": "(ECDH|X25519)",
       "kind": "kem",
+      "purpose": "key_agreement",
       "hybrid_set": ["X25519", "ML-KEM-768"],
       "replace_set": ["ML-KEM-768"],
       "classically_weak": false
@@ -84,6 +93,7 @@
       "id": "dh-default",
       "match_regex": "(\\bDH\\b|MODP|GROUP)",
       "kind": "kem",
+      "purpose": "key_agreement",
       "hybrid_set": ["X25519", "ML-KEM-768"],
       "replace_set": ["ML-KEM-768"],
       "classically_weak_if_contains": ["1024"]
@@ -93,6 +103,7 @@
       "match_regex": "RSA",
       "asset_types": ["key", "protocol"],
       "kind": "kem",
+      "purpose": "key_exchange",
       "hybrid_set": ["X25519", "ML-KEM-768"],
       "replace_set": ["ML-KEM-768"],
       "classically_weak_if_contains": ["1024"]
@@ -101,6 +112,7 @@
       "id": "rsa-signature",
       "match_regex": "RSA",
       "kind": "signature",
+      "purpose": "digital_signature",
       "hybrid_set": ["RSA-2048", "ML-DSA-65"],
       "replace_set": ["ML-DSA-65"],
       "classically_weak_if_contains": ["1024"]

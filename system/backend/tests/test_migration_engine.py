@@ -10,6 +10,7 @@ def test_migration_mapping_rules_are_loaded_from_external_config():
     assert {rule["id"] for rule in config["rules"]} >= {"rsa-signature", "rsa-kem-like", "ecdsa-default", "dh-default"}
     assert candidate_for_algorithm("RSA-2048", "RSA", "certificate") == {
         "kind": "signature",
+        "purpose": "digital_signature",
         "hybrid_set": ["RSA-2048", "ML-DSA-65"],
         "replace_set": ["ML-DSA-65"],
         "classically_weak": False,
@@ -18,9 +19,19 @@ def test_migration_mapping_rules_are_loaded_from_external_config():
 
 def test_migration_mapping_rules_classify_kem_and_signature_paths_separately():
     assert candidate_for_algorithm("RSA-2048", "RSA", "key")["kind"] == "kem"
+    assert candidate_for_algorithm("RSA-2048", "RSA", "key")["purpose"] == "key_exchange"
     assert candidate_for_algorithm("ECDSA-P384", "ECDSA", "certificate")["replace_set"] == ["ML-DSA-87"]
+    assert candidate_for_algorithm("ECDSA-P384", "ECDSA", "certificate")["purpose"] == "digital_signature"
     assert candidate_for_algorithm("ECDH-P384", "ECDH", "protocol")["replace_set"] == ["ML-KEM-1024"]
+    assert candidate_for_algorithm("ECDH-P384", "ECDH", "protocol")["purpose"] == "key_agreement"
     assert candidate_for_algorithm("SHA-256", "SHA", "algorithm")["kind"] == "safe_classical"
+    assert candidate_for_algorithm("SHA-256", "SHA", "algorithm")["purpose"] == "hash_integrity"
+
+
+def test_migration_mapping_rules_infer_pqc_asset_purpose():
+    assert candidate_for_algorithm("ML-KEM-768", "ML-KEM", "protocol")["purpose"] == "key_exchange"
+    assert candidate_for_algorithm("ML-DSA-65", "ML-DSA", "certificate")["purpose"] == "digital_signature"
+    assert candidate_for_algorithm("SLH-DSA-SHA2-128s", "SLH-DSA", "certificate")["purpose"] == "long_term_signature"
 
 
 def test_migration_engine_recommends_hybrid_first_for_long_lived_rsa():
@@ -43,6 +54,7 @@ def test_migration_engine_recommends_hybrid_first_for_long_lived_rsa():
     )
 
     assert item["recommendation"]["strategy"] == "hybrid"
+    assert item["asset_purpose"] == "digital_signature"
     assert item["recommendation"]["phase"] == "hybrid_first"
     assert item["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
     assert item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
@@ -65,6 +77,7 @@ def test_migration_engine_marks_pqc_assets_as_no_change_with_high_agility():
     )
 
     assert item["current"]["quantum_vulnerable"] is False
+    assert item["asset_purpose"] == "digital_signature"
     assert item["recommendation"]["strategy"] == "no_change"
     assert item["recommendation"]["phase"] == "monitor"
     assert item["recommendation"]["target_algorithm_set"] == ["ML-DSA-65"]
@@ -87,6 +100,7 @@ def test_migration_engine_replaces_classically_weak_sha1_signing():
     )
 
     assert item["recommendation"]["strategy"] == "replace"
+    assert item["asset_purpose"] == "digital_signature"
     assert item["recommendation"]["phase"] == "replace_now"
     assert item["recommendation"]["target_algorithm"] == "SHA-256+"
     assert item["recommendation"]["target_algorithm_set"] == ["SHA-256+"]
