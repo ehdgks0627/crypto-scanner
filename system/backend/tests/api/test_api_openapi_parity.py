@@ -37,3 +37,4 @@ def test_pr_openapi_002_recent_contract_schema_fields_are_declared():
     assert "maximum: 100" in text
     assert "DiscoveryAvailabilityReport:" in text
     assert "availability_metrics:" in text
+    assert "post_migration_snapshot_id:" in text

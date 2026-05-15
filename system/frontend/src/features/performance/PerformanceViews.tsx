@@ -135,6 +135,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
         <MetricCard label="처리량 전/후" value={formatThroughputComparison(throughputComparison)} />
         <MetricCard label="프로토콜" value={formatNumber(protocolCount)} />
         <MetricCard label="기준 스냅샷" value={run.baseline_snapshot_id ? `#${run.baseline_snapshot_id}` : "-"} />
+        <MetricCard label="전환 후 스냅샷" value={run.post_migration_snapshot_id ? `#${run.post_migration_snapshot_id}` : "-"} />
       </div>
       <Card>
         <CardHeader>

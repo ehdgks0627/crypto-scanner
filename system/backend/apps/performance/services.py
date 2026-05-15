@@ -20,7 +20,7 @@ def create_run(snapshot: CbomSnapshot, payload: dict) -> PerformanceEvaluationRu
     trigger = payload.get("trigger", "manual")
     baseline_snapshot = _resolve_baseline_snapshot(snapshot, payload.get("baseline_snapshot_id"), trigger)
 
-    return PerformanceEvaluationRun.objects.create(
+    run = PerformanceEvaluationRun.objects.create(
         snapshot=snapshot,
         baseline_snapshot=baseline_snapshot,
         trigger=trigger,
@@ -30,6 +30,9 @@ def create_run(snapshot: CbomSnapshot, payload: dict) -> PerformanceEvaluationRu
         environment=payload.get("environment") or {},
         summary=summarize_results([]),
     )
+    if trigger == "post_migration":
+        _link_post_migration_snapshot(run)
+    return run
 
 
 def _resolve_baseline_snapshot(snapshot: CbomSnapshot, baseline_snapshot_id: int | None, trigger: str) -> CbomSnapshot | None:
@@ -56,6 +59,37 @@ def _resolve_baseline_snapshot(snapshot: CbomSnapshot, baseline_snapshot_id: int
             {"snapshot_id": snapshot.id},
         )
     return baseline_snapshot
+
+
+def _link_post_migration_snapshot(run: PerformanceEvaluationRun) -> None:
+    summary = dict(run.snapshot.summary or {})
+    migration = dict(summary.get("migration") or {})
+    post_migration_runs = [
+        item
+        for item in migration.get("post_migration_runs", [])
+        if isinstance(item, dict) and item.get("run_id") != run.id
+    ]
+    post_migration_runs.append(
+        {
+            "run_id": run.id,
+            "profile": run.profile,
+            "baseline_snapshot_id": run.baseline_snapshot_id,
+            "post_migration_snapshot_id": run.snapshot_id,
+        }
+    )
+    migration.update(
+        {
+            "phase": "post_migration",
+            "pre_migration_snapshot_id": run.baseline_snapshot_id,
+            "post_migration_snapshot_id": run.snapshot_id,
+            "latest_performance_run_id": run.id,
+            "latest_profile": run.profile,
+            "post_migration_runs": post_migration_runs,
+        }
+    )
+    summary["migration"] = migration
+    run.snapshot.summary = summary
+    run.snapshot.save(update_fields=["summary", "updated_at"])
 
 
 def upsert_result(run: PerformanceEvaluationRun, payload: dict) -> AssetPerformanceResult:
@@ -138,6 +172,7 @@ def serialize_run(run: PerformanceEvaluationRun) -> dict:
         "id": run.id,
         "snapshot_id": run.snapshot_id,
         "baseline_snapshot_id": run.baseline_snapshot_id,
+        "post_migration_snapshot_id": run.snapshot_id if run.trigger == "post_migration" else None,
         "trigger": run.trigger,
         "profile": run.profile,
         "status": run.status,

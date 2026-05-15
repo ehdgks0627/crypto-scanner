@@ -33,6 +33,7 @@ def test_api_perf_001_create_run_and_record_result(client):
     assert run_response.status_code == 201
     run = run_response.json()
     assert run["snapshot_id"] == snapshot.id
+    assert run["post_migration_snapshot_id"] is None
     assert run["status"] == "PENDING"
     assert run["summary"]["overall_status"] == "PENDING"
 
@@ -134,6 +135,22 @@ def test_api_perf_003_post_migration_run_auto_links_previous_snapshot_as_baselin
     body = response.json()
     assert body["snapshot_id"] == candidate_snapshot.id
     assert body["baseline_snapshot_id"] == baseline_snapshot.id
+    assert body["post_migration_snapshot_id"] == candidate_snapshot.id
+
+    candidate_snapshot.refresh_from_db()
+    migration = candidate_snapshot.summary["migration"]
+    assert migration["phase"] == "post_migration"
+    assert migration["pre_migration_snapshot_id"] == baseline_snapshot.id
+    assert migration["post_migration_snapshot_id"] == candidate_snapshot.id
+    assert migration["latest_performance_run_id"] == body["id"]
+    assert migration["post_migration_runs"] == [
+        {
+            "run_id": body["id"],
+            "profile": "smoke",
+            "baseline_snapshot_id": baseline_snapshot.id,
+            "post_migration_snapshot_id": candidate_snapshot.id,
+        }
+    ]
 
 
 def test_api_perf_004_post_migration_run_requires_pre_migration_snapshot(client):

@@ -3497,6 +3497,7 @@ components:
         - id
         - snapshot_id
         - baseline_snapshot_id
+        - post_migration_snapshot_id
         - trigger
         - profile
         - status
@@ -3514,6 +3515,10 @@ components:
         baseline_snapshot_id:
           type: integer
           nullable: true
+        post_migration_snapshot_id:
+          type: integer
+          nullable: true
+          description: Candidate CBOM snapshot captured after migration for post_migration runs.
         trigger:
           $ref: '#/components/schemas/PerformanceRunTrigger'
         profile:

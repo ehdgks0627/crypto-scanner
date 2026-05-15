@@ -10,6 +10,7 @@ const run = {
   id: 44,
   snapshot_id: 3,
   baseline_snapshot_id: 2,
+  post_migration_snapshot_id: 3,
   trigger: "post_migration",
   profile: "smoke",
   status: "COMPLETED",
@@ -210,6 +211,8 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("97.7%")).toBeInTheDocument();
     expect(screen.getByText("100.0 -> 118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("1000.0 -> 820.0 req/s")).toBeInTheDocument();
+    expect(screen.getByText("기준 스냅샷")).toBeInTheDocument();
+    expect(screen.getByText("전환 후 스냅샷")).toBeInTheDocument();
     expect(screen.getByText("자산별 처리량 비교")).toBeInTheDocument();
     expect(screen.getByText("실패 경로 보고")).toBeInTheDocument();
     expect(screen.getByText("modern_tls13: 정상, legacy_tls12: 실패")).toBeInTheDocument();

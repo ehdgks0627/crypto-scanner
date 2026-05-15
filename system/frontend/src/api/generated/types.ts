@@ -1467,6 +1467,8 @@ export interface components {
             id: number;
             snapshot_id: number;
             baseline_snapshot_id: number | null;
+            /** @description Candidate CBOM snapshot captured after migration for post_migration runs. */
+            post_migration_snapshot_id: number | null;
             trigger: components["schemas"]["PerformanceRunTrigger"];
             profile: components["schemas"]["PerformanceRunProfile"];
             status: components["schemas"]["PerformanceRunStatus"];
