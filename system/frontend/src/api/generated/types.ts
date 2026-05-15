@@ -650,6 +650,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/demo-seed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Load demo seed data */
+        post: operations["seedDashboardDemo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/meta/protocols": {
         parameters: {
             query?: never;
@@ -1640,6 +1657,23 @@ export interface components {
                 critical_count: number;
                 total_count: number;
             }[];
+        };
+        DemoSeedRequest: {
+            /**
+             * @description Reset existing testbed demo rows before loading the seed.
+             * @default true
+             */
+            reset: boolean;
+        };
+        DemoSeedResult: {
+            /** @enum {string} */
+            status: "loaded";
+            reset: boolean;
+            scenario: string;
+            latest_snapshot_id: number | null;
+            baseline_snapshot_id: number | null;
+            asset_count: number;
+            message: string;
         };
         ProtocolMeta: {
             protocols: components["schemas"]["ProtocolHint"][];
@@ -3004,6 +3038,34 @@ export interface operations {
                 };
             };
             400: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    seedDashboardDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DemoSeedRequest"];
+            };
+        };
+        responses: {
+            /** @description Demo scenario loaded */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoSeedResult"];
+                };
+            };
+            400: components["responses"]["Error"];
+            422: components["responses"]["Unprocessable"];
             default: components["responses"]["Error"];
         };
     };

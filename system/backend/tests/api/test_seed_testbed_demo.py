@@ -37,3 +37,17 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert body["agents_status"]["total"] == 11
     assert len(body["recent_jobs"]) == 5
     assert {job["status"] for job in body["recent_jobs"]} >= {"COMPLETED", "FAILED", "CANCELLED"}
+
+
+def test_seed_testbed_demo_api_loads_resettable_demo_data(client):
+    response = client.post("/api/dashboard/demo-seed", data={"reset": True}, content_type="application/json")
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "loaded"
+    assert body["reset"] is True
+    assert body["scenario"] == "testbed_demo"
+    assert body["asset_count"] == len(LATEST_ASSETS)
+    assert body["latest_snapshot_id"] == CbomSnapshot.objects.get(serial_number="testbed-demo-latest").id
+    assert body["baseline_snapshot_id"] == CbomSnapshot.objects.get(serial_number="testbed-demo-baseline").id
+    assert Target.objects.count() == 31

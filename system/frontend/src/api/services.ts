@@ -11,6 +11,13 @@ export class DashboardService extends BaseService {
       query: { snapshot_id: snapshotId }
     });
   }
+
+  seedDemo(payload: Schema<"DemoSeedRequest"> = { reset: true }) {
+    return this.client.request<Schema<"DemoSeedResult">>("/dashboard/demo-seed", {
+      method: "POST",
+      body: payload
+    });
+  }
 }
 
 export class TargetService extends BaseService {

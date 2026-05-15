@@ -1412,6 +1412,34 @@ paths:
         default:
           $ref: '#/components/responses/Error'
 
+  /dashboard/demo-seed:
+    post:
+      tags: [Dashboard]
+      summary: Load demo seed data
+      operationId: seedDashboardDemo
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemoSeedRequest'
+      responses:
+        '201':
+          description: Demo scenario loaded
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoSeedResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
   /meta/protocols:
     get:
       tags: [Meta]
@@ -3909,6 +3937,37 @@ components:
                 type: integer
               total_count:
                 type: integer
+
+    DemoSeedRequest:
+      type: object
+      properties:
+        reset:
+          type: boolean
+          default: true
+          description: Reset existing testbed demo rows before loading the seed.
+      additionalProperties: false
+
+    DemoSeedResult:
+      type: object
+      required: [status, reset, scenario, latest_snapshot_id, baseline_snapshot_id, asset_count, message]
+      properties:
+        status:
+          type: string
+          enum: [loaded]
+        reset:
+          type: boolean
+        scenario:
+          type: string
+        latest_snapshot_id:
+          type: integer
+          nullable: true
+        baseline_snapshot_id:
+          type: integer
+          nullable: true
+        asset_count:
+          type: integer
+        message:
+          type: string
 
     ProtocolMeta:
       type: object

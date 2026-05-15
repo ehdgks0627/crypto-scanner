@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Database, Plus } from "lucide-react";
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
@@ -18,6 +19,7 @@ import { assetTypeLabel, jobKindLabel, riskTierLabel } from "../../domain/displa
 import type { NetworkExposureNode } from "../../domain/networkExposureGraph";
 import { buildNetworkExposureGraph } from "../../domain/networkExposureGraph";
 import { formatDateTime, formatNumber } from "../../lib/format";
+import { useSnapshotSelectionStore } from "../../stores/snapshotSelectionStore";
 import { useSelectedSnapshot } from "../snapshots/useSelectedSnapshot";
 
 function objectToChartData(value: Record<string, number> | undefined, labeler: (name: string) => string = (name) => name) {
@@ -30,6 +32,8 @@ const GRAPH_TARGET_QUERY = { limit: 100 } as const;
 
 export function DashboardView() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const setSelectedSnapshotId = useSnapshotSelectionStore((state) => state.setSelectedSnapshotId);
   const { selectedSnapshotId } = useSelectedSnapshot();
   const summary = useQuery({
     queryKey: queryKeys.dashboard.summary(selectedSnapshotId ?? undefined),
@@ -70,6 +74,28 @@ export function DashboardView() {
     () => buildNetworkExposureGraph(graphAssets.data?.items ?? [], graphTargets.data?.items ?? []),
     [graphAssets.data?.items, graphTargets.data?.items]
   );
+  const seedDemo = useMutation({
+    mutationFn: () => services.dashboard.seedDemo({ reset: true }),
+    onSuccess: async (result) => {
+      if (result.latest_snapshot_id) {
+        setSelectedSnapshotId(result.latest_snapshot_id);
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.snapshots.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.targets.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.agents.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.risk.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.performance.all })
+      ]);
+      toast.success(`데모 데이터 ${formatNumber(result.asset_count)}개 자산을 로드했습니다.`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "데모 데이터 로드에 실패했습니다.");
+    }
+  });
 
   function openGraphNode(node: NetworkExposureNode) {
     if (node.kind === "asset" && node.refId) {
@@ -96,12 +122,17 @@ export function DashboardView() {
   if (!summary.data?.snapshot) {
     return (
       <Section>
-        <PageHeader title="대시보드" description="전체 PQC 위험 현황을 한 화면에서 확인합니다." />
+        <PageHeader
+          title="대시보드"
+          description="전체 PQC 위험 현황을 한 화면에서 확인합니다."
+          actions={<SeedDemoButton isPending={seedDemo.isPending} onClick={() => seedDemo.mutate()} />}
+        />
         <EmptyState
           title="아직 스냅샷이 없습니다"
           description="탐색 대상에서 후보 엔드포인트를 찾고 스캔 대상으로 승인한 뒤 스캔을 실행하면 대시보드가 채워집니다."
           action={
             <div className="inline-actions">
+              <SeedDemoButton isPending={seedDemo.isPending} onClick={() => seedDemo.mutate()} />
               <Button type="button" variant="primary" onClick={() => navigate("/discoveries/new")}>
                 탐색 대상 추가
               </Button>
@@ -123,9 +154,12 @@ export function DashboardView() {
         title="대시보드"
         eyebrow="대시보드"
         actions={
-          <Button type="button" variant="primary" onClick={() => navigate("/scans/new")}>
-            <Plus size={15} />새 스캔
-          </Button>
+          <div className="inline-actions">
+            <SeedDemoButton isPending={seedDemo.isPending} onClick={() => seedDemo.mutate()} />
+            <Button type="button" variant="primary" onClick={() => navigate("/scans/new")}>
+              <Plus size={15} />새 스캔
+            </Button>
+          </div>
         }
       />
 
@@ -192,6 +226,15 @@ export function DashboardView() {
         <TrendChartCard data={trend} />
       </div>
     </Section>
+  );
+}
+
+function SeedDemoButton({ isPending, onClick }: { isPending: boolean; onClick: () => void }) {
+  return (
+    <Button type="button" onClick={onClick} disabled={isPending}>
+      <Database size={15} />
+      {isPending ? "로드 중" : "데모 데이터 로드"}
+    </Button>
   );
 }
 

@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { services } from "../../api/services";
@@ -32,6 +33,39 @@ describe("DashboardView", () => {
 
     expect(await screen.findByText("아직 스냅샷이 없습니다")).toBeInTheDocument();
     expect(screen.getByText("탐색 대상 추가")).toBeInTheDocument();
+    expect(screen.getAllByText("데모 데이터 로드").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("loads demo seed data from the dashboard", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(services.dashboard, "summary").mockResolvedValue({
+      snapshot: null,
+      by_tier: {},
+      by_asset_type: {},
+      by_algorithm_family: {},
+      quantum_vulnerable_ratio: { vulnerable: 0, safe: 0, unknown: 0 },
+      recent_jobs: [],
+      agents_status: { total: 0, active: 0, stale: 0 },
+      trend: []
+    });
+    vi.spyOn(services.snapshots, "list").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 20 });
+    vi.spyOn(services.snapshots, "assets").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+    vi.spyOn(services.targets, "list").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+    const seedSpy = vi.spyOn(services.dashboard, "seedDemo").mockResolvedValue({
+      status: "loaded",
+      reset: true,
+      scenario: "testbed_demo",
+      latest_snapshot_id: 22,
+      baseline_snapshot_id: 21,
+      asset_count: 65,
+      message: "Seeded testbed-demo"
+    });
+
+    renderWithApp(<DashboardView />);
+    await user.click((await screen.findAllByRole("button", { name: /데모 데이터 로드/ }))[0]!);
+
+    await waitFor(() => expect(seedSpy).toHaveBeenCalledWith({ reset: true }));
+    expect(useSnapshotSelectionStore.getState().selectedSnapshotId).toBe(22);
   });
 
   it("requests summary for the globally selected snapshot", async () => {

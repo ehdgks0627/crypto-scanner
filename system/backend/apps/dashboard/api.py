@@ -1,7 +1,14 @@
+from io import StringIO
+
+from django.core.management import call_command
+from django.http import JsonResponse
 from ninja import Router
+from pydantic import Field
 
 from apps.agents.models import Agent
 from apps.agents.services import is_stale
+from apps.core.management.commands.seed_testbed_demo import LATEST_ASSETS, SERIAL_PREFIX
+from apps.core.schemas import StrictSchema
 from apps.jobs.models import AsyncJob
 from apps.jobs.services import serialize_dt, serialize_job
 from apps.risk.models import RiskScore
@@ -12,6 +19,10 @@ router = Router(tags=["Dashboard"])
 
 
 VULNERABLE_ALGORITHM_FAMILIES = {"RSA", "ECDSA", "ECDH", "DH"}
+
+
+class DemoSeedPayload(StrictSchema):
+    reset: bool = Field(default=True)
 
 
 @router.get("/dashboard/summary")
@@ -84,3 +95,25 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
         "agents_status": agent_status,
         "trend": trend,
     }
+
+
+@router.post("/dashboard/demo-seed")
+def seed_dashboard_demo(request, payload: DemoSeedPayload):
+    stdout = StringIO()
+    args = ["--reset"] if payload.reset else []
+    call_command("seed_testbed_demo", *args, stdout=stdout)
+
+    latest = CbomSnapshot.objects.filter(serial_number=f"{SERIAL_PREFIX}-latest").order_by("-id").first()
+    baseline = CbomSnapshot.objects.filter(serial_number=f"{SERIAL_PREFIX}-baseline").order_by("-id").first()
+    return JsonResponse(
+        {
+            "status": "loaded",
+            "reset": payload.reset,
+            "scenario": "testbed_demo",
+            "latest_snapshot_id": latest.id if latest else None,
+            "baseline_snapshot_id": baseline.id if baseline else None,
+            "asset_count": latest.assets.count() if latest else len(LATEST_ASSETS),
+            "message": stdout.getvalue().strip(),
+        },
+        status=201,
+    )
