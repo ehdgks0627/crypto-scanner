@@ -35,6 +35,7 @@ def test_network_scanner_tls_records_sni_alias_chain_version_and_cipher(monkeypa
                 tls_version="TLSv1.3",
                 cipher_suite="TLS_AES_128_GCM_SHA256",
                 alpn="http/1.1",
+                supported_cipher_suites=("TLS_AES_128_GCM_SHA256", "TLS_CHACHA20_POLY1305_SHA256"),
             )
         return network_scanner.TlsProbeResult(
             sni=sni,
@@ -42,6 +43,7 @@ def test_network_scanner_tls_records_sni_alias_chain_version_and_cipher(monkeypa
             tls_version="TLSv1.2",
             cipher_suite="TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
             alpn="h2",
+            supported_cipher_suites=("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384"),
         )
 
     def fake_parse_certificate_der(der):
@@ -62,9 +64,14 @@ def test_network_scanner_tls_records_sni_alias_chain_version_and_cipher(monkeypa
         ("protocol", "TLSv1.2", ""),
         ("protocol", "TLSv1.3", ""),
         ("protocol", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "RSA"),
+        ("protocol", "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384", "RSA"),
         ("protocol", "TLS_AES_128_GCM_SHA256", "AES"),
+        ("protocol", "TLS_CHACHA20_POLY1305_SHA256", "ChaCha20"),
     }
     assert any("chain-1" in item.name for item in candidates)
+    enumerated = [item for item in candidates if item.algorithm == "TLS_CHACHA20_POLY1305_SHA256"]
+    assert enumerated[0].metadata["observation"] == "enumerated"
+    assert enumerated[0].metadata["supported_cipher_suites"] == ["TLS_AES_128_GCM_SHA256", "TLS_CHACHA20_POLY1305_SHA256"]
 
 
 def test_network_scanner_mqtt_tls_records_application_protocol(monkeypatch):

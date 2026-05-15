@@ -18,6 +18,20 @@ MQTT_TLS_PORTS = {8883}
 SMTP_STARTTLS_PORTS = {25, 587}
 POSTGRESQL_SSL_REQUEST_CODE = 80877103
 TLS_ALPN_PROTOCOLS = ["h2", "http/1.1", "mqtt", "imap", "pop3", "smtp"]
+TLS13_CIPHER_PROBE_CANDIDATES = (
+    "TLS_AES_256_GCM_SHA384",
+    "TLS_CHACHA20_POLY1305_SHA256",
+    "TLS_AES_128_GCM_SHA256",
+)
+TLS12_CIPHER_PROBE_CANDIDATES = (
+    "ECDHE-RSA-AES256-GCM-SHA384",
+    "ECDHE-ECDSA-AES128-GCM-SHA256",
+    "DHE-RSA-AES256-GCM-SHA384",
+    "ECDHE-RSA-AES128-GCM-SHA256",
+    "ECDHE-ECDSA-AES256-GCM-SHA384",
+    "AES128-SHA",
+    "AES256-SHA",
+)
 SSH_KEY_TYPES = "rsa,ecdsa,ed25519"
 
 IKE_NEXT_PAYLOAD_SA = 33
@@ -72,6 +86,7 @@ class TlsProbeResult:
     tls_version: str | None
     cipher_suite: str | None
     alpn: str | None
+    supported_cipher_suites: tuple[str, ...] = ()
 
 
 def scan_network_target(target, timeout_sec: float = 5.0) -> list[AssetCandidate]:
@@ -180,7 +195,15 @@ def _tls_probe(target, timeout_sec: float, sni: str | None = None, starttls: str
             cipher = _cipher_name(tls_sock)
             alpn = tls_sock.selected_alpn_protocol()
     chain = _openssl_certificate_chain(target, timeout_sec, sni=sni) or ([der] if der else [])
-    return TlsProbeResult(sni=sni, der_chain=chain, tls_version=version, cipher_suite=cipher, alpn=alpn)
+    supported_cipher_suites = _accepted_tls_cipher_suites(target, timeout_sec, sni=sni)
+    return TlsProbeResult(
+        sni=sni,
+        der_chain=chain,
+        tls_version=version,
+        cipher_suite=cipher,
+        alpn=alpn,
+        supported_cipher_suites=tuple(supported_cipher_suites),
+    )
 
 
 def _tls_context() -> ssl.SSLContext:
@@ -199,14 +222,113 @@ def _cipher_name(tls_sock) -> str | None:
     return cipher[0] if cipher else None
 
 
+def _dedupe(values: list[str | None]) -> list[str]:
+    result = []
+    seen = set()
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
+def _accepted_tls_cipher_suites(target, timeout_sec: float, sni: str | None = None) -> list[str]:
+    if str(os.getenv("NETWORK_TLS_CIPHER_ENUMERATION", "1")).lower() in {"0", "false", "no"}:
+        return []
+    accepted = []
+    for cipher_name in _cipher_probe_candidates():
+        if cipher_name.startswith("TLS_"):
+            negotiated = _probe_tls13_cipher_suite(target, timeout_sec, sni=sni, cipher_name=cipher_name)
+        else:
+            negotiated = _probe_tls12_cipher_suite(target, timeout_sec, sni=sni, cipher_name=cipher_name)
+        if negotiated and negotiated not in accepted:
+            accepted.append(negotiated)
+    return accepted
+
+
+def _cipher_probe_candidates() -> list[str]:
+    limit = _cipher_enumeration_limit()
+    candidates = [*TLS13_CIPHER_PROBE_CANDIDATES, *TLS12_CIPHER_PROBE_CANDIDATES]
+    try:
+        for cipher in _tls_context().get_ciphers():
+            name = cipher.get("name")
+            protocol = cipher.get("protocol")
+            if name and protocol != "TLSv1.3":
+                candidates.append(str(name))
+    except ssl.SSLError:
+        pass
+    return _dedupe(candidates)[:limit]
+
+
+def _cipher_enumeration_limit() -> int:
+    try:
+        return max(0, int(os.getenv("NETWORK_TLS_CIPHER_ENUMERATION_LIMIT", "24")))
+    except ValueError:
+        return 24
+
+
+def _probe_tls12_cipher_suite(target, timeout_sec: float, sni: str | None, cipher_name: str) -> str | None:
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.maximum_version = ssl.TLSVersion.TLSv1_2
+    try:
+        context.set_ciphers(cipher_name)
+    except ssl.SSLError:
+        return None
+    try:
+        with socket.create_connection((_target_address(target), target.port), timeout=timeout_sec) as raw_sock:
+            raw_sock.settimeout(timeout_sec)
+            with context.wrap_socket(raw_sock, server_hostname=sni) as tls_sock:
+                return _cipher_name(tls_sock)
+    except (OSError, ssl.SSLError):
+        return None
+
+
+def _probe_tls13_cipher_suite(target, timeout_sec: float, sni: str | None, cipher_name: str) -> str | None:
+    cmd = [
+        "openssl",
+        "s_client",
+        "-connect",
+        f"{_target_address(target)}:{target.port}",
+        "-tls1_3",
+        "-ciphersuites",
+        cipher_name,
+        "-brief",
+    ]
+    if sni:
+        cmd.extend(["-servername", sni])
+    try:
+        result = subprocess.run(
+            cmd,
+            input="",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=max(timeout_sec, 1.0) + 2.0,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    match = re.search(r"Ciphersuite:\s*(?P<cipher>[A-Za-z0-9_-]+)", result.stdout or "")
+    if not match:
+        return None
+    negotiated = match.group("cipher")
+    return negotiated if negotiated == cipher_name else None
+
+
 def _tls_candidates_from_result(target, result: TlsProbeResult, source: str) -> list[AssetCandidate]:
     candidates = []
     for index, der in enumerate(result.der_chain):
         candidates.append(_certificate_candidate(target, der, source=source, sni=result.sni, chain_index=index))
     if result.tls_version:
         candidates.append(_tls_version_candidate(target, result))
-    if result.cipher_suite:
-        candidates.append(_tls_cipher_candidate(target, result))
+    for cipher_suite in _dedupe([result.cipher_suite, *result.supported_cipher_suites]):
+        candidates.append(_tls_cipher_candidate(target, result, cipher_suite))
     if result.alpn:
         candidates.append(_application_protocol_candidate(target, result.alpn.upper(), f"ALPN {result.alpn}", result.sni))
     if target.port in MQTT_TLS_PORTS or result.alpn == "mqtt":
@@ -626,16 +748,24 @@ def _tls_version_candidate(target, result: TlsProbeResult) -> AssetCandidate:
     )
 
 
-def _tls_cipher_candidate(target, result: TlsProbeResult) -> AssetCandidate:
+def _tls_cipher_candidate(target, result: TlsProbeResult, cipher_suite: str) -> AssetCandidate:
     sni_label = result.sni or target.sni or target.host
+    observation = "negotiated" if cipher_suite == result.cipher_suite else "enumerated"
     return AssetCandidate(
         target_id=target.id,
         scanner_kind="network",
         name=f"{target.host}:{target.port} {sni_label} TLS cipher suite",
         asset_type="protocol",
-        algorithm=result.cipher_suite or "TLS cipher suite",
-        algorithm_family=family_from_algorithm(result.cipher_suite),
-        bom_ref=f"network:tls-cipher:{stable_bom_ref(target.host, target.port, sni_label, result.cipher_suite)}",
+        algorithm=cipher_suite,
+        algorithm_family=family_from_algorithm(cipher_suite),
+        bom_ref=f"network:tls-cipher:{stable_bom_ref(target.host, target.port, sni_label, cipher_suite)}",
+        metadata={
+            "scanner": "network",
+            "type": "tls_cipher_suite",
+            "sni": sni_label,
+            "observation": observation,
+            "supported_cipher_suites": list(result.supported_cipher_suites),
+        },
     )
 
 

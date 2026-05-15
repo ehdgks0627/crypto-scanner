@@ -101,10 +101,10 @@ Target의 `protocol` 힌트에 따라 다음 프로브가 실행된다.
    - 선택된 signature_algorithm
    - ALPN 응답
    - 인증서 체인 (Certificate 메시지에서 DER 바이트 그대로 보관)
-4. **추가 프로브 (옵션)**: 같은 Target에 대해 다른 ClientHello로 재시도하여 cipher suite 다양성 추출
-   - 1회차: 기본 ClientHello → 서버 선호 cipher suite 확인
-   - 2회차: 기본에서 1회차 선택 cipher 제외 → 차선 cipher 확인
-   - 최대 N회 (기본 N=3, 설정 가능)
+4. **추가 프로브**: 같은 Target에 대해 TLS 1.2/1.3 cipher suite 후보를 개별 ClientHello로 재시도하여 서버가 수락하는 cipher suite 목록을 추출
+   - TLS 1.3: `openssl s_client -tls1_3 -ciphersuites ...` 기반 후보별 확인
+   - TLS 1.2: Python `ssl` 컨텍스트에 단일 cipher를 지정해 후보별 확인
+   - `NETWORK_TLS_CIPHER_ENUMERATION=0`으로 비활성화 가능, `NETWORK_TLS_CIPHER_ENUMERATION_LIMIT`으로 후보 수 제한 가능(기본 24)
 
 ### 3.5.2 출력: TlsFinding
 
