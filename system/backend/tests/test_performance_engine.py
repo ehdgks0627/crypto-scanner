@@ -184,3 +184,12 @@ def test_performance_engine_flags_legacy_client_compatibility_failure():
     assert summary["client_compatibility"]["by_status"] == {"PASS": 1, "WARN": 0, "FAIL": 1, "ERROR": 0}
     assert summary["client_compatibility"]["by_profile"]["legacy_tls12"]["overall_status"] == "FAIL"
     assert summary["client_compatibility"]["by_profile"]["legacy_tls12"]["failure_reasons"] == {"unsupported_signature_algorithm": 1}
+    assert {
+        "protocol": "TLS",
+        "client_profile": "legacy_tls12",
+        "response_code": "handshake_failure",
+        "failure_reason": "unsupported_signature_algorithm",
+        "count": 1,
+        "asset_refs": ["-"],
+        "status": "FAIL",
+    } in summary["failure_paths"]

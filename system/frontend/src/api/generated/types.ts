@@ -1361,6 +1361,16 @@ export interface components {
                 /** @enum {string} */
                 overall_status: "PENDING" | "PASS" | "WARN" | "FAIL" | "ERROR";
             };
+            failure_paths?: {
+                protocol: string;
+                client_profile: string;
+                response_code: string;
+                failure_reason: string;
+                count: number;
+                asset_refs: string[];
+                /** @enum {string} */
+                status: "PASS" | "WARN" | "FAIL" | "ERROR";
+            }[];
             by_protocol?: {
                 [key: string]: {
                     total_results: number;

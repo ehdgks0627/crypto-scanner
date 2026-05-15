@@ -105,8 +105,8 @@ def update_run_status(run: PerformanceEvaluationRun, status: str, summary: dict 
 
 def refresh_run_summary(run: PerformanceEvaluationRun) -> dict:
     results = [
-        {"status": result.status, "deltas": result.deltas, "metrics": result.metrics}
-        for result in run.results.all()
+        {"status": result.status, "deltas": result.deltas, "metrics": result.metrics, "bom_ref": result.asset.bom_ref}
+        for result in run.results.select_related("asset").all()
     ]
     run.summary = summarize_results(results)
     run.save(update_fields=["summary", "updated_at"])

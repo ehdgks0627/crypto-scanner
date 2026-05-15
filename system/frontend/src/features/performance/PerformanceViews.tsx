@@ -21,6 +21,7 @@ import { formatDateTime, formatNumber } from "../../lib/format";
 type PerformanceRun = Schema<"PerformanceEvaluationRun">;
 type PerformanceResult = Schema<"AssetPerformanceResult">;
 type PerformanceProfile = Schema<"PerformanceRunProfile">;
+type FailurePath = NonNullable<Schema<"PerformanceRunSummary">["failure_paths"]>[number];
 
 const profiles: PerformanceProfile[] = ["smoke", "baseline", "canary", "stress"];
 
@@ -108,6 +109,7 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
 
 function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDetail"> }) {
   const summary = run.summary;
+  const failurePaths = summary.failure_paths ?? [];
   const warnFailCount = (summary.by_status.WARN ?? 0) + (summary.by_status.FAIL ?? 0) + (summary.by_status.ERROR ?? 0);
   const successRate = averageNumber(run.results.map((result) => successRateMetric(result)));
   const clientCompatibilityRate = compatibilitySuccessRate(summary.client_compatibility);
@@ -162,6 +164,27 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
           </ResponsiveContainer>
         </ChartCard>
       ) : null}
+      <Card>
+        <CardHeader>
+          <CardTitle>실패 경로 보고</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            items={failurePaths}
+            getRowKey={(item, index) => `${item.protocol}:${item.client_profile}:${item.response_code}:${item.failure_reason}:${index}`}
+            empty={<EmptyState title="보고할 실패 경로가 없습니다" />}
+            columns={[
+              { key: "status", header: "상태", render: (item) => <PerformanceStatusBadge status={item.status} /> },
+              { key: "protocol", header: "프로토콜", render: (item) => item.protocol || "-" },
+              { key: "client", header: "클라이언트", render: (item) => item.client_profile || "-" },
+              { key: "response", header: "응답 코드", render: (item) => item.response_code || "-" },
+              { key: "reason", header: "실패 사유", render: (item) => item.failure_reason || "-" },
+              { key: "assets", header: "영향 자산", render: (item) => formatFailurePathAssets(item) },
+              { key: "count", header: "건수", align: "right", render: (item) => formatNumber(item.count) }
+            ]}
+          />
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>자산별 결과</CardTitle>
@@ -273,6 +296,10 @@ function formatClientCompatibility(result: PerformanceResult) {
     return "-";
   }
   return checks.map((check) => `${check.profile}: ${performanceStatusLabel(check.status)}`).join(", ");
+}
+
+function formatFailurePathAssets(path: FailurePath) {
+  return path.asset_refs.length > 0 ? path.asset_refs.join(", ") : "-";
 }
 
 function throughputMetric(result: PerformanceResult) {

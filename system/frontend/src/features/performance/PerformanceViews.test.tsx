@@ -64,6 +64,17 @@ const run = {
       },
       overall_status: "FAIL"
     },
+    failure_paths: [
+      {
+        protocol: "TLS",
+        client_profile: "legacy_tls12",
+        response_code: "handshake_failure",
+        failure_reason: "unsupported_signature_algorithm",
+        count: 1,
+        asset_refs: ["tls:web:leaf"],
+        status: "FAIL"
+      }
+    ],
     overall_status: "FAIL"
   },
   started_at: "2026-05-01T00:00:00Z",
@@ -192,7 +203,7 @@ describe("PerformanceEvaluationView", () => {
     renderWithApp(<PerformanceEvaluationView snapshotId={3} />);
 
     expect(await screen.findByText("스냅샷 #3 가용성 검사")).toBeInTheDocument();
-    expect(await screen.findByText("tls:web:leaf")).toBeInTheDocument();
+    expect((await screen.findAllByText("tls:web:leaf")).length).toBeGreaterThan(0);
     expect(screen.getByText("ssh:host:rsa")).toBeInTheDocument();
     expect(screen.getByText("ike:policy:ipsec")).toBeInTheDocument();
     expect(screen.getByText("post_migration")).toBeInTheDocument();
@@ -200,18 +211,21 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("100.0 -> 118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("1000.0 -> 820.0 req/s")).toBeInTheDocument();
     expect(screen.getByText("자산별 처리량 비교")).toBeInTheDocument();
+    expect(screen.getByText("실패 경로 보고")).toBeInTheDocument();
     expect(screen.getByText("modern_tls13: 정상, legacy_tls12: 실패")).toBeInTheDocument();
     expect(screen.getByText("98.0%")).toBeInTheDocument();
     expect(screen.getByText("95.0%")).toBeInTheDocument();
     expect(screen.getByText("100.0%")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "프로토콜" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "응답 코드" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "실패 사유" })).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader", { name: "프로토콜" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("columnheader", { name: "응답 코드" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("columnheader", { name: "실패 사유" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("columnheader", { name: "클라이언트 호환성" })).toBeInTheDocument();
     expect(screen.getByText("SSH")).toBeInTheDocument();
     expect(screen.getByText("IKE")).toBeInTheDocument();
     expect(screen.getByText("tls_alert_bad_certificate")).toBeInTheDocument();
     expect(screen.getByText("handshake_p95_percent_above_warn_threshold")).toBeInTheDocument();
+    expect(screen.getByText("unsupported_signature_algorithm")).toBeInTheDocument();
+    expect(screen.getByText("handshake_failure")).toBeInTheDocument();
     expect(screen.getByText("SSH_MSG_KEXINIT")).toBeInTheDocument();
     expect(screen.getByText("IKE_AUTH_OK")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "기준 p95" })).toBeInTheDocument();

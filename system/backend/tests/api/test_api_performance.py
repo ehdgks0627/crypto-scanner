@@ -327,3 +327,14 @@ def test_api_perf_009_records_client_compatibility_matrix(client):
     assert client_summary["total_checks"] == 2
     assert client_summary["by_status"] == {"PASS": 1, "WARN": 0, "FAIL": 1, "ERROR": 0}
     assert client_summary["by_profile"]["legacy_tls12"]["failure_reasons"] == {"unsupported_signature_algorithm": 1}
+    assert detail["summary"]["failure_paths"] == [
+        {
+            "protocol": "TLS",
+            "client_profile": "legacy_tls12",
+            "response_code": "handshake_failure",
+            "failure_reason": "unsupported_signature_algorithm",
+            "count": 1,
+            "asset_refs": ["tls:web:legacy-client"],
+            "status": "FAIL",
+        }
+    ]

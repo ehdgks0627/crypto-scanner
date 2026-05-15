@@ -89,6 +89,7 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "latency_comparison": _summarize_latency_comparison(results),
         "throughput_comparison": _summarize_throughput_comparison(results),
         "client_compatibility": _summarize_client_compatibility(results),
+        "failure_paths": _summarize_failure_paths(results),
         "by_protocol": _summarize_by_protocol(results),
         "overall_status": _overall_status(counts),
     }
@@ -275,6 +276,50 @@ def _summarize_client_compatibility(results: list[dict[str, Any]]) -> dict[str, 
     return summary
 
 
+def _summarize_failure_paths(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    paths: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for result in results:
+        metrics = result.get("metrics") or {}
+        protocol = str(metrics.get("protocol") or result.get("protocol") or "UNKNOWN").upper()
+        asset_ref = str(result.get("bom_ref") or metrics.get("bom_ref") or "-")
+        status = _normalize_result_status(result.get("status"), default="ERROR")
+        failure_reason = _text_or_empty(metrics.get("failure_reason") or result.get("failure_reason"))
+        response_code = _text_or_empty(metrics.get("response_code") or result.get("response_code"))
+        has_client_failures = any(
+            _normalize_result_status(check.get("status"), default="ERROR") in {"WARN", "FAIL", "ERROR"}
+            for check in _client_compatibility_checks(metrics)
+        )
+        if (status in {"WARN", "FAIL", "ERROR"} or failure_reason) and not (has_client_failures and failure_reason.startswith("client_")):
+            _add_failure_path(
+                paths,
+                protocol=protocol,
+                client_profile="",
+                response_code=response_code,
+                failure_reason=failure_reason or status.lower(),
+                status=status,
+                asset_ref=asset_ref,
+            )
+
+        for check in _client_compatibility_checks(metrics):
+            check_status = _normalize_result_status(check.get("status"), default="ERROR")
+            if check_status not in {"WARN", "FAIL", "ERROR"}:
+                continue
+            _add_failure_path(
+                paths,
+                protocol=protocol,
+                client_profile=str(check.get("profile") or ""),
+                response_code=_text_or_empty(check.get("response_code")),
+                failure_reason=_text_or_empty(check.get("failure_reason")) or check_status.lower(),
+                status=check_status,
+                asset_ref=asset_ref,
+            )
+
+    normalized_paths = []
+    for path in paths.values():
+        normalized_paths.append({**path, "asset_refs": sorted(path["asset_refs"])})
+    return sorted(normalized_paths, key=lambda item: (-_status_rank(item["status"]), -item["count"], item["protocol"], item["client_profile"]))
+
+
 def _calculate_deltas(metrics: dict[str, Any], baseline_metrics: dict[str, Any]) -> dict[str, float]:
     deltas: dict[str, float] = {}
     for series in LATENCY_SERIES:
@@ -433,6 +478,43 @@ def _status_counts() -> dict[str, int]:
 def _reason_token(value: str) -> str:
     token = "".join(char.lower() if char.isalnum() else "_" for char in value).strip("_")
     return token or "unknown"
+
+
+def _add_failure_path(
+    paths: dict[tuple[str, str, str, str], dict[str, Any]],
+    *,
+    protocol: str,
+    client_profile: str,
+    response_code: str,
+    failure_reason: str,
+    status: str,
+    asset_ref: str,
+) -> None:
+    key = (protocol, client_profile, response_code, failure_reason)
+    entry = paths.setdefault(
+        key,
+        {
+            "protocol": protocol,
+            "client_profile": client_profile,
+            "response_code": response_code,
+            "failure_reason": failure_reason,
+            "count": 0,
+            "asset_refs": set(),
+            "status": status,
+        },
+    )
+    entry["count"] += 1
+    entry["asset_refs"].add(asset_ref)
+    if _status_rank(status) > _status_rank(entry["status"]):
+        entry["status"] = status
+
+
+def _status_rank(status: str) -> int:
+    return {"PASS": 0, "WARN": 1, "FAIL": 2, "ERROR": 3}.get(status, 0)
+
+
+def _text_or_empty(value: Any) -> str:
+    return str(value).strip() if value is not None else ""
 
 
 def _increment_count(counts: dict[str, int], value: Any) -> None:

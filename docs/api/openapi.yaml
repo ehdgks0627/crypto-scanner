@@ -3265,6 +3265,30 @@ components:
             overall_status:
               type: string
               enum: [PENDING, PASS, WARN, FAIL, ERROR]
+        failure_paths:
+          type: array
+          items:
+            type: object
+            required: [protocol, client_profile, response_code, failure_reason, count, asset_refs, status]
+            properties:
+              protocol:
+                type: string
+              client_profile:
+                type: string
+              response_code:
+                type: string
+              failure_reason:
+                type: string
+              count:
+                type: integer
+                minimum: 0
+              asset_refs:
+                type: array
+                items:
+                  type: string
+              status:
+                type: string
+                enum: [PASS, WARN, FAIL, ERROR]
         by_protocol:
           type: object
           additionalProperties:
