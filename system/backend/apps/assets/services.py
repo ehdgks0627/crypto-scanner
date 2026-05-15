@@ -6,11 +6,17 @@ from django.utils import timezone
 from apps.jobs.models import AsyncJob, QueuedTask
 from apps.jobs.services import enqueue_task, serialize_dt
 from apps.risk import services as risk_services
-from risk_engine.prompts import build_qualitative_risk_prompt, parse_qualitative_risk_response
+from risk_engine.prompts import (
+    QualitativeRiskResponseParseError,
+    build_qualitative_risk_prompt,
+    parse_qualitative_risk_response,
+)
 
 
 CONTEXT_FIELDS = ["sensitivity", "lifespan_years", "criticality", "exposure", "service_role"]
 QUALITATIVE_TASK_NAME = "qualitative_assessment"
+QUALITATIVE_PROVIDER = "mock-rulebook"
+QUALITATIVE_FALLBACK_PROVIDER = "mock-rulebook-fallback"
 QUANTUM_VULNERABLE_FAMILIES = {"RSA", "DSA", "ECDSA", "ECDH", "DH"}
 CONTEXT_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 EXPOSURE_LEVELS = {"air_gapped": 0, "internal_network": 1, "dmz": 2, "public_internet": 3}
@@ -146,20 +152,30 @@ def generate_qualitative_assessment(asset):
         operational_context=_qualitative_operational_context(asset, context, sources),
         risk=_qualitative_risk_payload(risk_score, score),
     )
-    raw_response = _mock_qualitative_llm_response(
-        {
-            "summary": _qualitative_summary(asset, context, score),
-            "threat_scenarios": _qualitative_threat_scenarios(asset, context),
-            "migration_recommendation": _qualitative_migration_recommendation(asset, score),
-            "confidence": _qualitative_confidence(asset, context, risk_score, score),
-        }
-    )
-    parsed_response = parse_qualitative_risk_response(raw_response)
+    fallback_response = _heuristic_qualitative_response(asset, context, risk_score, score)
+    fallback_metadata = {"used": False, "reason": None}
+    provider = QUALITATIVE_PROVIDER
+    try:
+        raw_response = _mock_qualitative_llm_response(fallback_response)
+        parsed_response = parse_qualitative_risk_response(raw_response)
+    except (QualitativeRiskResponseParseError, TimeoutError) as exc:
+        provider = QUALITATIVE_FALLBACK_PROVIDER
+        fallback_metadata = {"used": True, "reason": exc.__class__.__name__}
+        parsed_response = fallback_response
     return {
-        "provider": "mock-rulebook",
+        "provider": provider,
         "prompt_version": prompt["version"],
-        "prompt_payload": prompt["payload"],
+        "prompt_payload": {**prompt["payload"], "llm_fallback": fallback_metadata},
         **parsed_response,
+    }
+
+
+def _heuristic_qualitative_response(asset, context, risk_score, score):
+    return {
+        "summary": _qualitative_summary(asset, context, score),
+        "threat_scenarios": _qualitative_threat_scenarios(asset, context),
+        "migration_recommendation": _qualitative_migration_recommendation(asset, score),
+        "confidence": _qualitative_confidence(asset, context, risk_score, score),
     }
 
 

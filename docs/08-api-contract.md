@@ -754,6 +754,7 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 
 정성 분석 prompt payload는 `asset`, `context`, `context_sources`, `risk` 외에 `operational_context`를 포함한다. `operational_context`에는 연결 서비스(`host:port`, protocol), 파일/설정 경로, 데이터 분류 수준, 통신 노출 범위, 서비스 역할이 정규화되어 들어간다.
 LLM provider 응답은 자유 텍스트 안에 포함된 JSON 객체를 파싱하며, `summary`, `threat_scenarios`, `migration_recommendation`, `confidence` 필드를 구조화된 `QualitativeAssessment`로 정규화한다.
+provider 응답 파싱 실패 또는 타임아웃이 발생하면 자산 메타데이터와 컨텍스트 기반 휴리스틱 결과로 폴백한다. 이 경우 `provider`는 `mock-rulebook-fallback`으로 저장되고, `prompt_payload.llm_fallback`에 사용 여부와 실패 사유를 기록한다.
 
 ## 8.9 Risk
 

@@ -427,3 +427,45 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
     ]
     assert isinstance(assessment.threat_scenarios, list)
     assert isinstance(assessment.confidence, float)
+
+
+def test_api_ast_008_qualitative_worker_falls_back_when_llm_response_is_invalid(monkeypatch):
+    from apps.assets import services
+    from apps.assets.models import QualitativeAssessment
+
+    target = create_target(
+        host="fallback-api.testbed.local",
+        context={
+            "sensitivity": "critical",
+            "lifespan_years": 10,
+            "criticality": "high",
+            "exposure": "public_internet",
+            "service_role": "fallback-api",
+        },
+    )
+    asset = create_asset(
+        target=target,
+        name="fallback API certificate",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        bom_ref="qualitative:fallback:rsa",
+    )
+
+    monkeypatch.setattr(services, "_mock_qualitative_llm_response", lambda _payload: "invalid response without JSON")
+
+    task = services.enqueue_qualitative_assessment(asset.id)
+    result = services.process_next_qualitative_assessment_task()
+
+    task.refresh_from_db()
+    assessment = QualitativeAssessment.objects.get(asset=asset)
+    assert result["provider"] == "mock-rulebook-fallback"
+    assert task.status == "COMPLETED"
+    assert assessment.provider == "mock-rulebook-fallback"
+    assert assessment.prompt_payload["llm_fallback"] == {
+        "used": True,
+        "reason": "QualitativeRiskResponseParseError",
+    }
+    assert "fallback API certificate" in assessment.summary
+    assert "harvest_now_decrypt_later" in assessment.threat_scenarios
+    assert assessment.migration_recommendation
+    assert 0 <= assessment.confidence <= 1
