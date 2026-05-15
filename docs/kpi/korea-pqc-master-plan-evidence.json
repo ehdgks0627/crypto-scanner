@@ -1,0 +1,47 @@
+{
+  "id": "korea_pqc_master_plan_evidence_v1",
+  "claim": "Korea announced a national post-quantum cryptography transition master plan in July 2023.",
+  "claim_level": "verified_with_scope",
+  "observed_at": "2026-05-16",
+  "recommended_label": "국내 범국가 양자내성암호 전환 마스터플랜(2023)",
+  "official_kisa_source": {
+    "title": "KISA 암호이용활성화 - 차세대 암호 - 양자내성암호",
+    "publisher": "KISA",
+    "url": "https://seed.kisa.or.kr/kisa/ngc/pqc.do"
+  },
+  "verified_points": [
+    "KISA states that Korea announced the '汎국가 양자내성암호 전환 마스터플랜' in July 2023 in cooperation with relevant ministries.",
+    "KISA lists '2023년 7월 한국 汎국가 양자내성암호 전환 마스터플랜' among PQC transition-related documents.",
+    "KISA states that from 2025 Korea has pursued the '양자내성암호 시범전환 사업' to support PQC adoption across national industry fields that need transition.",
+    "KISA states that government ministries, research institutions, domestic companies, and KISA are working on Korean PQC standardization, safety and performance criteria, pilot transition support, and migration guide development."
+  ],
+  "supplementary_evidence": [
+    {
+      "source": "전자신문",
+      "url": "https://www.etnews.com/20230712000182",
+      "finding": "Reports that the National Intelligence Service and the Ministry of Science and ICT announced a draft master plan for transitioning the domestic cryptographic system to PQC on 2023-07-12."
+    },
+    {
+      "source": "서울경제",
+      "url": "https://www.sedaily.com/NewsView/29S3P4GE32",
+      "finding": "Reports that NIS and MSIT, with related ministries, established a master plan and that KISA participated in working-level consultation for the plan."
+    },
+    {
+      "source": "머니투데이",
+      "url": "https://www.mt.co.kr/tech/2023/07/12/2023071210251239333",
+      "finding": "Reports that the July 2023 Information Security Day event was hosted by MSIT, NIS, and MOIS and organized by KISIA and KISA, and introduced the PQC transition master plan."
+    }
+  ],
+  "scope_limits": [
+    "The KISA official page confirms the 2023 Korean national PQC transition master plan and follow-up pilot transition direction, but does not by itself establish KISA as the sole author or co-publisher of the 2023 plan.",
+    "For the 2023 announcement actors, cite NIS and MSIT based on contemporary reporting and describe KISA as an official follow-up and implementation-related source.",
+    "Do not describe the master plan as a direct legal mandate that every organization must complete PQC migration by a specific date.",
+    "Use the plan as evidence that Korea has a national policy direction for PQC transition, not as proof that our software implements all Korean government transition requirements."
+  ],
+  "presentation_guidance": [
+    "Say that Korea also set a national direction for PQC transition through the July 2023 '범국가 양자내성암호 전환 마스터플랜'.",
+    "Use the KISA page as the official source for the existence of the plan and the later pilot transition program.",
+    "When naming institutions, say NIS and MSIT announced the plan, while KISA is an official source for the national PQC transition page and pilot transition follow-up.",
+    "Connect this citation to our project only at the policy-alignment level: our system supports discovery, inventory, planning, and validation flow needed before PQC transition."
+  ]
+}

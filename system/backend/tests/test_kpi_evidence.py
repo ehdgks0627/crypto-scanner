@@ -41,6 +41,9 @@ CISA_MIGRATION_TIMELINE_EVIDENCE_PATH = (
 WHITE_HOUSE_NSM10_INVENTORY_EVIDENCE_PATH = (
     REPO_ROOT / "docs" / "kpi" / "white-house-nsm10-inventory-evidence.json"
 )
+KOREA_PQC_MASTER_PLAN_EVIDENCE_PATH = (
+    REPO_ROOT / "docs" / "kpi" / "korea-pqc-master-plan-evidence.json"
+)
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -296,3 +299,21 @@ def test_white_house_nsm10_inventory_evidence_scopes_federal_requirement():
     assert any("National Security Systems have a separate path" in item for item in scope_limits)
     assert any("Do not describe NSM-10" in item for item in guidance)
     assert evidence["related_policy"][0]["title"].startswith("OMB M-23-02")
+
+
+def test_korea_pqc_master_plan_evidence_separates_kisa_and_announcement_scope():
+    evidence = json.loads(KOREA_PQC_MASTER_PLAN_EVIDENCE_PATH.read_text())
+    verified_points = set(evidence["verified_points"])
+    scope_limits = set(evidence["scope_limits"])
+    guidance = set(evidence["presentation_guidance"])
+    supplementary_sources = {item["source"] for item in evidence["supplementary_evidence"]}
+
+    assert evidence["claim_level"] == "verified_with_scope"
+    assert evidence["recommended_label"] == "국내 범국가 양자내성암호 전환 마스터플랜(2023)"
+    assert evidence["official_kisa_source"]["publisher"] == "KISA"
+    assert evidence["official_kisa_source"]["url"] == "https://seed.kisa.or.kr/kisa/ngc/pqc.do"
+    assert any("汎국가 양자내성암호 전환 마스터플랜" in item for item in verified_points)
+    assert any("2025" in item and "시범전환" in item for item in verified_points)
+    assert {"전자신문", "서울경제", "머니투데이"} <= supplementary_sources
+    assert any("does not by itself establish KISA as the sole author" in item for item in scope_limits)
+    assert any("NIS and MSIT announced the plan" in item for item in guidance)
