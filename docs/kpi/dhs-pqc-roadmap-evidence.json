@@ -1,0 +1,77 @@
+{
+  "id": "dhs_pqc_roadmap_evidence_v1",
+  "claim": "DHS and NIST published 2021 guidance for preparing for post-quantum cryptography by inventorying and prioritizing cryptographic systems and data.",
+  "claim_level": "verified_with_scope",
+  "observed_at": "2026-05-16",
+  "official_sources": {
+    "dhs_quantum_page": {
+      "title": "Post-Quantum Cryptography",
+      "publisher": "U.S. Department of Homeland Security",
+      "url": "https://www.dhs.gov/quantum",
+      "last_updated": "2025-01-28"
+    },
+    "dhs_memorandum_page": {
+      "title": "Memorandum on Preparing for Post-Quantum Cryptography",
+      "publisher": "U.S. Department of Homeland Security",
+      "url": "https://www.dhs.gov/publication/memorandum-preparing-post-quantum-cryptography",
+      "attachment_date": "2021-10-05"
+    },
+    "dhs_memorandum_pdf": "https://www.dhs.gov/sites/default/files/publications/usm_quantum_memo_0.pdf",
+    "dhs_infographic_pdf": "https://www.dhs.gov/sites/default/files/publications/post-quantum_cryptography_infographic_october_2021_508.pdf"
+  },
+  "verified_points": [
+    "DHS says it released a roadmap with NIST to help organizations protect data and systems and reduce risks related to quantum computing technology.",
+    "DHS says organizations should consider inventorying current cryptographic systems, the data being protected, and prioritizing systems for transition.",
+    "DHS says preparation includes identifying, prioritizing, and protecting potentially vulnerable data, algorithms, protocols, and systems.",
+    "DHS internal transition work is expected to result in an inventory of DHS cryptographic systems and data types, broader enterprise risk understanding, and plans for transition to post-quantum cryptography.",
+    "The DHS memorandum states that previous transitions to new cryptographic standards have taken between 5 and 15 years given breadth of use."
+  ],
+  "roadmap_steps": [
+    {
+      "order": 1,
+      "label": "standards_engagement",
+      "summary": "Increase CIO engagement with standards developing organizations for algorithm and protocol changes."
+    },
+    {
+      "order": 2,
+      "label": "critical_data_inventory",
+      "summary": "Inventory the most sensitive and critical datasets that must remain secure for an extended time."
+    },
+    {
+      "order": 3,
+      "label": "cryptographic_system_inventory",
+      "summary": "Inventory systems using cryptographic technologies for any function."
+    },
+    {
+      "order": 4,
+      "label": "standards_update_identification",
+      "summary": "Identify acquisition, cybersecurity, and data security standards that will require post-quantum updates."
+    },
+    {
+      "order": 5,
+      "label": "public_key_usage_identification",
+      "summary": "Identify where and why public-key cryptography is used and mark those systems as quantum vulnerable."
+    },
+    {
+      "order": 6,
+      "label": "risk_based_prioritization",
+      "summary": "Prioritize quantum-vulnerable systems using organizational mission, data sensitivity, sharing relationships, critical infrastructure support, and required protection lifetime."
+    },
+    {
+      "order": 7,
+      "label": "transition_planning",
+      "summary": "Use inventory and prioritization information to develop transition plans once post-quantum cryptographic standards are available."
+    }
+  ],
+  "scope_limits": [
+    "The public DHS roadmap is preparation guidance, not a claim that all organizations are legally required by this document to migrate by a fixed date.",
+    "The DHS memorandum's component inventory and transition-plan submission requirements are internal DHS preparedness guidance.",
+    "DHS cautions against purchasing or implementing market PQC products before NIST-approved standards, because premature adoption can create a harder and more costly transition.",
+    "Use this source to support discovery, inventory, prioritization, and transition planning; do not use it as proof that our implementation fully satisfies all DHS or NIST guidance."
+  ],
+  "presentation_guidance": [
+    "Use DHS 2021 as the official roadmap source for the flow: identify critical data, inventory cryptography, mark quantum-vulnerable public-key systems, prioritize, and plan transition.",
+    "If citing a migration-duration figure from DHS, say previous cryptographic standard transitions have taken 5 to 15 years, not that DHS measured average PQC migration as 5 to 10 years.",
+    "Connect the source to our project as policy alignment: our software makes the discovery and inventory portion of this roadmap executable in a demo environment."
+  ]
+}

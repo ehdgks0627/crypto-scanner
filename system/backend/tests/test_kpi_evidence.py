@@ -44,6 +44,7 @@ WHITE_HOUSE_NSM10_INVENTORY_EVIDENCE_PATH = (
 KOREA_PQC_MASTER_PLAN_EVIDENCE_PATH = (
     REPO_ROOT / "docs" / "kpi" / "korea-pqc-master-plan-evidence.json"
 )
+DHS_PQC_ROADMAP_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "dhs-pqc-roadmap-evidence.json"
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -317,3 +318,30 @@ def test_korea_pqc_master_plan_evidence_separates_kisa_and_announcement_scope():
     assert {"전자신문", "서울경제", "머니투데이"} <= supplementary_sources
     assert any("does not by itself establish KISA as the sole author" in item for item in scope_limits)
     assert any("NIS and MSIT announced the plan" in item for item in guidance)
+
+
+def test_dhs_pqc_roadmap_evidence_tracks_inventory_prioritization_and_scope():
+    evidence = json.loads(DHS_PQC_ROADMAP_EVIDENCE_PATH.read_text())
+    verified_points = set(evidence["verified_points"])
+    roadmap_labels = {item["label"] for item in evidence["roadmap_steps"]}
+    scope_limits = set(evidence["scope_limits"])
+    guidance = set(evidence["presentation_guidance"])
+
+    assert evidence["claim_level"] == "verified_with_scope"
+    assert evidence["official_sources"]["dhs_quantum_page"]["publisher"] == (
+        "U.S. Department of Homeland Security"
+    )
+    assert evidence["official_sources"]["dhs_quantum_page"]["url"] == "https://www.dhs.gov/quantum"
+    assert evidence["official_sources"]["dhs_memorandum_page"]["attachment_date"] == "2021-10-05"
+    assert "usm_quantum_memo_0.pdf" in evidence["official_sources"]["dhs_memorandum_pdf"]
+    assert len(evidence["roadmap_steps"]) == 7
+    assert {
+        "critical_data_inventory",
+        "cryptographic_system_inventory",
+        "public_key_usage_identification",
+        "risk_based_prioritization",
+        "transition_planning",
+    } <= roadmap_labels
+    assert any("5 and 15 years" in item for item in verified_points)
+    assert any("preparation guidance" in item for item in scope_limits)
+    assert any("not that DHS measured average PQC migration as 5 to 10 years" in item for item in guidance)
