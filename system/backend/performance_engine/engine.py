@@ -74,6 +74,7 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "by_status": counts,
         "average_deltas": average_deltas,
         "average_metrics": average_metrics,
+        "latency_comparison": _summarize_latency_comparison(results),
         "by_protocol": _summarize_by_protocol(results),
         "overall_status": _overall_status(counts),
     }
@@ -165,6 +166,31 @@ def _summarize_by_protocol(results: list[dict[str, Any]]) -> dict[str, Any]:
             "failure_reasons": entry["failure_reasons"],
         }
     return summary
+
+
+def _summarize_latency_comparison(results: list[dict[str, Any]]) -> dict[str, Any]:
+    comparison = {}
+    for series in LATENCY_SERIES:
+        candidate_values = []
+        baseline_values = []
+        for result in results:
+            metrics = result.get("metrics") or {}
+            baseline_metrics = metrics.get("baseline_metrics") if isinstance(metrics.get("baseline_metrics"), dict) else {}
+            candidate_value = _metric_value(metrics, series, "p95")
+            baseline_value = _metric_value(baseline_metrics, series, "p95")
+            if candidate_value is not None and baseline_value is not None:
+                candidate_values.append(candidate_value)
+                baseline_values.append(baseline_value)
+        if not candidate_values or not baseline_values:
+            continue
+        candidate_p95 = round(sum(candidate_values) / len(candidate_values), 2)
+        baseline_p95 = round(sum(baseline_values) / len(baseline_values), 2)
+        comparison[series] = {
+            "baseline_p95": baseline_p95,
+            "candidate_p95": candidate_p95,
+            "delta_percent": _percent_delta(candidate_p95, baseline_p95),
+        }
+    return comparison
 
 
 def _calculate_deltas(metrics: dict[str, Any], baseline_metrics: dict[str, Any]) -> dict[str, float]:

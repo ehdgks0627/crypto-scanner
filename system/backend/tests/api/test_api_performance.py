@@ -101,8 +101,15 @@ def test_api_perf_002_candidate_result_compares_to_baseline_by_bom_ref(client):
     assert result_response.status_code == 201
     result = result_response.json()
     assert result["status"] == "WARN"
+    assert result["metrics"]["baseline_metrics"]["handshake_ms"]["p95"] == 100
     assert result["deltas"]["handshake_p95_percent"] == 25.0
     assert result["recommendation"] == "canary_more"
+    detail = client.get(f"/api/snapshots/{candidate_snapshot.id}/performance-runs/{candidate_run['id']}").json()
+    assert detail["summary"]["latency_comparison"]["handshake_ms"] == {
+        "baseline_p95": 100.0,
+        "candidate_p95": 125.0,
+        "delta_percent": 25.0,
+    }
 
 
 def test_api_perf_003_rejects_foreign_asset_for_run(client):

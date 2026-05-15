@@ -1307,6 +1307,13 @@ export interface components {
             average_metrics?: {
                 [key: string]: number;
             };
+            latency_comparison?: {
+                [key: string]: {
+                    baseline_p95: number;
+                    candidate_p95: number;
+                    delta_percent: number;
+                };
+            };
             by_protocol?: {
                 [key: string]: {
                     total_results: number;
@@ -1343,6 +1350,9 @@ export interface components {
             protocol?: string;
             response_code?: string;
             failure_reason?: string;
+            baseline_metrics?: {
+                [key: string]: unknown;
+            };
             tcp_connect_ms?: components["schemas"]["PerformanceMetricSeries"];
             handshake_ms?: components["schemas"]["PerformanceMetricSeries"];
             ttfb_ms?: components["schemas"]["PerformanceMetricSeries"];

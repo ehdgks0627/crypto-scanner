@@ -3158,6 +3158,18 @@ components:
           type: object
           additionalProperties:
             type: number
+        latency_comparison:
+          type: object
+          additionalProperties:
+            type: object
+            required: [baseline_p95, candidate_p95, delta_percent]
+            properties:
+              baseline_p95:
+                type: number
+              candidate_p95:
+                type: number
+              delta_percent:
+                type: number
         by_protocol:
           type: object
           additionalProperties:
@@ -3229,6 +3241,9 @@ components:
           type: string
         failure_reason:
           type: string
+        baseline_metrics:
+          type: object
+          additionalProperties: true
         tcp_connect_ms:
           $ref: '#/components/schemas/PerformanceMetricSeries'
         handshake_ms:

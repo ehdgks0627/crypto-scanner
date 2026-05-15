@@ -107,6 +107,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
   const summary = run.summary;
   const warnFailCount = (summary.by_status.WARN ?? 0) + (summary.by_status.FAIL ?? 0) + (summary.by_status.ERROR ?? 0);
   const successRate = averageNumber(run.results.map((result) => successRateMetric(result)));
+  const handshakeComparison = summary.latency_comparison?.handshake_ms;
   const protocolCount = new Set(run.results.map((result) => result.protocol || metricProtocol(result))).size;
   return (
     <div className="section-stack">
@@ -115,6 +116,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
         <MetricCard label="결과 수" value={formatNumber(summary.total_results)} />
         <MetricCard label="경고/실패" value={formatNumber(warnFailCount)} />
         <MetricCard label="성공률" value={formatPercent(successRate)} />
+        <MetricCard label="핸드셰이크 전/후" value={formatLatencyComparison(handshakeComparison)} />
         <MetricCard label="프로토콜" value={formatNumber(protocolCount)} />
         <MetricCard label="기준 스냅샷" value={run.baseline_snapshot_id ? `#${run.baseline_snapshot_id}` : "-"} />
       </div>
@@ -151,6 +153,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
               { key: "response", header: "응답 코드", render: (item) => item.response_code || metricText(item, "response_code") || "-" },
               { key: "failureReason", header: "실패 사유", render: (item) => item.failure_reason || metricText(item, "failure_reason") || "-" },
               { key: "success", header: "성공률", align: "right", render: (item) => formatPercent(successRateMetric(item)) },
+              { key: "baselineHandshake", header: "기준 p95", align: "right", render: (item) => formatMs(baselineMetricP95(item, "handshake_ms")) },
               { key: "handshake", header: "핸드셰이크/협상 p95", align: "right", render: (item) => formatMs(metricP95(item, "handshake_ms")) },
               { key: "ttfb", header: "TTFB p95", align: "right", render: (item) => formatMs(metricP95(item, "ttfb_ms")) },
               { key: "failure", header: "실패율", align: "right", render: (item) => formatPercent(numberMetric(item, "failure_rate")) },
@@ -187,6 +190,18 @@ function metricP95(result: PerformanceResult, key: "tcp_connect_ms" | "handshake
   return undefined;
 }
 
+function baselineMetricP95(result: PerformanceResult, key: "tcp_connect_ms" | "handshake_ms" | "ttfb_ms" | "total_request_ms") {
+  const baseline = result.metrics.baseline_metrics;
+  if (!baseline || typeof baseline !== "object" || Array.isArray(baseline)) {
+    return undefined;
+  }
+  const metric = (baseline as Record<string, unknown>)[key];
+  if (metric && typeof metric === "object" && "p95" in metric && typeof metric.p95 === "number") {
+    return metric.p95;
+  }
+  return undefined;
+}
+
 function numberMetric(
   result: PerformanceResult,
   key: "failure_rate" | "timeout_rate" | "session_resumption_rate" | "availability_success_rate" | "handshake_success_rate" | "negotiation_success_rate"
@@ -215,6 +230,13 @@ function formatMs(value?: number) {
 
 function formatPercent(value?: number) {
   return typeof value === "number" ? `${(value * 100).toFixed(1)}%` : "-";
+}
+
+function formatLatencyComparison(comparison?: { baseline_p95?: number; candidate_p95?: number }) {
+  if (typeof comparison?.baseline_p95 !== "number" || typeof comparison.candidate_p95 !== "number") {
+    return "-";
+  }
+  return `${comparison.baseline_p95.toFixed(1)} -> ${comparison.candidate_p95.toFixed(1)} ms`;
 }
 
 function averageNumber(values: Array<number | undefined>) {

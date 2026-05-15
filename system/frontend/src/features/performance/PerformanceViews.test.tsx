@@ -37,6 +37,9 @@ const run = {
         average_metrics: { negotiation_success_rate: 1.0 }
       }
     },
+    latency_comparison: {
+      handshake_ms: { baseline_p95: 100, candidate_p95: 118.2, delta_percent: 18.2 }
+    },
     overall_status: "WARN"
   },
   started_at: "2026-05-01T00:00:00Z",
@@ -63,6 +66,10 @@ const detail = {
       metrics: {
         handshake_ms: { p50: 40, p95: 118.2, samples: 30 },
         ttfb_ms: { p50: 80, p95: 160.4, samples: 30 },
+        baseline_metrics: {
+          handshake_ms: { p50: 35, p95: 100, samples: 30 },
+          ttfb_ms: { p50: 75, p95: 150, samples: 30 }
+        },
         response_code: "tls_alert_bad_certificate",
         failure_reason: "handshake_p95_percent_above_warn_threshold",
         handshake_success_rate: 0.98,
@@ -152,6 +159,7 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("ike:policy:ipsec")).toBeInTheDocument();
     expect(screen.getByText("post_migration")).toBeInTheDocument();
     expect(screen.getByText("97.7%")).toBeInTheDocument();
+    expect(screen.getByText("100.0 -> 118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("98.0%")).toBeInTheDocument();
     expect(screen.getByText("95.0%")).toBeInTheDocument();
     expect(screen.getByText("100.0%")).toBeInTheDocument();
@@ -164,6 +172,8 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("handshake_p95_percent_above_warn_threshold")).toBeInTheDocument();
     expect(screen.getByText("SSH_MSG_KEXINIT")).toBeInTheDocument();
     expect(screen.getByText("IKE_AUTH_OK")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "기준 p95" })).toBeInTheDocument();
+    expect(screen.getByText("100.0 ms")).toBeInTheDocument();
     expect(screen.getByText("118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("+18.2%")).toBeInTheDocument();
     expect(screen.getByText("canary_more")).toBeInTheDocument();

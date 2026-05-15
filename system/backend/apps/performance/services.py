@@ -54,6 +54,8 @@ def upsert_result(run: PerformanceEvaluationRun, payload: dict) -> AssetPerforma
     compatibility_status = payload.get("compatibility_status", "PASS")
     metrics = normalize_availability_metrics(_metrics_with_protocol(asset, payload.get("metrics") or {}))
     baseline_metrics = _baseline_metrics_for(run, asset)
+    if baseline_metrics:
+        metrics["baseline_metrics"] = normalize_availability_metrics(baseline_metrics)
     evaluation = evaluate_asset_performance(
         metrics=metrics,
         baseline_metrics=baseline_metrics,

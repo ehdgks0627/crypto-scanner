@@ -40,6 +40,32 @@ def test_performance_engine_summarizes_status_counts_and_average_deltas():
     assert summary["average_metrics"]["handshake_success_rate"] == 0.98
 
 
+def test_performance_engine_summarizes_latency_before_after_comparison():
+    summary = summarize_results(
+        [
+            {
+                "status": "WARN",
+                "deltas": {"handshake_p95_percent": 25.0},
+                "metrics": {
+                    "handshake_ms": {"p95": 125},
+                    "ttfb_ms": {"p95": 212},
+                    "baseline_metrics": {
+                        "handshake_ms": {"p95": 100},
+                        "ttfb_ms": {"p95": 200},
+                    },
+                },
+            }
+        ]
+    )
+
+    assert summary["latency_comparison"]["handshake_ms"] == {
+        "baseline_p95": 100.0,
+        "candidate_p95": 125.0,
+        "delta_percent": 25.0,
+    }
+    assert summary["latency_comparison"]["ttfb_ms"]["delta_percent"] == 6.0
+
+
 def test_performance_engine_normalizes_tls_handshake_success_rate_and_flags_regression():
     metrics = normalize_availability_metrics({"successful_handshakes": 98, "failed_handshakes": 2})
 
