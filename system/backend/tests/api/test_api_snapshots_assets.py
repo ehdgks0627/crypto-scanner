@@ -369,11 +369,14 @@ def test_api_ast_006_qualitative_request_uses_asset_context_and_risk(client):
     assert "harvest_now_decrypt_later" in rsa_body["threat_scenarios"]
     assert 0 <= rsa_body["confidence"] <= 1
     assert 0 <= pqc_body["confidence"] <= 1
-    assert rsa_body["prompt_version"] == "qualitative-risk-v2"
-    assert pqc_body["prompt_version"] == "qualitative-risk-v2"
+    assert rsa_body["prompt_version"] == "qualitative-risk-v3"
+    assert pqc_body["prompt_version"] == "qualitative-risk-v3"
     assert rsa_body["dhs_criteria"]["asset_value"]["rating"] in {"high", "critical"}
     assert "public_internet" in rsa_body["dhs_criteria"]["asset_value"]["signals"][0]
     assert 0 <= rsa_body["dhs_criteria"]["asset_value"]["score"] <= 1
+    assert rsa_body["dhs_criteria"]["protected_information"]["rating"] == "critical"
+    assert rsa_body["dhs_criteria"]["protected_information"]["data_classification"] == "critical"
+    assert "sensitivity:critical" in rsa_body["dhs_criteria"]["protected_information"]["signals"]
 
 
 def test_api_ast_007_qualitative_worker_processes_asset_task():
@@ -419,7 +422,7 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
     }
     assert "worker API certificate" in assessment.summary
     assert "harvest_now_decrypt_later" in assessment.threat_scenarios
-    assert assessment.prompt_version == "qualitative-risk-v2"
+    assert assessment.prompt_version == "qualitative-risk-v3"
     assert assessment.prompt_payload["asset"]["name"] == "worker API certificate"
     assert assessment.prompt_payload["context"]["exposure"] == "public_internet"
     assert assessment.prompt_payload["operational_context"]["connected_service"]["label"] == "worker-api.testbed.local:443"
@@ -432,6 +435,9 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
     assert isinstance(assessment.threat_scenarios, list)
     assert assessment.dhs_criteria["asset_value"]["rating"] == "critical"
     assert "service_role:customer-api" in assessment.dhs_criteria["asset_value"]["signals"]
+    assert assessment.dhs_criteria["protected_information"]["rating"] == "critical"
+    assert assessment.dhs_criteria["protected_information"]["data_classification"] == "critical"
+    assert "lifespan_years:15" in assessment.dhs_criteria["protected_information"]["signals"]
     assert isinstance(assessment.confidence, float)
 
 
@@ -476,6 +482,8 @@ def test_api_ast_008_qualitative_worker_falls_back_when_llm_response_is_invalid(
     assert assessment.migration_recommendation
     assert assessment.dhs_criteria["asset_value"]["question"].startswith("Q1:")
     assert assessment.dhs_criteria["asset_value"]["rating"] in {"high", "critical"}
+    assert assessment.dhs_criteria["protected_information"]["question"].startswith("Q2:")
+    assert assessment.dhs_criteria["protected_information"]["data_classification"] == "critical"
     assert 0 <= assessment.confidence <= 1
 
 

@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v2"
+QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v3"
 
 QUALITATIVE_RISK_SYSTEM_PROMPT = """You are a PQC migration risk analyst.
 Assess one cryptographic asset for quantum-era migration planning.
@@ -23,6 +23,14 @@ QUALITATIVE_RISK_RESPONSE_SCHEMA = {
             "score": 0.0,
             "rationale": "One-sentence evidence-based explanation.",
             "signals": ["public_internet", "critical service role"],
+        },
+        "protected_information": {
+            "question": "Q2: protected information based on data classification and confidentiality needs.",
+            "rating": "low|medium|high|critical",
+            "score": 0.0,
+            "data_classification": "low|medium|high|critical|unknown",
+            "rationale": "One-sentence evidence-based explanation.",
+            "signals": ["sensitivity:critical", "lifespan_years:10"],
         }
     },
     "confidence": 0.0,
@@ -52,6 +60,7 @@ def build_qualitative_risk_prompt(
         "Evaluate this cryptographic asset for PQC migration priority.\n"
         "Focus on HNDL exposure, service criticality, communication exposure, file/config evidence, and migration urgency.\n"
         "For DHS Q1 asset_value, rate the asset by external exposure and business importance only.\n"
+        "For DHS Q2 protected_information, rate the information protected by the asset using data classification and confidentiality needs.\n"
         "Do not invent facts not present in the payload.\n\n"
         f"Payload:\n{json.dumps(payload, sort_keys=True, indent=2)}\n\n"
         f"Required JSON schema:\n{json.dumps(QUALITATIVE_RISK_RESPONSE_SCHEMA, sort_keys=True, indent=2)}"
@@ -125,6 +134,7 @@ def _dhs_criteria(value: Any) -> dict[str, Any]:
         raise QualitativeRiskResponseParseError("LLM response field 'dhs_criteria' must be an object")
     return {
         "asset_value": _dhs_asset_value(value.get("asset_value")),
+        "protected_information": _dhs_protected_information(value.get("protected_information")),
     }
 
 
@@ -141,6 +151,35 @@ def _dhs_asset_value(value: Any) -> dict[str, Any]:
         "rationale": _required_string(value, "rationale"),
         "signals": _string_list(value.get("signals")),
     }
+
+
+def _dhs_protected_information(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise QualitativeRiskResponseParseError("LLM response field 'dhs_criteria.protected_information' must be an object")
+    rating = _rating(value, "dhs_criteria.protected_information.rating")
+    classification = _required_string(value, "data_classification").lower()
+    if classification not in {"low", "medium", "high", "critical", "unknown"}:
+        raise QualitativeRiskResponseParseError(
+            "LLM response field 'dhs_criteria.protected_information.data_classification' has an invalid value"
+        )
+    return {
+        "question": str(
+            value.get("question")
+            or "Q2: protected information based on data classification and confidentiality needs."
+        ),
+        "rating": rating,
+        "score": _confidence(value.get("score")),
+        "data_classification": classification,
+        "rationale": _required_string(value, "rationale"),
+        "signals": _string_list(value.get("signals")),
+    }
+
+
+def _rating(value: Mapping[str, Any], field_name: str) -> str:
+    rating = _required_string(value, "rating").lower()
+    if rating not in {"low", "medium", "high", "critical"}:
+        raise QualitativeRiskResponseParseError(f"LLM response field '{field_name}' has an invalid value")
+    return rating
 
 
 def _confidence(value: Any) -> float:

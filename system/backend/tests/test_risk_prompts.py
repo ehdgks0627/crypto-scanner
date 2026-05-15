@@ -37,11 +37,12 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
 
     assert prompt["version"] == QUALITATIVE_RISK_PROMPT_VERSION
     assert "PQC migration risk analyst" in prompt["system"]
-    assert prompt["version"] == "qualitative-risk-v2"
+    assert prompt["version"] == "qualitative-risk-v3"
     assert "RSA-2048" in prompt["user"]
     assert "/etc/nginx/server.crt" in prompt["user"]
     assert "public_internet" in prompt["user"]
     assert "DHS Q1 asset_value" in prompt["user"]
+    assert "DHS Q2 protected_information" in prompt["user"]
     assert "operational_context" in prompt["user"]
     assert "Required JSON schema" in prompt["user"]
     assert "dhs_criteria" in prompt["user"]
@@ -68,6 +69,14 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
               "score": 86,
               "rationale": "The service is public and protects customer traffic.",
               "signals": ["public_internet", "customer-api"]
+            },
+            "protected_information": {
+              "question": "Q2: protected information based on data classification and confidentiality needs.",
+              "rating": "CRITICAL",
+              "score": 93,
+              "data_classification": "CRITICAL",
+              "rationale": "The certificate protects regulated customer records.",
+              "signals": ["sensitivity:critical", "lifespan_years:15"]
             }
           },
           "confidence": 86
@@ -87,6 +96,14 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
                 "score": 0.86,
                 "rationale": "The service is public and protects customer traffic.",
                 "signals": ["public_internet", "customer-api"],
+            },
+            "protected_information": {
+                "question": "Q2: protected information based on data classification and confidentiality needs.",
+                "rating": "critical",
+                "score": 0.93,
+                "data_classification": "critical",
+                "rationale": "The certificate protects regulated customer records.",
+                "signals": ["sensitivity:critical", "lifespan_years:15"],
             }
         },
         "confidence": 0.86,

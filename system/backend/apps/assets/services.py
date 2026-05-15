@@ -379,6 +379,7 @@ def _qualitative_migration_recommendation(asset, score):
 def _qualitative_dhs_criteria(asset, context, score):
     return {
         "asset_value": _qualitative_asset_value_criterion(asset, context, score),
+        "protected_information": _qualitative_protected_information_criterion(asset, context, score),
     }
 
 
@@ -433,6 +434,72 @@ def _qualitative_asset_value_rationale(asset, exposure, criticality, service_rol
         f"{name} is valued by exposure={exposure or 'unknown'}, "
         f"criticality={criticality or 'unknown'}, service_role={service_role or 'unknown'}, "
         f"and target={target}; baseline migration score is {round(score)}."
+    )
+
+
+def _qualitative_protected_information_criterion(asset, context, score):
+    sensitivity = context.get("sensitivity")
+    lifespan = context.get("lifespan_years")
+    service_role = context.get("service_role") or asset.asset_type or "unknown"
+    value_score = 0.18
+    value_score += CONTEXT_LEVELS.get(sensitivity, 0) * 0.2
+    if lifespan is not None:
+        if lifespan >= 10:
+            value_score += 0.12
+        elif lifespan >= 5:
+            value_score += 0.08
+        elif lifespan > 0:
+            value_score += 0.03
+    if _service_role_protects_sensitive_information(service_role):
+        value_score += 0.1
+    if _is_quantum_vulnerable(asset):
+        value_score += 0.05
+    value_score = round(max(0.0, min(1.0, value_score)), 2)
+    signals = _dedupe_values(
+        [
+            f"sensitivity:{sensitivity or 'unknown'}",
+            f"lifespan_years:{lifespan if lifespan is not None else 'unknown'}",
+            f"service_role:{service_role}",
+            f"algorithm_family:{asset.algorithm_family or 'unknown'}",
+        ]
+    )
+    return {
+        "question": "Q2: protected information based on data classification and confidentiality needs.",
+        "rating": _qualitative_rating(value_score),
+        "score": value_score,
+        "data_classification": sensitivity or "unknown",
+        "rationale": _qualitative_protected_information_rationale(asset, sensitivity, lifespan, service_role, score),
+        "signals": signals,
+    }
+
+
+def _service_role_protects_sensitive_information(service_role):
+    value = (service_role or "").lower()
+    return any(
+        token in value
+        for token in [
+            "auth",
+            "backup",
+            "customer",
+            "database",
+            "db",
+            "health",
+            "identity",
+            "kms",
+            "logging",
+            "medical",
+            "payment",
+            "vault",
+        ]
+    )
+
+
+def _qualitative_protected_information_rationale(asset, sensitivity, lifespan, service_role, score):
+    name = asset.name or asset.bom_ref or f"asset {asset.id}"
+    return (
+        f"{name} protects {sensitivity or 'unknown'} classified information for "
+        f"service_role={service_role or 'unknown'} with lifespan_years="
+        f"{lifespan if lifespan is not None else 'unknown'}; baseline migration score is {round(score)}."
     )
 
 

@@ -461,6 +461,14 @@ class Command(BaseCommand):
                     "score": 0.72,
                     "rationale": "Demo assets represent visible business services or supporting cryptographic infrastructure.",
                     "signals": ["demo_testbed", "service_role", "managed_target"],
+                },
+                "protected_information": {
+                    "question": "Q2: protected information based on data classification and confidentiality needs.",
+                    "rating": "high",
+                    "score": 0.74,
+                    "data_classification": "high",
+                    "rationale": "Demo assets model sensitive service identity, application traffic, and stored operational data.",
+                    "signals": ["sensitivity:high", "lifespan_years:demo", "service_role"],
                 }
             },
             confidence=0.78,
