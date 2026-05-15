@@ -1,9 +1,13 @@
-from apps.jobs.models import AsyncJob
+from django.db import transaction
+from django.utils import timezone
+
+from apps.jobs.models import AsyncJob, QueuedTask
 from apps.jobs.services import enqueue_task, serialize_dt
 from apps.risk import services as risk_services
 
 
 CONTEXT_FIELDS = ["sensitivity", "lifespan_years", "criticality", "exposure", "service_role"]
+QUALITATIVE_TASK_NAME = "qualitative_assessment"
 QUANTUM_VULNERABLE_FAMILIES = {"RSA", "DSA", "ECDSA", "ECDH", "DH"}
 CONTEXT_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 EXPOSURE_LEVELS = {"air_gapped": 0, "internal_network": 1, "dmz": 2, "public_internet": 3}
@@ -66,6 +70,64 @@ def create_recompute_job(asset_id: int):
     job.save(update_fields=["resource_id"])
     enqueue_asset_recompute(job)
     return job
+
+
+def enqueue_qualitative_assessment(asset_id: int) -> QueuedTask:
+    return enqueue_task(QUALITATIVE_TASK_NAME, {"asset_id": asset_id})
+
+
+def process_next_qualitative_assessment_task() -> dict | None:
+    task = (
+        QueuedTask.objects.filter(task_name=QUALITATIVE_TASK_NAME, status=QueuedTask.QUEUED, available_at__lte=timezone.now())
+        .order_by("available_at", "id")
+        .first()
+    )
+    if not task:
+        return None
+    return process_qualitative_assessment_task(task.id)
+
+
+def process_qualitative_assessment_task(task_id: int) -> dict:
+    with transaction.atomic():
+        task = QueuedTask.objects.select_for_update().get(id=task_id)
+        if task.status == QueuedTask.CANCELLED:
+            return {}
+        if task.status != QueuedTask.QUEUED:
+            raise ValueError(f"QueuedTask {task.id} is not queued")
+        now = timezone.now()
+        task.status = QueuedTask.RUNNING
+        task.attempts += 1
+        task.locked_at = now
+        task.save(update_fields=["status", "attempts", "locked_at", "updated_at"])
+
+    try:
+        asset_id = int(task.payload["asset_id"])
+        assessment = refresh_qualitative_assessment(asset_id)
+        result = {
+            "asset_id": asset_id,
+            "assessment_id": assessment.id,
+            "provider": assessment.provider,
+        }
+    except Exception as exc:
+        _fail_qualitative_assessment_task(task_id, exc)
+        raise
+
+    _complete_qualitative_assessment_task(task_id, result)
+    return result
+
+
+def refresh_qualitative_assessment(asset_or_id):
+    from apps.assets.models import Asset, QualitativeAssessment
+
+    if isinstance(asset_or_id, Asset):
+        asset = asset_or_id
+    else:
+        asset = Asset.objects.select_related("target").get(id=asset_or_id)
+    assessment, _created = QualitativeAssessment.objects.update_or_create(
+        asset=asset,
+        defaults=generate_qualitative_assessment(asset),
+    )
+    return assessment
 
 
 def generate_qualitative_assessment(asset):
@@ -164,6 +226,22 @@ def _qualitative_confidence(asset, context, risk_score, score):
     if _is_quantum_vulnerable(asset):
         confidence += 0.03
     return round(max(0.35, min(0.95, confidence)), 2)
+
+
+def _complete_qualitative_assessment_task(task_id: int, result: dict) -> None:
+    with transaction.atomic():
+        task = QueuedTask.objects.select_for_update().get(id=task_id)
+        task.status = QueuedTask.COMPLETED
+        task.last_error = None
+        task.save(update_fields=["status", "last_error", "updated_at"])
+
+
+def _fail_qualitative_assessment_task(task_id: int, exc: Exception) -> None:
+    with transaction.atomic():
+        task = QueuedTask.objects.select_for_update().get(id=task_id)
+        task.status = QueuedTask.FAILED
+        task.last_error = str(exc)
+        task.save(update_fields=["status", "last_error", "updated_at"])
 
 
 def serialize_asset_summary(asset, risk_score=None):

@@ -2,6 +2,7 @@ import time
 
 from django.core.management.base import BaseCommand
 
+from apps.assets import services as asset_services
 from apps.discoveries import services as discovery_services
 from apps.jobs import scan_worker
 from apps.risk import services as risk_services
@@ -21,6 +22,7 @@ class Command(BaseCommand):
             ("scan_job", scan_worker.process_next_scan_job_task),
             ("discovery", discovery_services.process_next_discovery_task),
             ("recompute", risk_services.process_next_recompute_task),
+            ("qualitative_assessment", asset_services.process_next_qualitative_assessment_task),
         ]
 
         while True:

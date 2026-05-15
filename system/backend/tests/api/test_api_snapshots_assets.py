@@ -365,3 +365,42 @@ def test_api_ast_006_qualitative_request_uses_asset_context_and_risk(client):
     assert "harvest_now_decrypt_later" in rsa_body["threat_scenarios"]
     assert 0 <= rsa_body["confidence"] <= 1
     assert 0 <= pqc_body["confidence"] <= 1
+
+
+def test_api_ast_007_qualitative_worker_processes_asset_task():
+    from apps.assets import services
+    from apps.assets.models import QualitativeAssessment
+    from apps.jobs.models import QueuedTask
+
+    target = create_target(
+        host="worker-api.testbed.local",
+        context={
+            "sensitivity": "critical",
+            "lifespan_years": 15,
+            "criticality": "critical",
+            "exposure": "public_internet",
+            "service_role": "customer-api",
+        },
+    )
+    asset = create_asset(
+        target=target,
+        name="worker API certificate",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        bom_ref="qualitative:worker:rsa",
+    )
+    task = services.enqueue_qualitative_assessment(asset.id)
+
+    result = services.process_next_qualitative_assessment_task()
+
+    task.refresh_from_db()
+    assessment = QualitativeAssessment.objects.get(asset=asset)
+    assert task.status == QueuedTask.COMPLETED
+    assert task.task_name == "qualitative_assessment"
+    assert result == {
+        "asset_id": asset.id,
+        "assessment_id": assessment.id,
+        "provider": "mock-rulebook",
+    }
+    assert "worker API certificate" in assessment.summary
+    assert "harvest_now_decrypt_later" in assessment.threat_scenarios

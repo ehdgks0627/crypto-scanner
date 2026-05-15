@@ -5,7 +5,7 @@ from ninja import Router
 from pydantic import Field
 
 from apps.assets import services
-from apps.assets.models import Asset, AssetContextOverride, QualitativeAssessment
+from apps.assets.models import Asset, AssetContextOverride
 from apps.core.errors import error_response
 from apps.core.schemas import StrictSchema
 
@@ -72,8 +72,5 @@ def request_qualitative_assessment(request, asset_id: int):
         asset = Asset.objects.select_related("target").get(id=asset_id)
     except Asset.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
-    assessment, _created = QualitativeAssessment.objects.update_or_create(
-        asset=asset,
-        defaults=services.generate_qualitative_assessment(asset),
-    )
+    assessment = services.refresh_qualitative_assessment(asset)
     return services.serialize_qualitative(assessment)

@@ -750,6 +750,8 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 
 응답 (200): QualitativeAssessment 객체. 동일 Asset에는 QualitativeAssessment를 1개만 유지하며 재요청 시 기존 레코드를 갱신해 반환한다.
 
+백그라운드 실행이 필요한 경우 동일 생성 로직을 `qualitative_assessment` 큐 작업으로 실행할 수 있다. `process_queued_jobs` worker는 `scan_job`, `discovery`, `recompute`와 함께 `qualitative_assessment` 작업을 폴링한다.
+
 ## 8.9 Risk
 
 ### 8.9.1 `GET /api/snapshots/{sid}/risks`
