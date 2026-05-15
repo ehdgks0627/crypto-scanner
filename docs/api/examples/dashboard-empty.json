@@ -8,6 +8,15 @@
     "safe": 0,
     "unknown": 0
   },
+  "kpis": {
+    "discovered_crypto_assets_per_scan": {
+      "value": 0,
+      "unit": "assets",
+      "source": "cbom_snapshot",
+      "snapshot_id": null,
+      "scan_job_id": null
+    }
+  },
   "recent_jobs": [],
   "agents_status": {
     "total": 0,

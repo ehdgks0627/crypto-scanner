@@ -3877,6 +3877,7 @@ components:
         - by_asset_type
         - by_algorithm_family
         - quantum_vulnerable_ratio
+        - kpis
         - recent_jobs
         - agents_status
         - trend
@@ -3908,6 +3909,8 @@ components:
               type: integer
             unknown:
               type: integer
+        kpis:
+          $ref: '#/components/schemas/DashboardKpis'
         recent_jobs:
           type: array
           items:
@@ -3937,6 +3940,31 @@ components:
                 type: integer
               total_count:
                 type: integer
+
+    DashboardKpis:
+      type: object
+      required: [discovered_crypto_assets_per_scan]
+      properties:
+        discovered_crypto_assets_per_scan:
+          $ref: '#/components/schemas/DashboardKpiMetric'
+
+    DashboardKpiMetric:
+      type: object
+      required: [value, unit, source, snapshot_id, scan_job_id]
+      properties:
+        value:
+          type: integer
+          minimum: 0
+        unit:
+          type: string
+        source:
+          type: string
+        snapshot_id:
+          type: integer
+          nullable: true
+        scan_job_id:
+          type: integer
+          nullable: true
 
     DemoSeedRequest:
       type: object

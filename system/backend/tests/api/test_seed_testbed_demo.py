@@ -31,6 +31,8 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     body = response.json()
     assert body["snapshot"]["id"] == latest.id
     assert body["snapshot"]["asset_count"] == len(LATEST_ASSETS)
+    assert body["kpis"]["discovered_crypto_assets_per_scan"]["value"] == len(LATEST_ASSETS)
+    assert body["kpis"]["discovered_crypto_assets_per_scan"]["scan_job_id"] == latest.scan_job_id
     assert body["by_tier"]["CRITICAL"] == 18
     assert body["by_tier"]["HIGH"] == 31
     assert body["quantum_vulnerable_ratio"]["vulnerable"] == 52

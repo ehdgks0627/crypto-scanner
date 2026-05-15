@@ -21,6 +21,7 @@ describe("DashboardView", () => {
       by_asset_type: {},
       by_algorithm_family: {},
       quantum_vulnerable_ratio: { vulnerable: 0, safe: 0, unknown: 0 },
+      kpis: { discovered_crypto_assets_per_scan: { value: 0, unit: "assets", source: "cbom_snapshot", snapshot_id: null, scan_job_id: null } },
       recent_jobs: [],
       agents_status: { total: 0, active: 0, stale: 0 },
       trend: []
@@ -44,6 +45,7 @@ describe("DashboardView", () => {
       by_asset_type: {},
       by_algorithm_family: {},
       quantum_vulnerable_ratio: { vulnerable: 0, safe: 0, unknown: 0 },
+      kpis: { discovered_crypto_assets_per_scan: { value: 0, unit: "assets", source: "cbom_snapshot", snapshot_id: null, scan_job_id: null } },
       recent_jobs: [],
       agents_status: { total: 0, active: 0, stale: 0 },
       trend: []
@@ -84,6 +86,15 @@ describe("DashboardView", () => {
       by_asset_type: { certificate: 12 },
       by_algorithm_family: { RSA: 8 },
       quantum_vulnerable_ratio: { vulnerable: snapshotId === 2 ? 5 : 0, safe: 7, unknown: 0 },
+      kpis: {
+        discovered_crypto_assets_per_scan: {
+          value: snapshotId === 2 ? 12 : 0,
+          unit: "assets",
+          source: "cbom_snapshot",
+          snapshot_id: snapshotId ?? 1,
+          scan_job_id: 44
+        }
+      },
       recent_jobs: [],
       agents_status: { total: 2, active: 1, stale: 1 },
       trend: [{ snapshot_id: snapshotId ?? 1, created_at: "2026-04-29T00:00:00Z", critical_count: 3, total_count: 12 }]
@@ -148,7 +159,9 @@ describe("DashboardView", () => {
     renderWithApp(<DashboardView />);
 
     await waitFor(() => expect(summarySpy).toHaveBeenCalledWith(2));
-    expect(await screen.findByText("12")).toBeInTheDocument();
+    expect(await screen.findByText("스캔당 발견 자산")).toBeInTheDocument();
+    expect(screen.getByText("스캔 #44")).toBeInTheDocument();
+    expect((await screen.findAllByText("12")).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
     expect(await screen.findByText("네트워크 암호 노출 현황")).toBeInTheDocument();

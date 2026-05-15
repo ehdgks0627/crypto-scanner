@@ -41,3 +41,4 @@ def test_pr_openapi_002_recent_contract_schema_fields_are_declared():
     assert "CbomDiffRegression:" in text
     assert "/dashboard/demo-seed:" in text
     assert "DemoSeedResult:" in text
+    assert "DashboardKpis:" in text

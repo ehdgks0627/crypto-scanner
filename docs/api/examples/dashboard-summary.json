@@ -36,6 +36,15 @@
     "safe": 50,
     "unknown": 17
   },
+  "kpis": {
+    "discovered_crypto_assets_per_scan": {
+      "value": 142,
+      "unit": "assets",
+      "source": "cbom_snapshot",
+      "snapshot_id": 56,
+      "scan_job_id": 123
+    }
+  },
   "recent_jobs": [
     {
       "id": 123,

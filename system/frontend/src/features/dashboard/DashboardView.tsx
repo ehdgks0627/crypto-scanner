@@ -147,6 +147,7 @@ export function DashboardView() {
   }
 
   const dashboardSnapshot = summary.data.snapshot;
+  const discoveredAssetsKpi = summary.data.kpis.discovered_crypto_assets_per_scan;
 
   return (
     <Section>
@@ -164,6 +165,12 @@ export function DashboardView() {
       />
 
       <div className="content-grid content-grid--4">
+        <MetricCard
+          label="스캔당 발견 자산"
+          value={formatNumber(discoveredAssetsKpi.value)}
+          meta={discoveredAssetsKpi.scan_job_id ? `스캔 #${discoveredAssetsKpi.scan_job_id}` : "스냅샷 기준"}
+          onClick={() => navigate("/snapshots")}
+        />
         <MetricCard label="자산수" value={formatNumber(dashboardSnapshot.asset_count)} onClick={() => navigate("/snapshots")} />
         <MetricCard
           label="치명 위험"

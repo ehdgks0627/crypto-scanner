@@ -1644,6 +1644,7 @@ export interface components {
                 safe: number;
                 unknown: number;
             };
+            kpis: components["schemas"]["DashboardKpis"];
             recent_jobs: components["schemas"]["JobEnvelope"][];
             agents_status: {
                 total: number;
@@ -1657,6 +1658,16 @@ export interface components {
                 critical_count: number;
                 total_count: number;
             }[];
+        };
+        DashboardKpis: {
+            discovered_crypto_assets_per_scan: components["schemas"]["DashboardKpiMetric"];
+        };
+        DashboardKpiMetric: {
+            value: number;
+            unit: string;
+            source: string;
+            snapshot_id: number | null;
+            scan_job_id: number | null;
         };
         DemoSeedRequest: {
             /**
