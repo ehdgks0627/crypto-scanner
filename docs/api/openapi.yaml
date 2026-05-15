@@ -2450,6 +2450,10 @@ components:
           maximum: 100
         tier:
           $ref: '#/components/schemas/RiskTier'
+        dhs_risk:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DhsRiskResult'
 
     AssetListItem:
       type: object

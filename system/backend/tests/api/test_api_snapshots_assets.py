@@ -113,7 +113,23 @@ def test_api_snp_004_diff_snapshots_returns_summary(client):
 def test_api_ast_001_list_assets_with_filters_and_risk(client):
     snapshot = create_snapshot()
     cert = create_asset(snapshot=snapshot, asset_type="certificate", name="critical cert")
-    create_risk_score(cert, score=95.0, tier="CRITICAL")
+    create_risk_score(
+        cert,
+        score=95.0,
+        tier="CRITICAL",
+        factors={
+            "A": 0.95,
+            "dhs_risk": {
+                "score_10": 8.2,
+                "priority": "P1",
+                "weighted_raw": 0.82,
+                "weights": {"protection_duration": 1.6},
+                "criteria": {},
+                "missing_criteria": [],
+                "engine_version": "dhs-risk-v1",
+            },
+        },
+    )
     low = create_asset(snapshot=snapshot, asset_type="certificate", name="low cert")
     create_risk_score(low, score=20.0, tier="LOW")
 
@@ -127,6 +143,8 @@ def test_api_ast_001_list_assets_with_filters_and_risk(client):
     item = body["items"][0]
     assert item["asset_type"] == "certificate"
     assert item["risk"]["tier"] == "CRITICAL"
+    assert item["risk"]["dhs_risk"]["score_10"] == 8.2
+    assert item["risk"]["dhs_risk"]["priority"] == "P1"
     assert item["snapshot_id"] == snapshot.id
     assert item["bom_ref"] == cert.bom_ref
     assert item["target_label"]

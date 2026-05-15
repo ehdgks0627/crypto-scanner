@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
 import type { RiskWeightsInput, Schema } from "../../api/types";
-import { RiskTierBadge } from "../../components/common/Badges";
+import { DhsPriorityBadge, RiskTierBadge } from "../../components/common/Badges";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { Button } from "../../components/ui/button";
@@ -18,7 +18,7 @@ import { assetTypeLabel, riskTierLabel, statusLabel } from "../../domain/display
 import { parseRiskTierParam, riskTierOptions } from "../../domain/filterOptions";
 import { isActiveJobStatus } from "../../domain/jobStatus";
 import { areRiskWeightsValid, updateRiskWeight } from "../../domain/riskWeights";
-import { formatDateTime, formatScore } from "../../lib/format";
+import { formatDateTime, formatOptionalScore, formatScore } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import { RiskFormulaHelp, riskWeightLabel } from "./RiskFormulaHelp";
 
@@ -213,6 +213,8 @@ function RiskTable({ risks, onAssetClick }: { risks: Schema<"RiskScore">[]; onAs
         { key: "type", header: "타입", render: (risk) => assetTypeLabel(risk.asset_type) },
         { key: "score", header: "점수", render: (risk) => formatScore(risk.score) },
         { key: "tier", header: "등급", render: (risk) => <RiskTierBadge tier={risk.tier} /> },
+        { key: "dhs-score", header: "DHS 점수", render: (risk) => formatOptionalScore(risk.dhs_risk?.score_10), align: "right" },
+        { key: "dhs-priority", header: "우선순위", render: (risk) => <DhsPriorityBadge priority={risk.dhs_risk?.priority} /> },
         { key: "factor-a", header: "A 계수", render: (risk) => formatFactor(risk.factors.a), align: "right" },
         { key: "factor-d", header: "D 계수", render: (risk) => formatFactor(risk.factors.d), align: "right" },
         { key: "factor-e", header: "E 계수", render: (risk) => formatFactor(risk.factors.e), align: "right" },

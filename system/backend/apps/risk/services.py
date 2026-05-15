@@ -29,6 +29,14 @@ def serialize_risk_score(risk_score):
     }
 
 
+def serialize_asset_risk_summary(risk_score):
+    return {
+        "score": round(risk_score.score),
+        "tier": risk_score.tier,
+        "dhs_risk": _serialized_dhs_risk(risk_score),
+    }
+
+
 def normalize_factors(factors):
     source = factors or {}
     return {

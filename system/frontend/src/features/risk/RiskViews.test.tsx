@@ -22,7 +22,15 @@ const riskScore = {
   score: 95,
   tier: "CRITICAL",
   factors: { a: 0.95, d: 1, e: 1, l: 1, c: 1 },
-  dhs_risk: null,
+  dhs_risk: {
+    score_10: 8.2,
+    priority: "P1",
+    weighted_raw: 0.82,
+    weights: { protection_duration: 1.6 },
+    criteria: {},
+    missing_criteria: [],
+    engine_version: "dhs-risk-v1"
+  },
   computed_at: "2026-04-30T00:00:00Z"
 } satisfies Schema<"RiskScore">;
 
@@ -48,6 +56,10 @@ describe("RiskAssessmentView", () => {
     for (const header of ["A", "D", "E", "L", "C"]) {
       expect(screen.getAllByRole("columnheader", { name: `${header} 계수` }).length).toBeGreaterThanOrEqual(1);
     }
+    expect(screen.getAllByRole("columnheader", { name: "DHS 점수" }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("columnheader", { name: "우선순위" }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("8.2").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("P1").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("0.95").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("1.00").length).toBeGreaterThanOrEqual(1);
   });

@@ -1045,6 +1045,7 @@ export interface components {
         AssetRiskSummary: {
             score: number;
             tier: components["schemas"]["RiskTier"];
+            dhs_risk?: components["schemas"]["DhsRiskResult"] | null;
         };
         AssetListItem: {
             id: number;

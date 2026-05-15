@@ -848,7 +848,7 @@ def _fail_qualitative_assessment_task(task_id: int, exc: Exception) -> None:
 def serialize_asset_summary(asset, risk_score=None):
     risk = None
     if risk_score:
-        risk = {"score": round(risk_score.score), "tier": risk_score.tier}
+        risk = risk_services.serialize_asset_risk_summary(risk_score)
     return {
         "id": asset.id,
         "snapshot_id": asset.snapshot_id,

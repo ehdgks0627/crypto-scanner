@@ -15,6 +15,7 @@ export type QueryParams = Record<
 >;
 
 export type RiskTier = Schema<"RiskTier">;
+export type DhsPriority = Schema<"DhsRiskResult">["priority"];
 export type AssetType = Schema<"AssetType">;
 export type JobStatus = Schema<"JobStatus">;
 export type JobKind = Schema<"JobKind">;

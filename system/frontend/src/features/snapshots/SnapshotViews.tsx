@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
 import type { Schema } from "../../api/types";
-import { RiskTierBadge } from "../../components/common/Badges";
+import { DhsPriorityBadge, RiskTierBadge } from "../../components/common/Badges";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { MetricCard } from "../../components/charts/MetricCard";
@@ -29,7 +29,7 @@ import {
 } from "../../domain/displayLabels";
 import { parseRiskTierParam, riskTierOptions } from "../../domain/filterOptions";
 import { isTerminalJobStatus } from "../../domain/jobStatus";
-import { formatDateTime, formatScore } from "../../lib/format";
+import { formatDateTime, formatOptionalScore, formatScore } from "../../lib/format";
 import { downloadJson } from "../../lib/download";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import {
@@ -159,7 +159,9 @@ function SnapshotAssetsView({ id, snapshotHint }: { id: number; snapshotHint?: S
                 { key: "type", header: "타입", render: (asset) => assetTypeLabel(asset.asset_type) },
                 { key: "target", header: "스캔 대상", render: (asset) => asset.target_label ?? (asset.target_id ? `#${asset.target_id}` : "-") },
                 { key: "score", header: "점수", render: (asset) => formatScore(asset.risk?.score) },
-                { key: "tier", header: "등급", render: (asset) => <RiskTierBadge tier={asset.risk?.tier} /> }
+                { key: "tier", header: "등급", render: (asset) => <RiskTierBadge tier={asset.risk?.tier} /> },
+                { key: "dhs-score", header: "DHS 점수", render: (asset) => formatOptionalScore(asset.risk?.dhs_risk?.score_10), align: "right" },
+                { key: "dhs-priority", header: "우선순위", render: (asset) => <DhsPriorityBadge priority={asset.risk?.dhs_risk?.priority} /> }
               ]}
             />
           ) : null}

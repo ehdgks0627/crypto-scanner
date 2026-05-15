@@ -25,3 +25,7 @@ export function formatNumber(value?: number | null): string {
 export function formatScore(value?: number | null): string {
   return (value ?? 0).toFixed(1);
 }
+
+export function formatOptionalScore(value?: number | null): string {
+  return value == null ? "-" : value.toFixed(1);
+}

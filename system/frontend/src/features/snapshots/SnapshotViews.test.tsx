@@ -41,7 +41,19 @@ const assets = {
       target_id: 10,
       target_label: "web.testbed.local:443",
       summary: { algorithm: "RSA-2048", algorithm_family: "RSA" },
-      risk: { score: 92, tier: "CRITICAL" }
+      risk: {
+        score: 92,
+        tier: "CRITICAL",
+        dhs_risk: {
+          score_10: 8.2,
+          priority: "P1",
+          weighted_raw: 0.82,
+          weights: { protection_duration: 1.6 },
+          criteria: {},
+          missing_criteria: [],
+          engine_version: "dhs-risk-v1"
+        }
+      }
     }
   ],
   total: 1,
@@ -66,6 +78,10 @@ describe("SnapshotsView", () => {
 
     expect(await screen.findByText("web.testbed.local TLS leaf certificate")).toBeInTheDocument();
     expect(assetsSpy).toHaveBeenCalledWith(2, expect.objectContaining({ sort: "-risk_score" }));
+    expect(screen.getByRole("columnheader", { name: "DHS 점수" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "우선순위" })).toBeInTheDocument();
+    expect(screen.getByText("8.2")).toBeInTheDocument();
+    expect(screen.getByText("P1")).toBeInTheDocument();
     expect(screen.queryByText("Serial")).not.toBeInTheDocument();
   });
 

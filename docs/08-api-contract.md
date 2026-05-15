@@ -611,7 +611,23 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
       },
       "risk": {
         "score": 84,
-        "tier": "CRITICAL"
+        "tier": "CRITICAL",
+        "dhs_risk": {
+          "score_10": 8.2,
+          "priority": "P1",
+          "weighted_raw": 0.82,
+          "weights": {
+            "asset_value": 1.0,
+            "protected_information": 1.1,
+            "communication_scope": 1.0,
+            "sharing_level": 0.8,
+            "critical_infrastructure": 1.2,
+            "protection_duration": 1.6
+          },
+          "criteria": {},
+          "missing_criteria": [],
+          "engine_version": "dhs-risk-v1"
+        }
       }
     }
   ],
