@@ -81,6 +81,20 @@ def test_api_snp_003_export_snapshot_returns_cbom_download(client):
     assert component["type"] == "crypto-asset"
     assert component["cryptoProperties"] == {"assetType": "certificate", "algorithm": "RSA-2048", "algorithmFamily": "RSA"}
     assert {"name": "risk.tier", "value": "CRITICAL"} in component["properties"]
+    assert {"name": "migration.asset_purpose", "value": "digital_signature"} in component["properties"]
+    assert {"name": "migration.strategy", "value": "hybrid"} in component["properties"]
+    assert {"name": "migration.target_algorithm", "value": "RSA-2048 + ML-DSA-65"} in component["properties"]
+    assert {"name": "migration_plan.attached", "value": "true"} in body["metadata"]["properties"]
+    assert {"name": "migration_plan.item_count", "value": "1"} in body["metadata"]["properties"]
+    annotation = body["annotations"][0]
+    assert annotation["bom-ref"] == f"migration-plan:snapshot:{snapshot.id}"
+    assert annotation["subjects"] == ["cert:web"]
+    item_payload = next(item["value"] for item in annotation["properties"] if item["name"] == "migration_plan.items")
+    plan_items = json.loads(item_payload)
+    assert plan_items[0]["bom_ref"] == "cert:web"
+    assert plan_items[0]["asset_purpose"] == "digital_signature"
+    assert plan_items[0]["strategy"] == "hybrid"
+    assert plan_items[0]["target_algorithm"] == "RSA-2048 + ML-DSA-65"
     assert body["dependencies"] == [{"ref": "cert:web", "dependsOn": ["alg:rsa"]}]
 
 

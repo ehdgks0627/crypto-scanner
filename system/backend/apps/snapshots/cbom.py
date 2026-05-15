@@ -1,12 +1,20 @@
 import json
 
 from apps.jobs.services import serialize_dt
+from apps.snapshots.migration_plan import snapshot_migration_plan_items
 
 
 def build_cbom_document(snapshot):
     assets = list(snapshot.assets.select_related("target").prefetch_related("risk_scores").order_by("id"))
-    dependencies = list(snapshot.asset_dependencies.select_related("source_asset", "target_asset").order_by("source_asset__bom_ref", "target_asset__bom_ref"))
-    return {
+    dependencies = list(
+        snapshot.asset_dependencies.select_related("source_asset", "target_asset").order_by(
+            "source_asset__bom_ref",
+            "target_asset__bom_ref",
+        )
+    )
+    migration_plan = snapshot_migration_plan_items(snapshot)
+    migration_by_asset_id = {item["asset_id"]: item for item in migration_plan}
+    document = {
         "bomFormat": "CycloneDX",
         "specVersion": "1.6",
         "serialNumber": snapshot.serial_number,
@@ -18,14 +26,18 @@ def build_cbom_document(snapshot):
                 "name": "PQC Risk Assessment System",
                 "version": "0.1.0",
             },
-            "properties": _metadata_properties(snapshot, assets),
+            "properties": _metadata_properties(snapshot, assets, migration_plan),
         },
-        "components": [_component(asset) for asset in assets],
+        "components": [_component(asset, migration_by_asset_id.get(asset.id)) for asset in assets],
         "dependencies": _dependency_rows(assets, dependencies),
     }
+    annotations = _migration_plan_annotations(snapshot, assets, migration_plan)
+    if annotations:
+        document["annotations"] = annotations
+    return document
 
 
-def _metadata_properties(snapshot, assets):
+def _metadata_properties(snapshot, assets, migration_plan):
     properties = [
         {"name": "internal:snapshot_id", "value": str(snapshot.id)},
     ]
@@ -34,10 +46,17 @@ def _metadata_properties(snapshot, assets):
     targets = sorted({f"{asset.target.host}:{asset.target.port}" for asset in assets if asset.target})
     if targets:
         properties.append({"name": "internal:targets", "value": json.dumps(targets)})
+    if migration_plan:
+        properties.extend(
+            [
+                {"name": "migration_plan.attached", "value": "true"},
+                {"name": "migration_plan.item_count", "value": str(len(migration_plan))},
+            ]
+        )
     return properties
 
 
-def _component(asset):
+def _component(asset, migration_plan_item=None):
     risk_score = asset.risk_scores.order_by("-id").first()
     properties = [
         {"name": "internal:target_id", "value": str(asset.target_id)} if asset.target_id else None,
@@ -52,6 +71,8 @@ def _component(asset):
                 {"name": "risk.score", "value": str(round(risk_score.score))},
             ]
         )
+    if migration_plan_item:
+        properties.extend(_migration_plan_component_properties(migration_plan_item))
     return {
         "type": _component_type(asset),
         "bom-ref": asset.bom_ref,
@@ -62,6 +83,80 @@ def _component(asset):
             "algorithmFamily": asset.algorithm_family,
         },
         "properties": [property_item for property_item in properties if property_item],
+    }
+
+
+def _migration_plan_component_properties(item):
+    recommendation = item["recommendation"]
+    return [
+        {"name": "migration.asset_purpose", "value": item["asset_purpose"]},
+        {"name": "migration.strategy", "value": recommendation["strategy"]},
+        {"name": "migration.target_algorithm", "value": recommendation["target_algorithm"]},
+        {
+            "name": "migration.target_algorithm_set",
+            "value": json.dumps(recommendation["target_algorithm_set"], sort_keys=True),
+        },
+        {
+            "name": "migration.final_algorithm_set",
+            "value": json.dumps(recommendation["final_algorithm_set"], sort_keys=True),
+        },
+        {"name": "migration.phase", "value": recommendation["phase"]},
+        {"name": "migration.agility_level", "value": item["agility"]["level"]},
+    ]
+
+
+def _migration_plan_annotations(snapshot, assets, migration_plan):
+    if not migration_plan:
+        return []
+    assets_by_id = {asset.id: asset for asset in assets}
+    items = [_migration_plan_attachment_item(item, assets_by_id.get(item["asset_id"])) for item in migration_plan]
+    subjects = [item["bom_ref"] for item in items if item["bom_ref"]]
+    return [
+        {
+            "bom-ref": f"migration-plan:snapshot:{snapshot.id}",
+            "subjects": subjects,
+            "annotator": {
+                "component": {
+                    "type": "application",
+                    "name": "PQC Risk Assessment System",
+                    "version": "0.1.0",
+                }
+            },
+            "timestamp": serialize_dt(snapshot.created_at),
+            "text": "PQC migration plan generated from snapshot risk scores.",
+            "properties": [
+                {"name": "attachment.type", "value": "pqc_migration_plan"},
+                {"name": "attachment.format", "value": "application/json"},
+                {"name": "migration_plan.item_count", "value": str(len(items))},
+                {"name": "migration_plan.items", "value": json.dumps(items, sort_keys=True)},
+            ],
+        }
+    ]
+
+
+def _migration_plan_attachment_item(item, asset):
+    recommendation = item["recommendation"]
+    current = item["current"]
+    agility = item["agility"]
+    return {
+        "asset_id": item["asset_id"],
+        "bom_ref": asset.bom_ref if asset else None,
+        "asset_name": item["asset_name"],
+        "asset_type": item["asset_type"],
+        "asset_purpose": item["asset_purpose"],
+        "risk_score": item["risk_score"],
+        "tier": item["tier"],
+        "current_algorithm": current["algorithm"],
+        "quantum_vulnerable": current["quantum_vulnerable"],
+        "strategy": recommendation["strategy"],
+        "target_algorithm": recommendation["target_algorithm"],
+        "target_algorithm_set": recommendation["target_algorithm_set"],
+        "final_algorithm_set": recommendation["final_algorithm_set"],
+        "phase": recommendation["phase"],
+        "blockers": recommendation["blockers"],
+        "validation": recommendation["validation"],
+        "agility_level": agility["level"],
+        "agility_score": agility["score"],
     }
 
 
