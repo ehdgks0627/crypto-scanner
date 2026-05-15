@@ -359,6 +359,41 @@ def test_api_job_005e_scan_worker_merges_network_and_host_certificate_by_fingerp
     assert asset.metadata["source_paths"] == ["/etc/nginx/ssl/server.crt"]
 
 
+def test_api_job_005f_agent_app_config_maps_tls_policy_metadata():
+    from apps.jobs.agent_asset_mapper import map_agent_findings
+
+    target = create_target(host="web.testbed.local", port=443, protocol_hint="TLS")
+    candidates = map_agent_findings(
+        target,
+        [
+            {
+                "type": "tls_config",
+                "path": "/etc/nginx/nginx.conf",
+                "tls_versions": ["TLSv1.2", "TLSv1.3"],
+                "disabled_protocols": ["SSLv3"],
+                "cipher_suites": ["ECDHE-RSA-AES256-GCM-SHA384"],
+                "certificate_paths": ["/etc/nginx/ssl/server.crt"],
+                "private_key_paths": ["/etc/nginx/ssl/server.key"],
+                "referenced_by": ["/etc/nginx/ssl/server.key"],
+                "minimum_tls_version": "TLSv1.2",
+            }
+        ],
+        {"agent.app_config"},
+    )
+
+    assert [candidate.algorithm for candidate in candidates] == [
+        "TLSv1.2",
+        "TLSv1.3",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+    ]
+    assert candidates[0].asset_type == "protocol"
+    assert candidates[0].metadata["tls_versions"] == ["TLSv1.2", "TLSv1.3"]
+    assert candidates[0].metadata["disabled_protocols"] == ["SSLv3"]
+    assert candidates[0].metadata["cipher_suites"] == ["ECDHE-RSA-AES256-GCM-SHA384"]
+    assert candidates[0].metadata["certificate_paths"] == ["/etc/nginx/ssl/server.crt"]
+    assert candidates[0].metadata["private_key_paths"] == ["/etc/nginx/ssl/server.key"]
+
+
 def test_api_job_006_failed_job_returns_error_and_finished_at(client):
     finished_at = timezone.now()
     job = create_async_job(

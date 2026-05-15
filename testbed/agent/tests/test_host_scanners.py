@@ -56,6 +56,87 @@ class HostScannerTests(unittest.TestCase):
             self.assertEqual(result["findings"][0]["type"], "jwt_signing_key")
             self.assertEqual(result["findings"][0]["algorithms"], ["RSA-2048"])
 
+    def test_app_config_scanner_extracts_nginx_tls_policy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "nginx.conf"
+            path.write_text(
+                "\n".join(
+                    [
+                        "ssl_protocols TLSv1.2 TLSv1.3;",
+                        "ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256;",
+                        "ssl_certificate /etc/nginx/ssl/server.crt;",
+                        "ssl_certificate_key /etc/nginx/ssl/server.key;",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            os.environ["AGENT_CAPABILITIES"] = "agent.app_config"
+            os.environ["AGENT_APP_CONFIG_PATHS"] = str(path)
+
+            result = run_host_scan(["agent.app_config"], {})
+
+            self.assertEqual(result["errors"], [])
+            finding = result["findings"][0]
+            self.assertEqual(finding["type"], "tls_config")
+            self.assertEqual(finding["tls_versions"], ["TLSv1.2", "TLSv1.3"])
+            self.assertEqual(finding["cipher_suites"], ["ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-ECDSA-AES128-GCM-SHA256"])
+            self.assertEqual(finding["certificate_paths"], ["/etc/nginx/ssl/server.crt"])
+            self.assertEqual(finding["private_key_paths"], ["/etc/nginx/ssl/server.key"])
+            self.assertEqual(finding["referenced_by"], ["/etc/nginx/ssl/server.key"])
+
+    def test_app_config_scanner_extracts_postfix_tls_policy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "main.cf"
+            path.write_text(
+                "\n".join(
+                    [
+                        "smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3, !TLSv1, TLSv1.2 TLSv1.3",
+                        "smtpd_tls_mandatory_ciphers = high",
+                        "smtpd_tls_cert_file = /etc/postfix/server.crt",
+                        "smtpd_tls_key_file = /etc/postfix/server.key",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            os.environ["AGENT_CAPABILITIES"] = "agent.app_config"
+            os.environ["AGENT_APP_CONFIG_PATHS"] = str(path)
+
+            result = run_host_scan(["agent.app_config"], {})
+
+            self.assertEqual(result["errors"], [])
+            finding = result["findings"][0]
+            self.assertEqual(finding["tls_versions"], ["TLSv1.2", "TLSv1.3"])
+            self.assertEqual(finding["disabled_protocols"], ["SSLv2", "SSLv3", "TLSv1"])
+            self.assertEqual(finding["cipher_suites"], ["high"])
+            self.assertEqual(finding["certificate_paths"], ["/etc/postfix/server.crt"])
+            self.assertEqual(finding["private_key_paths"], ["/etc/postfix/server.key"])
+
+    def test_app_config_scanner_extracts_apache_tls_policy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "apache2.conf"
+            path.write_text(
+                "\n".join(
+                    [
+                        "SSLProtocol -all +TLSv1.2 +TLSv1.3",
+                        "SSLCipherSuite HIGH:!aNULL:!MD5",
+                        "SSLCertificateFile /etc/apache2/server.crt",
+                        "SSLCertificateKeyFile /etc/apache2/server.key",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            os.environ["AGENT_CAPABILITIES"] = "agent.app_config"
+            os.environ["AGENT_APP_CONFIG_PATHS"] = str(path)
+
+            result = run_host_scan(["agent.app_config"], {})
+
+            self.assertEqual(result["errors"], [])
+            finding = result["findings"][0]
+            self.assertEqual(finding["tls_versions"], ["TLSv1.2", "TLSv1.3"])
+            self.assertEqual(finding["cipher_suites"], ["HIGH", "!aNULL", "!MD5"])
+            self.assertEqual(finding["certificate_paths"], ["/etc/apache2/server.crt"])
+            self.assertEqual(finding["private_key_paths"], ["/etc/apache2/server.key"])
+
     def test_keystore_scanner_extracts_metadata_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "server.jks"

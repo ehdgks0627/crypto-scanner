@@ -250,6 +250,95 @@ def extract_key_references_from_config(path: Path) -> list[str]:
     return _dedupe(references)
 
 
+def parse_tls_config_policy(path: Path) -> dict:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return {}
+
+    policy = {}
+    tls_versions = []
+    disabled_protocols = []
+    cipher_suites = []
+    certificate_paths = []
+    private_key_paths = []
+
+    for raw_line in lines:
+        directive = _parse_config_directive(raw_line)
+        if not directive:
+            continue
+        key, value = directive
+        lower_key = key.lower()
+        policy[lower_key] = value
+
+        if lower_key in {
+            "ssl_protocols",
+            "sslprotocol",
+            "ssl_protocol",
+            "ssl_min_protocol_version",
+            "ssl_max_protocol_version",
+            "minimum_tls_version",
+            "tls_versions",
+            "smtpd_tls_protocols",
+            "smtp_tls_protocols",
+            "smtpd_tls_mandatory_protocols",
+            "smtp_tls_mandatory_protocols",
+        }:
+            enabled, disabled = _extract_tls_protocols(value)
+            tls_versions.extend(enabled)
+            disabled_protocols.extend(disabled)
+        elif lower_key in {
+            "ssl_ciphers",
+            "sslciphersuite",
+            "ssl_cipher_suite",
+            "cipher_suites",
+            "smtpd_tls_ciphers",
+            "smtp_tls_ciphers",
+            "smtpd_tls_mandatory_ciphers",
+            "smtp_tls_mandatory_ciphers",
+        }:
+            cipher_suites.extend(_split_cipher_suites(value))
+        elif lower_key in {
+            "ssl_certificate",
+            "sslcertificatefile",
+            "ssl_cert_file",
+            "smtpd_tls_cert_file",
+            "smtp_tls_cert_file",
+            "tls_cert_file",
+            "certfile",
+            "cert_file",
+            "certificate",
+        }:
+            certificate_paths.append(value)
+        elif lower_key in {
+            "ssl_certificate_key",
+            "sslcertificatekeyfile",
+            "ssl_key_file",
+            "smtpd_tls_key_file",
+            "smtp_tls_key_file",
+            "tls_key_file",
+            "keyfile",
+            "key_file",
+            "private_key",
+        }:
+            private_key_paths.append(value)
+
+    result = {}
+    if policy:
+        result["policy"] = policy
+    if tls_versions:
+        result["tls_versions"] = _dedupe(tls_versions)
+    if disabled_protocols:
+        result["disabled_protocols"] = _dedupe(disabled_protocols)
+    if cipher_suites:
+        result["cipher_suites"] = _dedupe(cipher_suites)
+    if certificate_paths:
+        result["certificate_paths"] = _dedupe(certificate_paths)
+    if private_key_paths:
+        result["private_key_paths"] = _dedupe(private_key_paths)
+    return result
+
+
 def parse_jwks_algorithms(path: Path) -> list[str]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -356,6 +445,65 @@ def _dedupe(values: list[str]) -> list[str]:
         seen.add(value)
         result.append(value)
     return result
+
+
+def _parse_config_directive(line: str) -> tuple[str, str] | None:
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#"):
+        return None
+    if "#" in stripped:
+        stripped = stripped.split("#", 1)[0].strip()
+    stripped = stripped.rstrip(";").strip()
+    if not stripped:
+        return None
+    if "=" in stripped:
+        key, value = stripped.split("=", 1)
+    elif ":" in stripped and re.match(r"^[A-Za-z0-9_.-]+\s*:", stripped):
+        key, value = stripped.split(":", 1)
+    else:
+        parts = re.split(r"\s+", stripped, maxsplit=1)
+        if len(parts) != 2:
+            return None
+        key, value = parts
+    return key.strip(), value.strip().strip("'\"")
+
+
+def _extract_tls_protocols(value: str) -> tuple[list[str], list[str]]:
+    enabled = []
+    disabled = []
+    for token in re.split(r"[\s,]+", value):
+        token = token.strip().strip("'\";")
+        if not token:
+            continue
+        is_disabled = token.startswith(("!", "-"))
+        protocol = token.lstrip("!+-")
+        normalized = _normalize_tls_protocol(protocol)
+        if not normalized:
+            continue
+        if is_disabled:
+            disabled.append(normalized)
+        else:
+            enabled.append(normalized)
+    return enabled, disabled
+
+
+def _split_cipher_suites(value: str) -> list[str]:
+    return [item for item in (token.strip().strip("'\";") for token in re.split(r"[\s,:]+", value)) if item]
+
+
+def _normalize_tls_protocol(value: str) -> str | None:
+    normalized = value.strip().upper().replace("_", ".")
+    if normalized in {"ALL", "NONE"}:
+        return None
+    return {
+        "SSLV2": "SSLv2",
+        "SSLV3": "SSLv3",
+        "TLSV1": "TLSv1",
+        "TLSV1.0": "TLSv1.0",
+        "TLSV1.1": "TLSv1.1",
+        "TLSV1.2": "TLSv1.2",
+        "TLSV1.3": "TLSv1.3",
+    }.get(normalized)
 
 
 def _read_ssh_string(data: bytes, offset: int) -> tuple[bytes, int]:

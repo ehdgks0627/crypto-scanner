@@ -74,12 +74,21 @@ def _candidate_for_finding(target, finding: dict, source_scanner: str, algorithm
 
 
 def _algorithms_for_finding(finding: dict) -> list[str]:
+    collected = []
     algorithms = finding.get("algorithms")
     if isinstance(algorithms, list) and algorithms:
-        return [str(item) for item in algorithms]
+        collected.extend(str(item) for item in algorithms)
     kex_algorithms = finding.get("kex_algorithms")
     if isinstance(kex_algorithms, list) and kex_algorithms:
-        return [str(item) for item in kex_algorithms]
+        collected.extend(str(item) for item in kex_algorithms)
+    tls_versions = finding.get("tls_versions")
+    if isinstance(tls_versions, list) and tls_versions:
+        collected.extend(str(item) for item in tls_versions)
+    cipher_suites = finding.get("cipher_suites")
+    if isinstance(cipher_suites, list) and cipher_suites:
+        collected.extend(str(item) for item in cipher_suites)
+    if collected:
+        return _dedupe(collected)
     algorithm = finding.get("algorithm")
     if algorithm:
         return [str(algorithm)]
@@ -106,7 +115,24 @@ def _metadata_for_finding(finding: dict, source_scanner: str, path: str) -> dict
         "source_bom_refs",
         "format",
         "minimum_tls_version",
+        "tls_versions",
+        "disabled_protocols",
+        "cipher_suites",
+        "certificate_paths",
+        "private_key_paths",
+        "policy",
     ]:
         if key in finding and finding[key] is not None:
             metadata[key] = finding[key]
     return metadata
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    result = []
+    seen = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result

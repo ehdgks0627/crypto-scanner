@@ -14,6 +14,7 @@ from .crypto_utils import (
     parse_private_key_metadata,
     parse_public_key_algorithm,
     parse_ssh_config_algorithms,
+    parse_tls_config_policy,
     read_json_or_kv,
 )
 
@@ -224,27 +225,16 @@ def _scan_app_config(options: dict) -> tuple[list[dict], list[dict]]:
 def _app_config_finding(path: Path) -> dict | None:
     path_text = str(path)
     if path.name.endswith(".conf") and "nginx" in path_text:
-        references = extract_key_references_from_config(path)
-        metadata = read_json_or_kv(path)
-        return {
-            "type": "tls_config",
-            "path": path_text,
-            "minimum_tls_version": metadata.get("ssl_protocols", "TLS config"),
-            "referenced_by": references,
-        }
+        return _tls_config_finding(path, "tls_config")
     if path.name in {"main.cf", "httpd.conf", "apache2.conf"} or "/conf.d/" in path_text:
-        references = extract_key_references_from_config(path)
-        return {"type": "tls_config", "path": path_text, "minimum_tls_version": "TLS config", "referenced_by": references} if references else None
+        return _tls_config_finding(path, "tls_config")
     if path.name == "postgresql.conf":
         algorithm = parse_certificate_algorithm(Path("/var/lib/postgresql/testbed-certs/server.crt")) or "TLS config"
-        metadata = read_json_or_kv(path)
-        return {
-            "type": "postgres_tls_config",
-            "path": path_text,
-            "algorithm": algorithm,
-            "minimum_tls_version": metadata.get("ssl_min_protocol_version"),
-            "referenced_by": extract_key_references_from_config(path),
-        }
+        finding = _tls_config_finding(path, "postgres_tls_config")
+        if not finding:
+            return None
+        finding["algorithm"] = algorithm
+        return finding
     if path.name == "current.json":
         algorithms = parse_jwks_algorithms(path)
         return {"type": "jwt_signing_key", "path": path_text, "algorithms": algorithms} if algorithms else None
@@ -252,9 +242,27 @@ def _app_config_finding(path: Path) -> dict | None:
         algorithms = parse_jwks_algorithms(path)
         return {"type": "oidc_jwks", "path": path_text, "algorithms": algorithms} if algorithms else None
     if path.name == "tls.properties":
-        metadata = read_json_or_kv(path)
-        return {"type": "tls_config", "path": path_text, "minimum_tls_version": metadata.get("minimum_tls_version", "TLSv1.2")}
+        return _tls_config_finding(path, "tls_config")
     return None
+
+
+def _tls_config_finding(path: Path, finding_type: str) -> dict | None:
+    policy = parse_tls_config_policy(path)
+    references = extract_key_references_from_config(path)
+    if not policy and not references:
+        return None
+
+    finding = {
+        "type": finding_type,
+        "path": str(path),
+        "referenced_by": references or policy.get("private_key_paths", []),
+    }
+    finding.update(policy)
+    if policy.get("tls_versions"):
+        finding["minimum_tls_version"] = policy["tls_versions"][0]
+    elif not policy:
+        finding["minimum_tls_version"] = "TLS config"
+    return finding
 
 
 def _cert_store_type(path: Path) -> str:
