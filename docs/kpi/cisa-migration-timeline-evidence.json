@@ -1,0 +1,34 @@
+{
+  "id": "cisa_migration_timeline_evidence_v1",
+  "original_claim": "CISA (2024) reports that average PQC migration takes 5 to 10 years.",
+  "claim_level": "source_clarified_not_exact_5_to_10_claim",
+  "observed_at": "2026-05-16",
+  "recommended_claim": "CISA (2024) frames PQC adoption as a long transition and emphasizes automated cryptography discovery and inventory tools for tracking migration progress. Do not cite CISA (2024) as the direct source for an average 5 to 10 year migration duration.",
+  "official_cisa_resource_url": "https://www.cisa.gov/resources-tools/resources/strategy-migrating-automated-post-quantum-cryptography-discovery-and-inventory-tools",
+  "official_cisa_pdf_url": "https://www.cisa.gov/sites/default/files/2024-09/Strategy-for-Migrating-to-Automated-PQC-Discovery-and-Inventory-Tools.pdf",
+  "document": {
+    "title": "Strategy for Migrating to Automated Post-Quantum Cryptography Discovery and Inventory Tools",
+    "publisher": "Cybersecurity and Infrastructure Security Agency",
+    "publication_date": "2024-08-15",
+    "subject": "Migrating to Post-Quantum Cryptography",
+    "page_count": 10
+  },
+  "verified_cisa_2024_points": [
+    "The strategy supports assessment of Federal Civilian Executive Branch progress toward PQC adoption using automated cryptography discovery and inventory tools.",
+    "The strategy supports agency inventories of systems and assets that contain CRQC-vulnerable cryptography and annual submission of inventory to ONCD and CISA.",
+    "The strategy says CISA will monitor migration to PQC throughout a long transition period.",
+    "The strategy includes planning and reporting milestones across 2023 through 2028 and uses 2035 as a mission-sensitive data reference point."
+  ],
+  "not_verified_in_cisa_2024": [
+    "average migration takes 5 to 10 years",
+    "typical migration takes 5 to 10 years",
+    "major cryptographic transitions typically take 5 to 10 years"
+  ],
+  "presentation_guidance": [
+    "Use CISA (2024) as the source for automated discovery and inventory being necessary to track PQC transition progress.",
+    "Say that CISA treats PQC migration as a long transition with federal reporting and tooling milestones.",
+    "Do not say that CISA (2024) measured or reported an average 5 to 10 year migration duration.",
+    "If the presentation keeps a 5 to 10 year estimate, cite it separately as an industry or secondary estimate, not as CISA's 2024 strategy claim."
+  ],
+  "access_note": "The official CISA page and PDF are the citation targets. Local curl access to cisa.gov returned an Akamai 403 during verification, so the PDF text was inspected from a mirrored copy with matching title, author, publication date, metadata, and file size while preserving the official CISA URLs as citation targets."
+}

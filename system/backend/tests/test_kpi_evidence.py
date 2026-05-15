@@ -35,6 +35,9 @@ AQTIVE_GUARD_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "aqtive-guard-evidence
 CSNP_QRAMM_QUOTE_EVIDENCE_PATH = (
     REPO_ROOT / "docs" / "kpi" / "csnp-qramm-quote-evidence.json"
 )
+CISA_MIGRATION_TIMELINE_EVIDENCE_PATH = (
+    REPO_ROOT / "docs" / "kpi" / "cisa-migration-timeline-evidence.json"
+)
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -256,3 +259,19 @@ def test_csnp_qramm_quote_evidence_uses_exact_source_and_scope():
     assert any("QRAMM Toolkit" in finding for finding in evidence_findings)
     assert any("exact quote" in finding for finding in evidence_findings)
     assert any("not as a NIST" in item for item in evidence["presentation_guidance"])
+
+
+def test_cisa_migration_timeline_evidence_does_not_overstate_5_to_10_years():
+    evidence = json.loads(CISA_MIGRATION_TIMELINE_EVIDENCE_PATH.read_text())
+    verified_points = set(evidence["verified_cisa_2024_points"])
+    not_verified = set(evidence["not_verified_in_cisa_2024"])
+
+    assert evidence["claim_level"] == "source_clarified_not_exact_5_to_10_claim"
+    assert evidence["document"]["publisher"] == "Cybersecurity and Infrastructure Security Agency"
+    assert evidence["document"]["publication_date"] == "2024-08-15"
+    assert evidence["official_cisa_resource_url"].startswith("https://www.cisa.gov/")
+    assert evidence["official_cisa_pdf_url"].startswith("https://www.cisa.gov/")
+    assert "average migration takes 5 to 10 years" in not_verified
+    assert any("automated cryptography discovery and inventory tools" in item for item in verified_points)
+    assert any("long transition period" in item for item in verified_points)
+    assert any("Do not say" in item for item in evidence["presentation_guidance"])
