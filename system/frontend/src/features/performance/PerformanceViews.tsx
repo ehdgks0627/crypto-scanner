@@ -148,6 +148,8 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
               { key: "status", header: "상태", render: (item) => <PerformanceStatusBadge status={item.status} /> },
               { key: "compatibility", header: "호환성", render: (item) => <PerformanceStatusBadge status={item.compatibility_status} /> },
               { key: "algorithm", header: "협상 알고리즘", render: (item) => item.negotiated_algorithm || "-" },
+              { key: "response", header: "응답 코드", render: (item) => item.response_code || metricText(item, "response_code") || "-" },
+              { key: "failureReason", header: "실패 사유", render: (item) => item.failure_reason || metricText(item, "failure_reason") || "-" },
               { key: "success", header: "성공률", align: "right", render: (item) => formatPercent(successRateMetric(item)) },
               { key: "handshake", header: "핸드셰이크/협상 p95", align: "right", render: (item) => formatMs(metricP95(item, "handshake_ms")) },
               { key: "ttfb", header: "TTFB p95", align: "right", render: (item) => formatMs(metricP95(item, "ttfb_ms")) },
@@ -200,6 +202,11 @@ function successRateMetric(result: PerformanceResult) {
 function metricProtocol(result: PerformanceResult) {
   const protocol = result.metrics.protocol;
   return typeof protocol === "string" && protocol ? protocol : "UNKNOWN";
+}
+
+function metricText(result: PerformanceResult, key: "response_code" | "failure_reason") {
+  const value = result.metrics[key];
+  return typeof value === "string" && value ? value : undefined;
 }
 
 function formatMs(value?: number) {

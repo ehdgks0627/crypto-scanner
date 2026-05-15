@@ -62,6 +62,7 @@ def upsert_result(run: PerformanceEvaluationRun, payload: dict) -> AssetPerforma
     )
     status = "ERROR" if compatibility_status == "ERROR" else evaluation["status"]
     recommendation = payload.get("recommendation") or evaluation["recommendation"]
+    metrics = _metrics_with_failure_context(metrics, payload, evaluation, status)
     measured_at = timezone.now()
 
     result, _created = AssetPerformanceResult.objects.update_or_create(
@@ -132,6 +133,8 @@ def serialize_result(result: AssetPerformanceResult) -> dict:
     if result.asset.target:
         target_label = f"{result.asset.target.host}:{result.asset.target.port}"
     protocol = _result_protocol(result)
+    response_code = result.metrics.get("response_code")
+    failure_reason = _result_failure_reason(result)
     return {
         "id": result.id,
         "run_id": result.run_id,
@@ -140,6 +143,8 @@ def serialize_result(result: AssetPerformanceResult) -> dict:
         "bom_ref": result.asset.bom_ref,
         "target_label": target_label,
         "protocol": protocol,
+        "response_code": str(response_code) if response_code is not None else None,
+        "failure_reason": failure_reason,
         "status": result.status,
         "compatibility_status": result.compatibility_status,
         "negotiated_algorithm": result.negotiated_algorithm,
@@ -189,6 +194,27 @@ def _metrics_with_protocol(asset: Asset, metrics: dict) -> dict:
 
 def _result_protocol(result: AssetPerformanceResult) -> str:
     return str(result.metrics.get("protocol") or _asset_protocol(result.asset)).upper()
+
+
+def _metrics_with_failure_context(metrics: dict, payload: dict, evaluation: dict, status: str) -> dict:
+    enriched = dict(metrics)
+    if status in {"WARN", "FAIL", "ERROR"} and not enriched.get("failure_reason"):
+        if payload.get("error_message"):
+            enriched["failure_reason"] = str(payload["error_message"])
+        elif evaluation.get("signals"):
+            enriched["failure_reason"] = str(evaluation["signals"][0].get("reason") or status)
+    return normalize_availability_metrics(enriched)
+
+
+def _result_failure_reason(result: AssetPerformanceResult) -> str | None:
+    failure_reason = result.metrics.get("failure_reason")
+    if failure_reason:
+        return str(failure_reason)
+    if result.error_message:
+        return result.error_message
+    if result.signals:
+        return str(result.signals[0].get("reason") or "")
+    return None
 
 
 def _asset_protocol(asset: Asset) -> str:

@@ -83,3 +83,20 @@ def test_performance_engine_normalizes_ike_negotiation_success_rate_by_protocol(
     assert result["status"] == "FAIL"
     assert any(signal["reason"] == "negotiation_success_rate_below_fail_threshold" for signal in result["signals"])
     assert summary["by_protocol"]["IKE"]["average_metrics"]["negotiation_success_rate"] == 0.9
+
+
+def test_performance_engine_summarizes_protocol_response_codes_and_failure_reasons():
+    metrics = normalize_availability_metrics(
+        {
+            "protocol": "TLS",
+            "response_code": "tls_alert_bad_certificate",
+            "failure_reason": "certificate_verify_failed",
+            "failure_rate": 1.0,
+        }
+    )
+    summary = summarize_results([{"status": "FAIL", "deltas": {}, "metrics": metrics}])
+
+    assert metrics["response_code"] == "tls_alert_bad_certificate"
+    assert metrics["failure_reason"] == "certificate_verify_failed"
+    assert summary["by_protocol"]["TLS"]["response_codes"] == {"tls_alert_bad_certificate": 1}
+    assert summary["by_protocol"]["TLS"]["failure_reasons"] == {"certificate_verify_failed": 1}

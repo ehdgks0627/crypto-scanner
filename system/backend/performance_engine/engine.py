@@ -83,6 +83,8 @@ def normalize_availability_metrics(metrics: dict[str, Any] | None) -> dict[str, 
     normalized = dict(metrics or {})
     if normalized.get("protocol"):
         normalized["protocol"] = str(normalized["protocol"]).upper()
+    _normalize_text_metric(normalized, "response_code")
+    _normalize_text_metric(normalized, "failure_reason")
     success_key = _success_rate_key(normalized)
     success = _number(normalized.get("successful_handshakes"))
     failed = _number(normalized.get("failed_handshakes"))
@@ -133,6 +135,8 @@ def _summarize_by_protocol(results: list[dict[str, Any]]) -> dict[str, Any]:
                     "failure_rate": [],
                     "timeout_rate": [],
                 },
+                "response_codes": {},
+                "failure_reasons": {},
             },
         )
         entry["total_results"] += 1
@@ -143,6 +147,8 @@ def _summarize_by_protocol(results: list[dict[str, Any]]) -> dict[str, Any]:
             value = metrics.get(key)
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 values.append(value)
+        _increment_count(entry["response_codes"], metrics.get("response_code"))
+        _increment_count(entry["failure_reasons"], metrics.get("failure_reason"))
 
     summary = {}
     for protocol, entry in protocols.items():
@@ -155,6 +161,8 @@ def _summarize_by_protocol(results: list[dict[str, Any]]) -> dict[str, Any]:
             "total_results": entry["total_results"],
             "by_status": entry["by_status"],
             "average_metrics": average_metrics,
+            "response_codes": entry["response_codes"],
+            "failure_reasons": entry["failure_reasons"],
         }
     return summary
 
@@ -230,6 +238,26 @@ def _append_min_rate_signal(signals: list[dict[str, Any]], key: str, value: floa
 def _success_rate_key(metrics: dict[str, Any]) -> str:
     protocol = str(metrics.get("protocol") or "").upper()
     return "negotiation_success_rate" if protocol == "IKE" else "handshake_success_rate"
+
+
+def _normalize_text_metric(metrics: dict[str, Any], key: str) -> None:
+    value = metrics.get(key)
+    if value is None:
+        return
+    normalized = str(value).strip()
+    if normalized:
+        metrics[key] = normalized
+    else:
+        metrics.pop(key, None)
+
+
+def _increment_count(counts: dict[str, int], value: Any) -> None:
+    if value is None:
+        return
+    key = str(value).strip()
+    if not key:
+        return
+    counts[key] = counts.get(key, 0) + 1
 
 
 def _status_from_signals(signals: list[dict[str, Any]]) -> str:

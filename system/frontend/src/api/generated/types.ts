@@ -1319,6 +1319,12 @@ export interface components {
                     average_metrics: {
                         [key: string]: number;
                     };
+                    response_codes?: {
+                        [key: string]: number;
+                    };
+                    failure_reasons?: {
+                        [key: string]: number;
+                    };
                 };
             };
             /** @enum {string} */
@@ -1335,6 +1341,8 @@ export interface components {
         };
         PerformanceMetrics: {
             protocol?: string;
+            response_code?: string;
+            failure_reason?: string;
             tcp_connect_ms?: components["schemas"]["PerformanceMetricSeries"];
             handshake_ms?: components["schemas"]["PerformanceMetricSeries"];
             ttfb_ms?: components["schemas"]["PerformanceMetricSeries"];
@@ -1418,6 +1426,8 @@ export interface components {
             bom_ref: string;
             target_label: string | null;
             protocol: string;
+            response_code: string | null;
+            failure_reason: string | null;
             status: components["schemas"]["PerformanceResultStatus"];
             compatibility_status: components["schemas"]["PerformanceResultStatus"];
             negotiated_algorithm: string;

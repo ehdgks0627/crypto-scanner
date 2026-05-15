@@ -52,6 +52,8 @@ def test_api_perf_001_create_run_and_record_result(client):
     assert result["status"] == "PASS"
     assert result["recommendation"] == "proceed"
     assert result["protocol"] == "TLS"
+    assert result["response_code"] is None
+    assert result["failure_reason"] is None
     assert result["metrics"]["protocol"] == "TLS"
     assert result["metrics"]["handshake_success_rate"] == 1.0
 
@@ -239,3 +241,36 @@ def test_api_perf_007_records_ike_negotiation_success_rate_by_protocol(client):
     detail = client.get(f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}").json()
     assert detail["summary"]["by_protocol"]["IKE"]["total_results"] == 1
     assert detail["summary"]["by_protocol"]["IKE"]["average_metrics"]["negotiation_success_rate"] == 1.0
+
+
+def test_api_perf_008_records_protocol_response_code_and_failure_reason(client):
+    snapshot = create_snapshot()
+    asset = create_asset(snapshot=snapshot, bom_ref="tls:web:alert")
+    run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
+
+    response = client.post(
+        f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}/results",
+        data={
+            "asset_id": asset.id,
+            "compatibility_status": "FAIL",
+            "metrics": {
+                "response_code": "tls_alert_bad_certificate",
+                "failure_reason": "certificate_verify_failed",
+                "failure_rate": 1.0,
+            },
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "FAIL"
+    assert body["response_code"] == "tls_alert_bad_certificate"
+    assert body["failure_reason"] == "certificate_verify_failed"
+    assert body["metrics"]["response_code"] == "tls_alert_bad_certificate"
+    assert body["metrics"]["failure_reason"] == "certificate_verify_failed"
+
+    detail = client.get(f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}").json()
+    protocol_summary = detail["summary"]["by_protocol"]["TLS"]
+    assert protocol_summary["response_codes"] == {"tls_alert_bad_certificate": 1}
+    assert protocol_summary["failure_reasons"] == {"certificate_verify_failed": 1}

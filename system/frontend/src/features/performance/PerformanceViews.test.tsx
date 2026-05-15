@@ -55,12 +55,16 @@ const detail = {
       bom_ref: "tls:web:leaf",
       target_label: "web.testbed.local:443",
       protocol: "TLS",
+      response_code: "tls_alert_bad_certificate",
+      failure_reason: "handshake_p95_percent_above_warn_threshold",
       status: "WARN",
       compatibility_status: "PASS",
       negotiated_algorithm: "ML-KEM-768+ECDHE",
       metrics: {
         handshake_ms: { p50: 40, p95: 118.2, samples: 30 },
         ttfb_ms: { p50: 80, p95: 160.4, samples: 30 },
+        response_code: "tls_alert_bad_certificate",
+        failure_reason: "handshake_p95_percent_above_warn_threshold",
         handshake_success_rate: 0.98,
         failure_rate: 0,
         timeout_rate: 0,
@@ -81,11 +85,14 @@ const detail = {
       bom_ref: "ssh:host:rsa",
       target_label: "ssh.testbed.local:22",
       protocol: "SSH",
+      response_code: "SSH_MSG_KEXINIT",
+      failure_reason: null,
       status: "PASS",
       compatibility_status: "PASS",
       negotiated_algorithm: "curve25519-sha256 + ssh-rsa",
       metrics: {
         protocol: "SSH",
+        response_code: "SSH_MSG_KEXINIT",
         handshake_ms: { p50: 20, p95: 40, samples: 20 },
         handshake_success_rate: 0.95,
         failure_rate: 0.05,
@@ -105,11 +112,14 @@ const detail = {
       bom_ref: "ike:policy:ipsec",
       target_label: "ipsec.testbed.local:500",
       protocol: "IKE",
+      response_code: "IKE_AUTH_OK",
+      failure_reason: null,
       status: "PASS",
       compatibility_status: "PASS",
       negotiated_algorithm: "IKEv2 DH group14 + AES-GCM",
       metrics: {
         protocol: "IKE",
+        response_code: "IKE_AUTH_OK",
         handshake_ms: { p50: 45, p95: 80, samples: 10 },
         availability_success_rate: 1,
         negotiation_success_rate: 1,
@@ -146,8 +156,14 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("95.0%")).toBeInTheDocument();
     expect(screen.getByText("100.0%")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "프로토콜" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "응답 코드" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "실패 사유" })).toBeInTheDocument();
     expect(screen.getByText("SSH")).toBeInTheDocument();
     expect(screen.getByText("IKE")).toBeInTheDocument();
+    expect(screen.getByText("tls_alert_bad_certificate")).toBeInTheDocument();
+    expect(screen.getByText("handshake_p95_percent_above_warn_threshold")).toBeInTheDocument();
+    expect(screen.getByText("SSH_MSG_KEXINIT")).toBeInTheDocument();
+    expect(screen.getByText("IKE_AUTH_OK")).toBeInTheDocument();
     expect(screen.getByText("118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("+18.2%")).toBeInTheDocument();
     expect(screen.getByText("canary_more")).toBeInTheDocument();

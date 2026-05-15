@@ -35,6 +35,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   · 가용성 검사는 TLS 핸드셰이크 성공 횟수에서 success rate를 정규화하고 대시보드에 표시한다.
   · 가용성 검사는 SSH 대상의 프로토콜을 보존하고 SSH 핸드셰이크 성공률을 프로토콜별 summary로 집계한다.
   · 가용성 검사는 IKE/IPsec 협상 성공 횟수에서 negotiation success rate를 산출하고 프로토콜별 summary로 집계한다.
+  · 가용성 검사는 프로토콜별 response code와 failure reason을 보존하고 summary에 집계한다.
   · pqc-tls 테스트베드는 ML-KEM/ML-DSA readiness endpoint를 노출하고 Discovery/Scanner가 이를 PQC 자산으로 수집한다.
   · 네트워크 스캔과 Host Agent가 같은 인증서를 발견하면 fingerprint 기반으로 단일 자산으로 병합한다.
   · Discovery Agent, 대시보드, CBOM 스냅샷, 마이그레이션 추천, 가용성 검사 UI는 코드 기준으로 반영한다.
@@ -237,7 +238,8 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
               (SSH target protocol을 metrics/result/summary에 보존하고 success rate 산출)
     [x] 4.1.3  전환 후 IKE/IPsec 협상 성공률 측정
               (successful/failed negotiations에서 negotiation_success_rate 산출 및 IKE summary 집계)
-    [~] 4.1.4  프로토콜별 응답 코드/실패 사유 기록
+    [x] 4.1.4  프로토콜별 응답 코드/실패 사유 기록
+              (metrics/result에 response_code/failure_reason 보존, by_protocol summary 집계 및 대시보드 표시)
 
 4.2 성능 검증
     [~] 4.2.1  응답 지연(latency) 측정 — 전·후 비교
@@ -385,7 +387,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   1. Step 01 자산 식별                    18      0       0      0     18    100.0%
   2. Step 02 위험도 평가                  17      0       0      0     17    100.0%
   3. Step 03 PQC 전환                     10      0       0      3     13    100.0%
-  4. Step 04 검증                          4      7       2      0     13     30.8%
+  4. Step 04 검증                          5      6       2      0     13     38.5%
   5. 시연 플로우 6단계                     7      1       0      0      8     87.5%
   6. KPI                                   0      0       7      0      7      0.0%
   7. 비교 클레임                           1      2       7      0     10     10.0%
@@ -393,7 +395,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   9. 비기능                                2      7       3      0     12     16.7%
   10. 발표 직전 점검                       0      0       5      0      5      0.0%
   ─────────────────────────────────────  ────   ────   ──────   ────   ────   ──────
-  TOTAL                                  98     17      30      3    148     67.6%
+  TOTAL                                  99     16      30      3    148     68.3%
   참고: 부분 구현([~])까지 포함하면 115 / 145 = 79.3%
 
 

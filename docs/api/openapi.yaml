@@ -3187,6 +3187,16 @@ components:
                 type: object
                 additionalProperties:
                   type: number
+              response_codes:
+                type: object
+                additionalProperties:
+                  type: integer
+                  minimum: 0
+              failure_reasons:
+                type: object
+                additionalProperties:
+                  type: integer
+                  minimum: 0
         overall_status:
           type: string
           enum: [PENDING, PASS, WARN, FAIL, ERROR]
@@ -3214,6 +3224,10 @@ components:
       type: object
       properties:
         protocol:
+          type: string
+        response_code:
+          type: string
+        failure_reason:
           type: string
         tcp_connect_ms:
           $ref: '#/components/schemas/PerformanceMetricSeries'
@@ -3401,6 +3415,8 @@ components:
         - bom_ref
         - target_label
         - protocol
+        - response_code
+        - failure_reason
         - status
         - compatibility_status
         - negotiated_algorithm
@@ -3426,6 +3442,12 @@ components:
           nullable: true
         protocol:
           type: string
+        response_code:
+          type: string
+          nullable: true
+        failure_reason:
+          type: string
+          nullable: true
         status:
           $ref: '#/components/schemas/PerformanceResultStatus'
         compatibility_status:
