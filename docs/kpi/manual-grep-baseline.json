@@ -1,0 +1,82 @@
+{
+  "id": "manual_grep_baseline_v1",
+  "title": "Before baseline for manual grep based crypto inventory",
+  "scenario": "current testbed demo seed",
+  "claim": "Manual grep and command-line inspection requires several days to roughly two work weeks for the current demo scope.",
+  "claim_ko": "현재 데모 범위를 사람이 수동 grep과 명령행 도구로 점검하면 수일에서 약 2주 수준의 작업이 필요하다.",
+  "scope": {
+    "asset_count": 67,
+    "discovery_endpoint_count": 33,
+    "host_agent_candidate_count": 10,
+    "scan_target_count": 31
+  },
+  "assumptions": {
+    "work_hours_per_day": 8,
+    "operator_profile": "security engineer with shell access and OpenSSL/SSH tooling experience",
+    "included_work": [
+      "target inventory review",
+      "manual protocol checks",
+      "recursive file and configuration grep",
+      "certificate and key parsing",
+      "deduplication",
+      "CBOM-style recording",
+      "review and handoff"
+    ],
+    "excluded_work": [
+      "waiting for account approval",
+      "change management approval",
+      "production maintenance windows",
+      "PQC migration execution"
+    ]
+  },
+  "steps": [
+    {
+      "id": "scope_and_access_prep",
+      "label": "Scope and shell access preparation",
+      "basis": "Collect target list, confirm access path, prepare grep/find/openssl/ssh-keygen commands.",
+      "min_hours": 4.0,
+      "max_hours": 8.0
+    },
+    {
+      "id": "manual_endpoint_protocol_checks",
+      "label": "Manual protocol checks",
+      "basis": "33 discovered endpoints x 15-30 minutes for openssl s_client, ssh-keyscan, STARTTLS/IKE-specific checks, and notes.",
+      "min_hours": 8.25,
+      "max_hours": 16.5
+    },
+    {
+      "id": "host_file_and_config_grep",
+      "label": "Host file and configuration grep",
+      "basis": "10 host-agent candidate systems x 45-90 minutes for recursive certificate/key/config searches.",
+      "min_hours": 7.5,
+      "max_hours": 15.0
+    },
+    {
+      "id": "parse_and_deduplicate_assets",
+      "label": "Parse and deduplicate crypto assets",
+      "basis": "67 expected crypto assets x 6-15 minutes for parsing, fingerprinting, family classification, and duplicate checks.",
+      "min_hours": 6.7,
+      "max_hours": 16.75
+    },
+    {
+      "id": "cbom_recording_review_handoff",
+      "label": "CBOM recording, review, and handoff",
+      "basis": "Manual spreadsheet/CBOM entry, peer review, and evidence packaging.",
+      "min_hours": 8.0,
+      "max_hours": 16.0
+    }
+  ],
+  "totals": {
+    "min_hours": 34.45,
+    "max_hours": 72.25,
+    "min_person_days": 4.31,
+    "max_person_days": 9.03,
+    "calendar_range": "3-10 business days",
+    "presentation_label": "수일 ~ 수주"
+  },
+  "presentation_guidance": [
+    "Use this as a qualitative baseline, not as a measured benchmark.",
+    "Phrase the claim as 'manual inventory can easily take days to weeks depending on access and review friction'.",
+    "Contrast it with automated demo/runtime measurements only after the system-side duration is measured."
+  ]
+}
