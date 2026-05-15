@@ -1,4 +1,11 @@
-from risk_engine.prompts import QUALITATIVE_RISK_PROMPT_VERSION, build_qualitative_risk_prompt
+import pytest
+
+from risk_engine.prompts import (
+    QUALITATIVE_RISK_PROMPT_VERSION,
+    QualitativeRiskResponseParseError,
+    build_qualitative_risk_prompt,
+    parse_qualitative_risk_response,
+)
 
 
 def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
@@ -40,3 +47,31 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
     assert prompt["payload"]["operational_context"]["connected_service"]["protocol_hint"] == "TLS"
     assert prompt["payload"]["operational_context"]["data_classification"]["level"] == "critical"
     assert prompt["payload"]["risk"]["tier"] == "CRITICAL"
+
+
+def test_parse_qualitative_risk_response_extracts_json_from_free_text():
+    parsed = parse_qualitative_risk_response(
+        """
+        The assessment follows.
+        ```json
+        {
+          "summary": "RSA asset protects public customer traffic.",
+          "threat_scenarios": ["harvest_now_decrypt_later", "service_identity_compromise"],
+          "migration_recommendation": "Use a hybrid certificate during transition.",
+          "confidence": 86
+        }
+        ```
+        """
+    )
+
+    assert parsed == {
+        "summary": "RSA asset protects public customer traffic.",
+        "threat_scenarios": ["harvest_now_decrypt_later", "service_identity_compromise"],
+        "migration_recommendation": "Use a hybrid certificate during transition.",
+        "confidence": 0.86,
+    }
+
+
+def test_parse_qualitative_risk_response_rejects_missing_json():
+    with pytest.raises(QualitativeRiskResponseParseError):
+        parse_qualitative_risk_response("summary only without JSON")

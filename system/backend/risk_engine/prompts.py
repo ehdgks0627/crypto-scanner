@@ -20,6 +20,10 @@ QUALITATIVE_RISK_RESPONSE_SCHEMA = {
 }
 
 
+class QualitativeRiskResponseParseError(ValueError):
+    pass
+
+
 def build_qualitative_risk_prompt(
     *,
     asset: Mapping[str, Any],
@@ -51,6 +55,16 @@ def build_qualitative_risk_prompt(
     }
 
 
+def parse_qualitative_risk_response(text: str) -> dict[str, Any]:
+    data = _extract_json_object(text)
+    return {
+        "summary": _required_string(data, "summary"),
+        "threat_scenarios": _string_list(data.get("threat_scenarios")),
+        "migration_recommendation": _required_string(data, "migration_recommendation"),
+        "confidence": _confidence(data.get("confidence")),
+    }
+
+
 def _json_safe(value: Any) -> Any:
     if isinstance(value, Mapping):
         return {str(key): _json_safe(inner) for key, inner in value.items()}
@@ -59,3 +73,47 @@ def _json_safe(value: Any) -> Any:
     if value is None or isinstance(value, bool | int | float | str):
         return value
     return str(value)
+
+
+def _extract_json_object(text: str) -> Mapping[str, Any]:
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text or ""):
+        if char != "{":
+            continue
+        try:
+            value, _end = decoder.raw_decode(text[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, Mapping):
+            return value
+    raise QualitativeRiskResponseParseError("LLM response does not contain a JSON object")
+
+
+def _required_string(data: Mapping[str, Any], key: str) -> str:
+    value = data.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise QualitativeRiskResponseParseError(f"LLM response field '{key}' must be a non-empty string")
+    return value.strip()
+
+
+def _string_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        items = [value]
+    elif isinstance(value, list | tuple | set):
+        items = list(value)
+    else:
+        raise QualitativeRiskResponseParseError("LLM response field 'threat_scenarios' must be a string list")
+    result = [str(item).strip() for item in items if str(item).strip()]
+    if not result:
+        raise QualitativeRiskResponseParseError("LLM response field 'threat_scenarios' must not be empty")
+    return result
+
+
+def _confidence(value: Any) -> float:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError) as exc:
+        raise QualitativeRiskResponseParseError("LLM response field 'confidence' must be numeric") from exc
+    if confidence > 1 and confidence <= 100:
+        confidence = confidence / 100
+    return round(max(0, min(1, confidence)), 2)

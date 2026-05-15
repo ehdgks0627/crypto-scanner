@@ -1,10 +1,12 @@
+import json
+
 from django.db import transaction
 from django.utils import timezone
 
 from apps.jobs.models import AsyncJob, QueuedTask
 from apps.jobs.services import enqueue_task, serialize_dt
 from apps.risk import services as risk_services
-from risk_engine.prompts import build_qualitative_risk_prompt
+from risk_engine.prompts import build_qualitative_risk_prompt, parse_qualitative_risk_response
 
 
 CONTEXT_FIELDS = ["sensitivity", "lifespan_years", "criticality", "exposure", "service_role"]
@@ -144,15 +146,25 @@ def generate_qualitative_assessment(asset):
         operational_context=_qualitative_operational_context(asset, context, sources),
         risk=_qualitative_risk_payload(risk_score, score),
     )
+    raw_response = _mock_qualitative_llm_response(
+        {
+            "summary": _qualitative_summary(asset, context, score),
+            "threat_scenarios": _qualitative_threat_scenarios(asset, context),
+            "migration_recommendation": _qualitative_migration_recommendation(asset, score),
+            "confidence": _qualitative_confidence(asset, context, risk_score, score),
+        }
+    )
+    parsed_response = parse_qualitative_risk_response(raw_response)
     return {
         "provider": "mock-rulebook",
         "prompt_version": prompt["version"],
         "prompt_payload": prompt["payload"],
-        "summary": _qualitative_summary(asset, context, score),
-        "threat_scenarios": _qualitative_threat_scenarios(asset, context),
-        "migration_recommendation": _qualitative_migration_recommendation(asset, score),
-        "confidence": _qualitative_confidence(asset, context, risk_score, score),
+        **parsed_response,
     }
+
+
+def _mock_qualitative_llm_response(payload: dict) -> str:
+    return "Mock qualitative assessment:\n```json\n" + json.dumps(payload, sort_keys=True) + "\n```"
 
 
 def _qualitative_asset_payload(asset):

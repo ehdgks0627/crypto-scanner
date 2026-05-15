@@ -425,3 +425,5 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
         "/etc/nginx/ssl/server.crt",
         "/etc/nginx/ssl/server.key",
     ]
+    assert isinstance(assessment.threat_scenarios, list)
+    assert isinstance(assessment.confidence, float)
