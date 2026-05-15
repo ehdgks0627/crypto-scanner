@@ -496,6 +496,15 @@ class Command(BaseCommand):
                     "infrastructure_roles": ["service_gateway", "identity_auth", "data_store"],
                     "rationale": "Demo assets include API gateways, identity systems, databases, and key management services.",
                     "signals": ["service_role:demo", "dependency_level:core", "managed_target"],
+                },
+                "protection_duration": {
+                    "question": "Q6: protection duration based on retention period and HNDL exposure.",
+                    "rating": "high",
+                    "score": 0.8,
+                    "lifespan_years": 10,
+                    "hndl_exposure": "high",
+                    "rationale": "Demo assets model long-lived service identity and encrypted traffic that may remain valuable.",
+                    "signals": ["lifespan_years:demo", "quantum_vulnerable:demo", "hndl_exposure:demo"],
                 }
             },
             confidence=0.78,

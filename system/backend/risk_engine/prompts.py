@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v6"
+QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v7"
 
 QUALITATIVE_RISK_SYSTEM_PROMPT = """You are a PQC migration risk analyst.
 Assess one cryptographic asset for quantum-era migration planning.
@@ -58,6 +58,15 @@ QUALITATIVE_RISK_RESPONSE_SCHEMA = {
             "infrastructure_roles": ["identity_auth", "data_store", "payment", "key_management"],
             "rationale": "One-sentence evidence-based explanation.",
             "signals": ["service_role:auth", "dependency_count:2"],
+        },
+        "protection_duration": {
+            "question": "Q6: protection duration based on retention period and HNDL exposure.",
+            "rating": "low|medium|high|critical",
+            "score": 0.0,
+            "lifespan_years": 10,
+            "hndl_exposure": "low|medium|high|critical|unknown",
+            "rationale": "One-sentence evidence-based explanation.",
+            "signals": ["lifespan_years:10", "quantum_vulnerable:true"],
         }
     },
     "confidence": 0.0,
@@ -91,6 +100,7 @@ def build_qualitative_risk_prompt(
         "For DHS Q3 communication_scope, rate internal-only versus external bidirectional communication exposure.\n"
         "For DHS Q4 sharing_level, rate third-party, partner, or public sharing paths.\n"
         "For DHS Q5 critical_infrastructure, rate dependency on DB, identity, payment, KMS, gateway, or other core services.\n"
+        "For DHS Q6 protection_duration, rate retention duration and HNDL exposure for long-lived protected data.\n"
         "Do not invent facts not present in the payload.\n\n"
         f"Payload:\n{json.dumps(payload, sort_keys=True, indent=2)}\n\n"
         f"Required JSON schema:\n{json.dumps(QUALITATIVE_RISK_RESPONSE_SCHEMA, sort_keys=True, indent=2)}"
@@ -168,6 +178,7 @@ def _dhs_criteria(value: Any) -> dict[str, Any]:
         "communication_scope": _dhs_communication_scope(value.get("communication_scope")),
         "sharing_level": _dhs_sharing_level(value.get("sharing_level")),
         "critical_infrastructure": _dhs_critical_infrastructure(value.get("critical_infrastructure")),
+        "protection_duration": _dhs_protection_duration(value.get("protection_duration")),
     }
 
 
@@ -273,11 +284,50 @@ def _dhs_critical_infrastructure(value: Any) -> dict[str, Any]:
     }
 
 
+def _dhs_protection_duration(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise QualitativeRiskResponseParseError("LLM response field 'dhs_criteria.protection_duration' must be an object")
+    rating = _rating(value, "dhs_criteria.protection_duration.rating")
+    hndl_exposure = _required_string(value, "hndl_exposure").lower()
+    if hndl_exposure not in {"low", "medium", "high", "critical", "unknown"}:
+        raise QualitativeRiskResponseParseError(
+            "LLM response field 'dhs_criteria.protection_duration.hndl_exposure' has an invalid value"
+        )
+    return {
+        "question": str(
+            value.get("question")
+            or "Q6: protection duration based on retention period and HNDL exposure."
+        ),
+        "rating": rating,
+        "score": _confidence(value.get("score")),
+        "lifespan_years": _optional_non_negative_int(value.get("lifespan_years")),
+        "hndl_exposure": hndl_exposure,
+        "rationale": _required_string(value, "rationale"),
+        "signals": _string_list(value.get("signals")),
+    }
+
+
 def _rating(value: Mapping[str, Any], field_name: str) -> str:
     rating = _required_string(value, "rating").lower()
     if rating not in {"low", "medium", "high", "critical"}:
         raise QualitativeRiskResponseParseError(f"LLM response field '{field_name}' has an invalid value")
     return rating
+
+
+def _optional_non_negative_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise QualitativeRiskResponseParseError(
+            "LLM response field 'dhs_criteria.protection_duration.lifespan_years' must be numeric or null"
+        ) from exc
+    if parsed < 0:
+        raise QualitativeRiskResponseParseError(
+            "LLM response field 'dhs_criteria.protection_duration.lifespan_years' must not be negative"
+        )
+    return parsed
 
 
 def _confidence(value: Any) -> float:

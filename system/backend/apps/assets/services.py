@@ -383,6 +383,7 @@ def _qualitative_dhs_criteria(asset, context, score):
         "communication_scope": _qualitative_communication_scope_criterion(asset, context, score),
         "sharing_level": _qualitative_sharing_level_criterion(asset, context, score),
         "critical_infrastructure": _qualitative_critical_infrastructure_criterion(asset, context, score),
+        "protection_duration": _qualitative_protection_duration_criterion(asset, context, score),
     }
 
 
@@ -749,6 +750,67 @@ def _qualitative_critical_infrastructure_rationale(asset, service_role, dependen
     return (
         f"{name} maps to dependency_level={dependency_level} through roles={','.join(roles)} "
         f"from service_role={service_role or 'unknown'}; baseline migration score is {round(score)}."
+    )
+
+
+def _qualitative_protection_duration_criterion(asset, context, score):
+    lifespan = context.get("lifespan_years")
+    sensitivity = context.get("sensitivity")
+    criticality = context.get("criticality")
+    quantum_vulnerable = _is_quantum_vulnerable(asset)
+    value_score = 0.14
+    if lifespan is None:
+        value_score += 0.1
+    elif lifespan >= 15:
+        value_score += 0.56
+    elif lifespan >= 10:
+        value_score += 0.46
+    elif lifespan >= 5:
+        value_score += 0.3
+    elif lifespan > 0:
+        value_score += 0.12
+    if quantum_vulnerable:
+        value_score += 0.16
+    if sensitivity in {"high", "critical"}:
+        value_score += 0.07
+    if criticality in {"high", "critical"}:
+        value_score += 0.05
+    value_score = round(max(0.0, min(1.0, value_score)), 2)
+    hndl_exposure = _qualitative_rating(value_score)
+    signals = _dedupe_values(
+        [
+            f"lifespan_years:{lifespan if lifespan is not None else 'unknown'}",
+            f"quantum_vulnerable:{str(quantum_vulnerable).lower()}",
+            f"algorithm_family:{asset.algorithm_family or 'unknown'}",
+            f"sensitivity:{sensitivity or 'unknown'}",
+            f"criticality:{criticality or 'unknown'}",
+        ]
+    )
+    return {
+        "question": "Q6: protection duration based on retention period and HNDL exposure.",
+        "rating": _qualitative_rating(value_score),
+        "score": value_score,
+        "lifespan_years": lifespan,
+        "hndl_exposure": hndl_exposure,
+        "rationale": _qualitative_protection_duration_rationale(
+            asset,
+            lifespan,
+            quantum_vulnerable,
+            sensitivity,
+            criticality,
+            score,
+        ),
+        "signals": signals,
+    }
+
+
+def _qualitative_protection_duration_rationale(asset, lifespan, quantum_vulnerable, sensitivity, criticality, score):
+    name = asset.name or asset.bom_ref or f"asset {asset.id}"
+    return (
+        f"{name} has lifespan_years={lifespan if lifespan is not None else 'unknown'}, "
+        f"quantum_vulnerable={str(quantum_vulnerable).lower()}, "
+        f"sensitivity={sensitivity or 'unknown'}, and criticality={criticality or 'unknown'}; "
+        f"baseline migration score is {round(score)}."
     )
 
 

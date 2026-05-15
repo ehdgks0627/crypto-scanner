@@ -37,7 +37,7 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
 
     assert prompt["version"] == QUALITATIVE_RISK_PROMPT_VERSION
     assert "PQC migration risk analyst" in prompt["system"]
-    assert prompt["version"] == "qualitative-risk-v6"
+    assert prompt["version"] == "qualitative-risk-v7"
     assert "RSA-2048" in prompt["user"]
     assert "/etc/nginx/server.crt" in prompt["user"]
     assert "public_internet" in prompt["user"]
@@ -46,6 +46,7 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
     assert "DHS Q3 communication_scope" in prompt["user"]
     assert "DHS Q4 sharing_level" in prompt["user"]
     assert "DHS Q5 critical_infrastructure" in prompt["user"]
+    assert "DHS Q6 protection_duration" in prompt["user"]
     assert "operational_context" in prompt["user"]
     assert "Required JSON schema" in prompt["user"]
     assert "dhs_criteria" in prompt["user"]
@@ -107,6 +108,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
               "infrastructure_roles": ["service_gateway", "identity_auth"],
               "rationale": "The API is part of a core customer gateway and identity path.",
               "signals": ["service_role:customer-api", "dependency_count:2"]
+            },
+            "protection_duration": {
+              "question": "Q6: protection duration based on retention period and HNDL exposure.",
+              "rating": "CRITICAL",
+              "score": 96,
+              "lifespan_years": 15,
+              "hndl_exposure": "CRITICAL",
+              "rationale": "The asset protects long-lived customer traffic vulnerable to HNDL collection.",
+              "signals": ["lifespan_years:15", "quantum_vulnerable:true"]
             }
           },
           "confidence": 86
@@ -161,6 +171,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
                 "infrastructure_roles": ["service_gateway", "identity_auth"],
                 "rationale": "The API is part of a core customer gateway and identity path.",
                 "signals": ["service_role:customer-api", "dependency_count:2"],
+            },
+            "protection_duration": {
+                "question": "Q6: protection duration based on retention period and HNDL exposure.",
+                "rating": "critical",
+                "score": 0.96,
+                "lifespan_years": 15,
+                "hndl_exposure": "critical",
+                "rationale": "The asset protects long-lived customer traffic vulnerable to HNDL collection.",
+                "signals": ["lifespan_years:15", "quantum_vulnerable:true"],
             }
         },
         "confidence": 0.86,
