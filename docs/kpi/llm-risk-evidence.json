@@ -1,0 +1,53 @@
+{
+  "id": "llm_risk_evidence_v1",
+  "title": "AI qualitative risk assessment evidence",
+  "scenario": "qualitative risk assessment worker and OpenAI-compatible provider path",
+  "claim": "The system can run automated qualitative risk assessment through an OpenAI-compatible LLM provider and persist the structured result.",
+  "claim_ko": "시스템은 OpenAI 호환 LLM provider 응답을 받아 자산별 정성 위험평가 결과를 구조화해 저장할 수 있다.",
+  "flow": {
+    "task_name": "qualitative_assessment",
+    "prompt_version": "qualitative-risk-v7",
+    "provider_mode": "openai-compatible",
+    "fallback_provider": "mock-rulebook-fallback",
+    "default_provider": "mock-rulebook",
+    "persistence_model": "QualitativeAssessment"
+  },
+  "provider_request": {
+    "api_style": "OpenAI Chat Completions",
+    "endpoint_suffix": "/chat/completions",
+    "messages": ["system", "user"],
+    "json_mode": true,
+    "temperature": 0
+  },
+  "required_response_fields": [
+    "summary",
+    "threat_scenarios",
+    "migration_recommendation",
+    "dhs_criteria",
+    "confidence"
+  ],
+  "dhs_criteria": [
+    "asset_value",
+    "protected_information",
+    "communication_scope",
+    "sharing_level",
+    "critical_infrastructure",
+    "protection_duration"
+  ],
+  "stored_provider_metadata": [
+    "provider",
+    "model",
+    "usage"
+  ],
+  "safety": {
+    "fallback_on_provider_error": true,
+    "fallback_on_parse_error": true,
+    "prompt_cache_enabled": true,
+    "requires_explicit_external_configuration": true
+  },
+  "presentation_guidance": [
+    "Say that the implementation supports an OpenAI-compatible LLM response path and stores structured DHS-style qualitative results.",
+    "Do not claim that a live commercial LLM was called during the presentation unless API credentials are configured and the live run is shown.",
+    "If no external provider is configured, describe the demo as using the same parser and persistence path with a deterministic rulebook fallback."
+  ]
+}

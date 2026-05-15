@@ -9,11 +9,15 @@ from apps.core.management.commands.seed_testbed_demo import (
     SCAN_SCANNERS,
     TARGET_FIXTURE,
 )
+from apps.assets import services as asset_services
+from risk_engine.llm import OPENAI_COMPATIBLE_PROVIDERS
+from risk_engine.prompts import QUALITATIVE_RISK_PROMPT_VERSION, QUALITATIVE_RISK_RESPONSE_SCHEMA
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MANUAL_BASELINE_PATH = REPO_ROOT / "docs" / "kpi" / "manual-grep-baseline.json"
 HOST_AGENT_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "host-agent-evidence.json"
+LLM_RISK_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "llm-risk-evidence.json"
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -62,3 +66,20 @@ def test_host_agent_evidence_dormant_key_paths_match_demo_seed():
         assert by_ref[bom_ref]["paths"] == paths
         assert by_ref[bom_ref]["source_scanner"] == "agent.private_key_files"
     assert evidence["safety"]["private_key_plaintext_stored"] is False
+
+
+def test_llm_risk_evidence_matches_provider_and_prompt_contract():
+    evidence = json.loads(LLM_RISK_EVIDENCE_PATH.read_text())
+
+    assert evidence["flow"]["task_name"] == asset_services.QUALITATIVE_TASK_NAME
+    assert evidence["flow"]["prompt_version"] == QUALITATIVE_RISK_PROMPT_VERSION
+    assert evidence["flow"]["provider_mode"] in OPENAI_COMPATIBLE_PROVIDERS
+    assert evidence["flow"]["fallback_provider"] == asset_services.QUALITATIVE_FALLBACK_PROVIDER
+    assert evidence["flow"]["default_provider"] == asset_services.QUALITATIVE_PROVIDER
+    assert evidence["required_response_fields"] == list(QUALITATIVE_RISK_RESPONSE_SCHEMA)
+    assert evidence["dhs_criteria"] == list(QUALITATIVE_RISK_RESPONSE_SCHEMA["dhs_criteria"])
+    assert evidence["provider_request"]["endpoint_suffix"] == "/chat/completions"
+    assert evidence["provider_request"]["json_mode"] is True
+    assert evidence["safety"]["fallback_on_provider_error"] is True
+    assert evidence["safety"]["fallback_on_parse_error"] is True
+    assert evidence["safety"]["prompt_cache_enabled"] is True

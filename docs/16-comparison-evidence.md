@@ -21,3 +21,23 @@
 > 네트워크에서 보이지 않는 호스트 내부 인증서, 키 파일, SSH 설정, 애플리케이션 TLS 설정은 Host Agent가 보완적으로 수집합니다. 데모 기준으로 Agent 대상 10개 호스트에서 내부 점검 로그가 생성되고, 사용되지 않는 개인키 3개를 원문 없이 메타데이터로 식별합니다.
 
 주의할 점은 이 항목이 모든 운영체제와 모든 애플리케이션 설정을 완전하게 커버한다는 의미가 아니라는 것이다. 현재 근거는 테스트베드와 구현된 scanner capability 범위에 대한 실제 동작 증거이다.
+
+## 16.2 AI 자동 위험 평가
+
+`AI 자동 위험 평가` 주장은 OpenAI 호환 LLM provider를 사용할 수 있는 코드 경로와 구조화 저장 경로가 구현되어 있다는 의미로 제한한다. 외부 API 키가 설정되지 않은 시연 환경에서는 동일한 prompt, parser, 저장 모델을 사용하되 결정론적 rulebook 응답 또는 fallback 응답으로 동작한다.
+
+구조화된 근거는 `docs/kpi/llm-risk-evidence.json`에 둔다. 테스트는 다음 흐름을 확인한다.
+
+| 근거 | 확인 내용 |
+| --- | --- |
+| LLM provider adapter | OpenAI Chat Completions 형식으로 `/chat/completions` 요청을 만든다 |
+| Prompt schema | `qualitative-risk-v7` prompt에 자산, 컨텍스트, 운영 맥락, risk 정보를 포함한다 |
+| Response parser | 자유 텍스트 안의 JSON을 추출해 `summary`, `threat_scenarios`, DHS 6기준, `confidence`로 정규화한다 |
+| Persistence | provider 응답을 `QualitativeAssessment`로 저장하고 provider/model/usage metadata를 남긴다 |
+| Fallback | provider 오류나 파싱 실패가 전체 작업을 막지 않고 rulebook fallback으로 완료된다 |
+
+발표에서는 다음 수준으로 제한한다.
+
+> 위험평가는 단순 점수 계산에 그치지 않고, 자산 메타데이터와 운영 맥락을 LLM prompt로 구성해 DHS 6기준 형태의 정성 분석 결과로 저장합니다. 외부 LLM이 설정되어 있으면 OpenAI 호환 API 응답을 사용하고, 미설정 또는 실패 시에는 동일한 저장 경로로 rulebook fallback을 사용해 파이프라인이 멈추지 않게 했습니다.
+
+주의할 점은 라이브 발표에서 실제 외부 LLM 호출을 보여주지 않는다면 “실제 상용 LLM이 시연 중 호출되었다”고 말하면 안 된다는 것이다. 정확한 표현은 “외부 LLM provider 연동 경로가 구현되어 있고, 테스트에서 provider 응답이 구조화 저장되는 것을 검증했다”이다.

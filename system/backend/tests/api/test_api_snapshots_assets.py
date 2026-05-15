@@ -619,6 +619,11 @@ def test_api_ast_010_qualitative_worker_uses_external_llm_provider(monkeypatch):
     from apps.assets.models import QualitativeAssessment
     from risk_engine.llm import LlmCompletion
 
+    monkeypatch.setenv("QUALITATIVE_LLM_PROVIDER", "openai-compatible")
+    monkeypatch.setenv("QUALITATIVE_LLM_MODEL", "qualitative-risk-test")
+    monkeypatch.setenv("QUALITATIVE_LLM_API_KEY", "test-token")
+    monkeypatch.setenv("QUALITATIVE_LLM_BASE_URL", "https://llm.example/v1")
+
     target = create_target(
         host="llm-api.testbed.local",
         context={
@@ -719,5 +724,10 @@ def test_api_ast_010_qualitative_worker_uses_external_llm_provider(monkeypatch):
         "provider": "openai-compatible",
         "model": "qualitative-risk-test",
         "usage": {"prompt_tokens": 100, "completion_tokens": 50},
+    }
+    assert assessment.prompt_payload["llm_cache"]["provider"] == {
+        "provider": "openai-compatible",
+        "model": "qualitative-risk-test",
+        "base_url": "https://llm.example/v1",
     }
     assert assessment.prompt_payload["llm_fallback"] == {"used": False, "reason": None}
