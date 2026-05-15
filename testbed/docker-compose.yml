@@ -74,8 +74,9 @@ services:
     environment:
       <<: *agent-env
       AGENT_HOSTNAME: web.testbed.local
-      AGENT_CAPABILITIES: agent.cert_store,agent.pkg_keyring,agent.app_cert_files,agent.app_config
+      AGENT_CAPABILITIES: agent.cert_store,agent.pkg_keyring,agent.app_cert_files,agent.private_key_files,agent.app_config
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${WEB_AGENT_PORT:-9101}
+      AGENT_PRIVATE_KEY_PATHS: /etc/testbed/certs/web:/etc/testbed/certs/web-ec:/etc/nginx/ssl
     volumes:
       - ./certs/web:/etc/testbed/certs/web:ro
       - ./certs/web-ec:/etc/testbed/certs/web-ec:ro
@@ -119,8 +120,9 @@ services:
     environment:
       <<: *agent-env
       AGENT_HOSTNAME: ssh.testbed.local
-      AGENT_CAPABILITIES: agent.ssh_userkey,agent.ssh_config,agent.cert_store
+      AGENT_CAPABILITIES: agent.ssh_userkey,agent.ssh_config,agent.cert_store,agent.private_key_files
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${SSH_AGENT_PORT:-9102}
+      AGENT_PRIVATE_KEY_PATHS: /etc/ssh:/home/testbed/.ssh
     ports:
       - "${TESTBED_BIND_ADDR:-127.0.0.1}:${SSH_PORT:-2222}:22"
       - "${TESTBED_BIND_ADDR:-127.0.0.1}:${SSH_AGENT_PORT:-9102}:9100"
@@ -214,8 +216,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in testbed/.env.}
       OPENSSL_CONF: /etc/testbed/openssl-lowsec.cnf
       AGENT_HOSTNAME: db.testbed.local
-      AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_cert_files,agent.app_config
+      AGENT_CAPABILITIES: agent.cert_store,agent.keystore,agent.app_cert_files,agent.private_key_files,agent.app_config
       AGENT_URL: http://${AGENT_PUBLIC_HOST:-127.0.0.1}:${DB_AGENT_PORT:-9103}
+      AGENT_PRIVATE_KEY_PATHS: /var/lib/postgresql/testbed-certs
+      AGENT_REFERENCED_KEY_PATHS: /var/lib/postgresql/testbed-certs/server.key
     volumes:
       - db-data:/var/lib/postgresql/data
       - ./certs/db:/etc/testbed/db-certs:ro

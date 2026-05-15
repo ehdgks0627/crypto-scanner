@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import os
 import re
@@ -98,6 +99,24 @@ def parse_public_key_algorithm(path: Path) -> str | None:
     return None
 
 
+def parse_private_key_metadata(path: Path) -> dict | None:
+    algorithm, key_size_bits = _private_key_algorithm(path)
+    fingerprint = _private_key_fingerprint(path)
+    if not algorithm and not fingerprint:
+        metadata = read_json_or_kv(path)
+        algorithm = metadata.get("algorithm")
+        key_size_bits = metadata.get("key_size_bits")
+        fingerprint = metadata.get("fingerprint_sha256")
+    if not algorithm:
+        return None
+    result = {"algorithm": str(algorithm)}
+    if key_size_bits:
+        result["key_size_bits"] = int(key_size_bits)
+    if fingerprint:
+        result["fingerprint_sha256"] = str(fingerprint)
+    return result
+
+
 def parse_pkcs12_algorithm(path: Path) -> str | None:
     metadata = read_json_or_kv(path)
     algorithm = metadata.get("algorithm")
@@ -181,6 +200,40 @@ def parse_ssh_config_algorithms(path: Path) -> dict[str, list[str]]:
     return policy
 
 
+def extract_key_references_from_config(path: Path) -> list[str]:
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return []
+    references = []
+    for match in re.finditer(r"(?P<path>/[A-Za-z0-9_./@:+-]+\.(?:key|pem|pkcs8))", text):
+        references.append(match.group("path"))
+    for line in text.splitlines():
+        stripped = line.strip().rstrip(";")
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "#" in stripped:
+            stripped = stripped.split("#", 1)[0].strip()
+        parts = re.split(r"\s+", stripped, maxsplit=1)
+        if len(parts) != 2:
+            continue
+        key, value = parts[0].lower(), parts[1].strip().strip("'\"")
+        if key in {
+            "hostkey",
+            "ssl_certificate_key",
+            "sslcertificatekeyfile",
+            "smtpd_tls_key_file",
+            "smtp_tls_key_file",
+            "tls_key_file",
+            "ssl_key_file",
+            "keyfile",
+            "key_file",
+            "private_key",
+        }:
+            references.append(value)
+    return _dedupe(references)
+
+
 def parse_jwks_algorithms(path: Path) -> list[str]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -237,6 +290,56 @@ def normalize_curve(curve: str | None) -> str:
 
 def normalize_ssh_curve(curve: str) -> str:
     return {"nistp256": "P256", "nistp384": "P384", "nistp521": "P521"}.get(curve, curve)
+
+
+def _private_key_algorithm(path: Path) -> tuple[str | None, int | None]:
+    try:
+        text = subprocess.check_output(
+            ["openssl", "pkey", "-in", str(path), "-noout", "-text"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None, None
+    upper = text.upper()
+    bits = _first_match(text, r"(?:Private-Key|Public-Key): \((\d+) bit")
+    key_size_bits = int(bits) if bits else None
+    if "RSA PRIVATE-KEY" in upper or "RSA PRIVATE KEY" in upper or ("PRIVATE-KEY:" in upper and "MODULUS:" in upper):
+        return (f"RSA-{key_size_bits}" if key_size_bits else "RSA"), key_size_bits
+    if "ED25519" in upper:
+        return "Ed25519", key_size_bits
+    if "ED448" in upper:
+        return "Ed448", key_size_bits
+    if "EC PRIVATE-KEY" in upper or "ASN1 OID:" in text or "NIST CURVE:" in text:
+        curve = _first_match(text, r"ASN1 OID: ([A-Za-z0-9-]+)") or _first_match(text, r"NIST CURVE: ([A-Za-z0-9-]+)")
+        return (f"ECDSA-{normalize_curve(curve)}" if curve else "ECDSA"), key_size_bits
+    if "DSA PRIVATE-KEY" in upper:
+        return (f"DSA-{key_size_bits}" if key_size_bits else "DSA"), key_size_bits
+    return None, key_size_bits
+
+
+def _private_key_fingerprint(path: Path) -> str | None:
+    try:
+        public_der = subprocess.check_output(
+            ["openssl", "pkey", "-in", str(path), "-pubout", "-outform", "DER"],
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return hashlib.sha256(public_der).hexdigest()
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    result = []
+    seen = set()
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
 
 
 def _read_ssh_string(data: bytes, offset: int) -> tuple[bytes, int]:

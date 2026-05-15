@@ -224,6 +224,7 @@ def _persist_snapshot(scan_job, candidates: list) -> CbomSnapshot:
             bom_ref=candidate.bom_ref[:255],
             algorithm=candidate.algorithm[:128],
             algorithm_family=candidate.algorithm_family[:64],
+            metadata=candidate.metadata or {},
         )
     return snapshot
 

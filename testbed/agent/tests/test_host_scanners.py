@@ -1,6 +1,7 @@
 import base64
 import os
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -67,6 +68,42 @@ class HostScannerTests(unittest.TestCase):
             self.assertEqual(result["errors"], [])
             self.assertEqual(result["findings"][0]["type"], "java_keystore")
             self.assertEqual(result["findings"][0]["algorithm"], "RSA-1024")
+
+    def test_private_key_scanner_reports_fingerprint_without_key_material(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            key_path = Path(tmp) / "unused.key"
+            subprocess.run(["openssl", "genrsa", "-out", str(key_path), "2048"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            os.environ["AGENT_CAPABILITIES"] = "agent.private_key_files"
+            os.environ["AGENT_PRIVATE_KEY_PATHS"] = tmp
+
+            result = run_host_scan(["agent.private_key_files"], {})
+
+            self.assertEqual(result["errors"], [])
+            finding = result["findings"][0]
+            self.assertEqual(finding["type"], "dormant_private_key")
+            self.assertEqual(finding["algorithm"], "RSA-2048")
+            self.assertEqual(finding["key_size_bits"], 2048)
+            self.assertEqual(len(finding["fingerprint_sha256"]), 64)
+            self.assertNotIn("private_key", finding)
+            self.assertTrue(finding["dormant"])
+
+    def test_private_key_scanner_marks_config_referenced_key_in_use(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            key_path = Path(tmp) / "server.key"
+            conf_path = Path(tmp) / "nginx.conf"
+            subprocess.run(["openssl", "genrsa", "-out", str(key_path), "2048"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            conf_path.write_text(f"ssl_certificate_key {key_path};\n", encoding="utf-8")
+            os.environ["AGENT_CAPABILITIES"] = "agent.private_key_files"
+            os.environ["AGENT_PRIVATE_KEY_PATHS"] = tmp
+            os.environ["AGENT_REFERENCE_CONFIG_PATHS"] = str(conf_path)
+
+            result = run_host_scan(["agent.private_key_files"], {})
+
+            self.assertEqual(result["errors"], [])
+            finding = result["findings"][0]
+            self.assertEqual(finding["type"], "private_key_file")
+            self.assertFalse(finding["dormant"])
+            self.assertEqual(finding["referenced_by"], [str(conf_path)])
 
     def test_unsupported_capability_is_reported(self):
         os.environ["AGENT_CAPABILITIES"] = "agent.ssh_config"

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 
 
@@ -11,6 +11,7 @@ class AssetCandidate:
     algorithm: str
     algorithm_family: str
     bom_ref: str
+    metadata: dict = field(default_factory=dict)
 
 
 def family_from_algorithm(algorithm: str | None) -> str:

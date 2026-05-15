@@ -3,6 +3,8 @@ from apps.jobs.scan_assets import AssetCandidate, family_from_algorithm, stable_
 
 TYPE_SCANNER_KIND = {
     "certificate_file": "agent.app_cert_files",
+    "private_key_file": "agent.private_key_files",
+    "dormant_private_key": "agent.private_key_files",
     "system_ca": "agent.cert_store",
     "postgres_tls_config": "agent.app_config",
     "keystore": "agent.keystore",
@@ -23,6 +25,8 @@ TYPE_SCANNER_KIND = {
 
 TYPE_ASSET_TYPE = {
     "certificate_file": "certificate",
+    "private_key_file": "key",
+    "dormant_private_key": "key",
     "system_ca": "certificate",
     "postgres_tls_config": "protocol",
     "keystore": "keystore",
@@ -65,6 +69,7 @@ def _candidate_for_finding(target, finding: dict, source_scanner: str, algorithm
         algorithm=algorithm,
         algorithm_family=family_from_algorithm(algorithm),
         bom_ref=f"{source_scanner}:{stable_bom_ref(target.host, finding_type, path, algorithm)}",
+        metadata=_metadata_for_finding(finding, source_scanner, path),
     )
 
 
@@ -82,3 +87,23 @@ def _algorithms_for_finding(finding: dict) -> list[str]:
     if minimum_tls_version:
         return [str(minimum_tls_version)]
     return ["unknown"]
+
+
+def _metadata_for_finding(finding: dict, source_scanner: str, path: str) -> dict:
+    metadata = {
+        "scanner": source_scanner,
+        "type": str(finding.get("type") or "agent_finding"),
+        "path": path,
+    }
+    for key in [
+        "fingerprint_sha256",
+        "key_size_bits",
+        "in_use",
+        "dormant",
+        "referenced_by",
+        "format",
+        "minimum_tls_version",
+    ]:
+        if key in finding and finding[key] is not None:
+            metadata[key] = finding[key]
+    return metadata

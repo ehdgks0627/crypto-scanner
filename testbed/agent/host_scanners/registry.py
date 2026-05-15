@@ -5,10 +5,12 @@ from pathlib import Path
 from .crypto_utils import (
     algorithms_from_ssh_authorized_keys,
     configured_paths,
+    extract_key_references_from_config,
     iter_files,
     parse_certificate_algorithm,
     parse_jwks_algorithms,
     parse_pkcs12_algorithm,
+    parse_private_key_metadata,
     parse_public_key_algorithm,
     parse_ssh_config_algorithms,
     read_json_or_kv,
@@ -21,9 +23,11 @@ CAPABILITY_SSH_USERKEY = "agent.ssh_userkey"
 CAPABILITY_SSH_CONFIG = "agent.ssh_config"
 CAPABILITY_KEYSTORE = "agent.keystore"
 CAPABILITY_APP_CERT_FILES = "agent.app_cert_files"
+CAPABILITY_PRIVATE_KEY_FILES = "agent.private_key_files"
 CAPABILITY_APP_CONFIG = "agent.app_config"
 
 CERT_SUFFIXES = (".crt", ".pem", ".cer")
+PRIVATE_KEY_SUFFIXES = (".key", ".pem", ".pkcs8")
 KEYSTORE_SUFFIXES = (".p12", ".pfx", ".jks", ".keystore")
 
 
@@ -151,10 +155,55 @@ def _scan_app_cert_files(options: dict) -> tuple[list[dict], list[dict]]:
     return findings, errors
 
 
+def _scan_private_key_files(options: dict) -> tuple[list[dict], list[dict]]:
+    paths = configured_paths(
+        "AGENT_PRIVATE_KEY_PATHS",
+        _existing_defaults([
+            "/etc/nginx/ssl",
+            "/etc/testbed/certs",
+            "/etc/testbed/db-certs",
+            "/var/lib/postgresql/testbed-certs",
+            "/etc/ssh",
+            "/home",
+            "/root/.ssh",
+            "/etc/backup",
+            "/opt/legacy-java/conf",
+        ]),
+    )
+    referenced = _referenced_private_key_paths()
+    findings, errors = [], []
+    for path in iter_files(paths, PRIVATE_KEY_SUFFIXES, _max_files(options)):
+        metadata = parse_private_key_metadata(path)
+        if not metadata:
+            errors.append({"capability": CAPABILITY_PRIVATE_KEY_FILES, "path": str(path), "error": "private_key_parse_failed"})
+            continue
+        path_text = str(path)
+        referenced_by = referenced.get(path_text) or referenced.get(path.name) or []
+        in_use = bool(referenced_by) or _is_default_ssh_host_key(path)
+        findings.append(
+            {
+                "type": "private_key_file" if in_use else "dormant_private_key",
+                "path": path_text,
+                "algorithm": metadata["algorithm"],
+                "key_size_bits": metadata.get("key_size_bits"),
+                "fingerprint_sha256": metadata.get("fingerprint_sha256"),
+                "in_use": in_use,
+                "dormant": not in_use,
+                "referenced_by": referenced_by,
+            }
+        )
+    return findings, errors
+
+
 def _scan_app_config(options: dict) -> tuple[list[dict], list[dict]]:
     paths = configured_paths(
         "AGENT_APP_CONFIG_PATHS",
         _existing_defaults([
+            "/etc/nginx/nginx.conf",
+            "/etc/nginx/conf.d",
+            "/etc/apache2",
+            "/etc/httpd",
+            "/etc/postfix/main.cf",
             "/etc/testbed/postgresql.conf",
             "/etc/api-gateway/jwks/current.json",
             "/var/lib/oidc/jwks.json",
@@ -162,7 +211,7 @@ def _scan_app_config(options: dict) -> tuple[list[dict], list[dict]]:
         ]),
     )
     findings, errors = [], []
-    for path in iter_files(paths, (".conf", ".json", ".properties"), _max_files(options)):
+    for path in iter_files(paths, (".conf", ".json", ".properties", "main.cf"), _max_files(options)):
         finding = _app_config_finding(path)
         if finding:
             findings.append(finding)
@@ -173,6 +222,18 @@ def _scan_app_config(options: dict) -> tuple[list[dict], list[dict]]:
 
 def _app_config_finding(path: Path) -> dict | None:
     path_text = str(path)
+    if path.name.endswith(".conf") and "nginx" in path_text:
+        references = extract_key_references_from_config(path)
+        metadata = read_json_or_kv(path)
+        return {
+            "type": "tls_config",
+            "path": path_text,
+            "minimum_tls_version": metadata.get("ssl_protocols", "TLS config"),
+            "referenced_by": references,
+        }
+    if path.name in {"main.cf", "httpd.conf", "apache2.conf"} or "/conf.d/" in path_text:
+        references = extract_key_references_from_config(path)
+        return {"type": "tls_config", "path": path_text, "minimum_tls_version": "TLS config", "referenced_by": references} if references else None
     if path.name == "postgresql.conf":
         algorithm = parse_certificate_algorithm(Path("/var/lib/postgresql/testbed-certs/server.crt")) or "TLS config"
         metadata = read_json_or_kv(path)
@@ -181,6 +242,7 @@ def _app_config_finding(path: Path) -> dict | None:
             "path": path_text,
             "algorithm": algorithm,
             "minimum_tls_version": metadata.get("ssl_min_protocol_version"),
+            "referenced_by": extract_key_references_from_config(path),
         }
     if path.name == "current.json":
         algorithms = parse_jwks_algorithms(path)
@@ -239,6 +301,35 @@ def _configured_capabilities() -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _referenced_private_key_paths() -> dict[str, list[str]]:
+    explicit = [item.strip() for item in os.getenv("AGENT_REFERENCED_KEY_PATHS", "").split(os.pathsep) if item.strip()]
+    config_paths = configured_paths(
+        "AGENT_REFERENCE_CONFIG_PATHS",
+        _existing_defaults([
+            "/etc/nginx/nginx.conf",
+            "/etc/nginx/conf.d",
+            "/etc/apache2",
+            "/etc/httpd",
+            "/etc/postfix/main.cf",
+            "/etc/ssh/sshd_config",
+            "/etc/testbed/postgresql.conf",
+        ]),
+    )
+    references: dict[str, list[str]] = {}
+    for value in explicit:
+        references.setdefault(value, []).append("AGENT_REFERENCED_KEY_PATHS")
+        references.setdefault(Path(value).name, []).append("AGENT_REFERENCED_KEY_PATHS")
+    for config_path in iter_files(config_paths, ("sshd_config", ".conf", "main.cf"), max_files=100):
+        for value in extract_key_references_from_config(config_path):
+            references.setdefault(value, []).append(str(config_path))
+            references.setdefault(Path(value).name, []).append(str(config_path))
+    return references
+
+
+def _is_default_ssh_host_key(path: Path) -> bool:
+    return path.parent == Path("/etc/ssh") and path.name.startswith("ssh_host_") and path.name.endswith("_key")
+
+
 def _existing_defaults(paths: list[str]) -> list[str]:
     existing = []
     for path in paths:
@@ -265,5 +356,6 @@ SCANNERS = {
     CAPABILITY_SSH_CONFIG: _scan_ssh_config,
     CAPABILITY_KEYSTORE: _scan_keystore,
     CAPABILITY_APP_CERT_FILES: _scan_app_cert_files,
+    CAPABILITY_PRIVATE_KEY_FILES: _scan_private_key_files,
     CAPABILITY_APP_CONFIG: _scan_app_config,
 }

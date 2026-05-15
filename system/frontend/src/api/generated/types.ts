@@ -730,7 +730,7 @@ export interface components {
         /** @enum {string} */
         AssetType: "algorithm" | "certificate" | "key" | "protocol" | "keystore" | "device" | "service" | "data";
         /** @enum {string} */
-        ScannerId: "network" | "agent.cert_store" | "agent.pkg_keyring" | "agent.ssh_userkey" | "agent.ssh_config" | "agent.keystore" | "agent.app_cert_files" | "agent.app_config";
+        ScannerId: "network" | "agent.cert_store" | "agent.pkg_keyring" | "agent.ssh_userkey" | "agent.ssh_config" | "agent.keystore" | "agent.app_cert_files" | "agent.private_key_files" | "agent.app_config";
         ErrorResponse: {
             /** @example validation_error */
             error: string;

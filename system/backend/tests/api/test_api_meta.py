@@ -19,6 +19,7 @@ def test_api_meta_001_static_reference_endpoints_are_cacheable(client):
             {"id": "agent.ssh_config", "label": "SSH Config Policy", "requires_agent": True},
             {"id": "agent.keystore", "label": "Keystore Files", "requires_agent": True},
             {"id": "agent.app_cert_files", "label": "Application Cert Files", "requires_agent": True},
+            {"id": "agent.private_key_files", "label": "Private Key Files", "requires_agent": True},
             {"id": "agent.app_config", "label": "Application Config Policy", "requires_agent": True},
         ]
     }

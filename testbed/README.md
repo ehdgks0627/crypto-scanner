@@ -12,6 +12,8 @@ The default compose now models a 200-300 person IT company PoC environment:
 - 10 agent-enabled hosts: the original web/SSH/DB hosts plus representative
   API, identity, registry, vault, backup, and legacy app hosts. Host Agents
   read mounted fixture files instead of returning hard-coded findings.
+  The web, SSH, and DB Host Agents also scan private key files and report only
+  path/algorithm/fingerprint metadata, never private key material.
 
 ## Configure
 

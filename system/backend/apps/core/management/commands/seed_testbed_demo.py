@@ -36,19 +36,29 @@ class DemoAsset:
 
 
 TARGET_FIXTURE = Path(settings.BASE_DIR) / "fixtures/initial_targets.json"
-SCAN_SCANNERS = ["network", "agent.cert_store", "agent.ssh_userkey", "agent.ssh_config", "agent.keystore", "agent.pkg_keyring", "agent.app_config"]
+SCAN_SCANNERS = [
+    "network",
+    "agent.cert_store",
+    "agent.ssh_userkey",
+    "agent.ssh_config",
+    "agent.keystore",
+    "agent.pkg_keyring",
+    "agent.app_cert_files",
+    "agent.private_key_files",
+    "agent.app_config",
+]
 DISCOVERY_PORTS = [22, 25, 443, 465, 587, 993, 995, 500, 2222, 3306, 4500, 5000, 5432, 6380, 8200, 8443, 8883, 9090, 9093, 9200, 9443, 15017]
 AGENT_FIXTURES = [
-    ("web.testbed.local", ["cert_store", "app_cert_files", "app_config"], "Ubuntu 24.04", True),
-    ("ssh.testbed.local", ["ssh_userkey", "ssh_config", "pkg_keyring"], "Ubuntu 24.04", True),
-    ("db.testbed.local", ["cert_store", "keystore", "pkg_keyring"], "Debian 12", True),
-    ("api-gateway.testbed.local", ["cert_store", "app_config", "keystore"], "Ubuntu 24.04", True),
-    ("auth-oidc.testbed.local", ["cert_store", "app_config", "keystore"], "Ubuntu 24.04", True),
-    ("saml-idp.testbed.local", ["cert_store", "app_config"], "Ubuntu 24.04", True),
-    ("container-registry.testbed.local", ["cert_store", "pkg_keyring", "app_config"], "Ubuntu 24.04", True),
-    ("vault.testbed.local", ["cert_store", "keystore", "app_config"], "Ubuntu 24.04", True),
-    ("backup-service.testbed.local", ["cert_store", "keystore", "app_config"], "Debian 12", True),
-    ("legacy-java-app.testbed.local", ["cert_store", "keystore", "app_config"], "RHEL 8", True),
+    ("web.testbed.local", ["agent.cert_store", "agent.app_cert_files", "agent.private_key_files", "agent.app_config"], "Ubuntu 24.04", True),
+    ("ssh.testbed.local", ["agent.ssh_userkey", "agent.ssh_config", "agent.private_key_files", "agent.pkg_keyring"], "Ubuntu 24.04", True),
+    ("db.testbed.local", ["agent.cert_store", "agent.keystore", "agent.private_key_files", "agent.pkg_keyring"], "Debian 12", True),
+    ("api-gateway.testbed.local", ["agent.cert_store", "agent.app_config", "agent.keystore"], "Ubuntu 24.04", True),
+    ("auth-oidc.testbed.local", ["agent.cert_store", "agent.app_config", "agent.keystore"], "Ubuntu 24.04", True),
+    ("saml-idp.testbed.local", ["agent.cert_store", "agent.app_config"], "Ubuntu 24.04", True),
+    ("container-registry.testbed.local", ["agent.cert_store", "agent.pkg_keyring", "agent.app_config"], "Ubuntu 24.04", True),
+    ("vault.testbed.local", ["agent.cert_store", "agent.keystore", "agent.app_config"], "Ubuntu 24.04", True),
+    ("backup-service.testbed.local", ["agent.cert_store", "agent.keystore", "agent.app_config"], "Debian 12", True),
+    ("legacy-java-app.testbed.local", ["agent.cert_store", "agent.keystore", "agent.app_config"], "RHEL 8", True),
 ]
 DISCOVERY_AGENT_HOSTNAME = "probe.dmz.testbed.local"
 

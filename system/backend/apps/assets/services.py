@@ -216,23 +216,39 @@ def target_label(asset):
 
 
 def asset_summary(asset):
-    return {
+    summary = {
         "algorithm": asset.algorithm,
         "algorithm_family": asset.algorithm_family,
     }
+    metadata = asset.metadata or {}
+    for key in ["scanner", "path", "fingerprint_sha256", "in_use", "dormant"]:
+        if key in metadata:
+            summary[key] = metadata[key]
+    return summary
 
 
 def crypto_properties(asset):
-    return {
+    properties = {
         "algorithm": asset.algorithm,
         "algorithm_family": asset.algorithm_family,
     }
+    metadata = asset.metadata or {}
+    if metadata.get("key_size_bits") is not None:
+        properties["key_size_bits"] = metadata["key_size_bits"]
+    if metadata.get("fingerprint_sha256"):
+        properties["fingerprint_sha256"] = metadata["fingerprint_sha256"]
+    return properties
 
 
 def asset_properties(asset):
-    return {
+    properties = {
         "bom_ref": asset.bom_ref,
     }
+    metadata = asset.metadata or {}
+    for key in ["scanner", "type", "path", "format", "minimum_tls_version", "in_use", "dormant", "referenced_by"]:
+        if key in metadata and metadata[key] is not None:
+            properties[key] = metadata[key]
+    return properties
 
 
 def serialize_dependencies(asset):

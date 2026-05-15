@@ -45,16 +45,17 @@ Agent는 **데이터를 자체 보관하지 않는다**. 모든 결과는 응답
 
 | Capability | 설명 |
 |---|---|
-| `cert_store` | 시스템 CA 저장소 인증서 수집 (`/etc/ssl/certs/`, `/etc/pki/...` 등 OS별 표준 경로) |
-| `pkg_keyring` | 패키지 리포지토리 키 수집 (`/etc/apt/keyrings/`, `/etc/apk/keys/`, `/etc/pki/rpm-gpg/`) |
-| `ssh_userkey` | `/home/*/.ssh/`, `/root/.ssh/` 사용자 키 + `authorized_keys` |
-| `ssh_config` | `/etc/ssh/sshd_config`의 알고리즘 정책 라인 |
-| `keystore` | PKCS#12 (`*.p12`, `*.pfx`), Java Keystore (`*.jks`) 파일 발견 + 메타데이터 추출 |
-| `app_cert_files` | 사전 정의된 애플리케이션 인증서 경로의 파일 (`/etc/nginx/ssl/`, `/var/lib/postgresql/`) |
-| `app_config` | 애플리케이션 설정 파일 내 알고리즘 정책 (`postgresql.conf`의 `ssl_ciphers` 등) |
+| `agent.cert_store` | 시스템 CA 저장소 인증서 수집 (`/etc/ssl/certs/`, `/etc/pki/...` 등 OS별 표준 경로) |
+| `agent.pkg_keyring` | 패키지 리포지토리 키 수집 (`/etc/apt/keyrings/`, `/etc/apk/keys/`, `/etc/pki/rpm-gpg/`) |
+| `agent.ssh_userkey` | `/home/*/.ssh/`, `/root/.ssh/` 사용자 키 + `authorized_keys` |
+| `agent.ssh_config` | `/etc/ssh/sshd_config`의 알고리즘 정책 라인 |
+| `agent.keystore` | PKCS#12 (`*.p12`, `*.pfx`), Java Keystore (`*.jks`) 파일 발견 + 메타데이터 추출 |
+| `agent.app_cert_files` | 사전 정의된 애플리케이션 인증서 경로의 파일 (`/etc/nginx/ssl/`, `/var/lib/postgresql/`) |
+| `agent.private_key_files` | 개인키 파일(`*.key`, `*.pem`, `*.pkcs8`)의 알고리즘, 키 길이, 공개키 fingerprint 수집. 개인키 원문은 응답/저장하지 않음 |
+| `agent.app_config` | 애플리케이션 설정 파일 내 알고리즘 정책과 인증서/키 참조 경로 (`nginx.conf`, `postgresql.conf`, `postfix main.cf` 등) |
 
 각 Capability는 Agent에서 활성/비활성 가능 (환경변수로). 등록 시 자기가 가진 Capability 목록을 백엔드에 알린다.
-백엔드 API에 등록되는 capability 값은 Job scanner id와 동일하게 `agent.<capability>` 형식(`agent.cert_store` 등)을 사용한다.
+Host Agent는 개인키 파일을 발견하더라도 원문을 저장하거나 전송하지 않고 `path`, `algorithm`, `key_size_bits`, `fingerprint_sha256`, `in_use`, `dormant` 같은 메타데이터만 반환한다.
 
 ## 4.5 Agent 등록 흐름
 

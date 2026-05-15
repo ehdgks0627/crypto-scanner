@@ -26,6 +26,7 @@ ScannerId = Literal[
     "agent.ssh_config",
     "agent.keystore",
     "agent.app_cert_files",
+    "agent.private_key_files",
     "agent.app_config",
 ]
 

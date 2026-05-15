@@ -22,6 +22,7 @@ class Asset(models.Model):
     bom_ref = models.CharField(max_length=255, default="")
     algorithm = models.CharField(max_length=128, default="")
     algorithm_family = models.CharField(max_length=64, default="")
+    metadata = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

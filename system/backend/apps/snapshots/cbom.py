@@ -44,6 +44,7 @@ def _component(asset):
         {"name": "internal:algorithm_family", "value": asset.algorithm_family} if asset.algorithm_family else None,
         {"name": "internal:quantum_vulnerable", "value": str(_is_quantum_vulnerable(asset)).lower()},
     ]
+    properties.extend(_asset_metadata_properties(asset))
     if risk_score:
         properties.extend(
             [
@@ -81,3 +82,30 @@ def _component_type(asset):
 
 def _is_quantum_vulnerable(asset):
     return asset.algorithm_family in {"RSA", "DSA", "ECDSA", "ECDH", "DH"}
+
+
+def _asset_metadata_properties(asset):
+    metadata = asset.metadata or {}
+    safe_keys = {
+        "scanner": "evidence.scanner",
+        "type": "evidence.type",
+        "path": "evidence.path",
+        "fingerprint_sha256": "evidence.fingerprint_sha256",
+        "key_size_bits": "crypto.key_size_bits",
+        "in_use": "evidence.in_use",
+        "dormant": "evidence.dormant",
+        "referenced_by": "evidence.referenced_by",
+        "minimum_tls_version": "crypto.minimum_tls_version",
+        "format": "crypto.format",
+    }
+    properties = []
+    for key, name in safe_keys.items():
+        if key not in metadata or metadata[key] is None:
+            continue
+        value = metadata[key]
+        if isinstance(value, (dict, list)):
+            value = json.dumps(value, sort_keys=True)
+        else:
+            value = str(value).lower() if isinstance(value, bool) else str(value)
+        properties.append({"name": name, "value": value})
+    return properties

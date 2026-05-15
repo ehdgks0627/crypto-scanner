@@ -219,6 +219,68 @@ def test_api_job_005c_scan_worker_maps_host_agent_findings(monkeypatch):
     assert logs == {"agent.cert_store": 1, "agent.ssh_config": 2}
 
 
+def test_api_job_005d_scan_worker_maps_private_key_findings_without_key_material(monkeypatch):
+    from apps.agents.models import Agent
+    from apps.jobs import agent_client, scan_worker
+    from apps.jobs.models import QueuedTask
+    from apps.snapshots.models import CbomSnapshot
+
+    target = create_target(host="host-agent.testbed.local", port=443, protocol_hint="TLS", agent_enabled=True)
+    Agent.objects.create(
+        hostname=target.host,
+        agent_role="host",
+        agent_url="http://host-agent.testbed.local:9100",
+        capabilities=["agent.private_key_files"],
+        agent_token_hash="hash",
+        agent_runtime_token="runtime-token",
+        active=True,
+        last_seen=timezone.now(),
+    )
+    async_job = create_async_job(kind="scan_job", status="PENDING")
+    scan_job = create_scan_job(async_job=async_job, target_ids=[target.id], scanner_selection=["agent.private_key_files"])
+    task = QueuedTask.objects.create(
+        async_job=async_job,
+        task_name="scan_job",
+        payload={"scan_job_id": scan_job.id, "target_ids": [target.id], "scanners": ["agent.private_key_files"]},
+        status=QueuedTask.QUEUED,
+        available_at=timezone.now(),
+    )
+
+    def fake_post_scan(agent, capabilities):
+        assert capabilities == ["agent.private_key_files"]
+        return {
+            "findings": [
+                {
+                    "type": "dormant_private_key",
+                    "path": "/etc/nginx/ssl/legacy-rsa1024.key",
+                    "algorithm": "RSA-1024",
+                    "key_size_bits": 1024,
+                    "fingerprint_sha256": "a" * 64,
+                    "in_use": False,
+                    "dormant": True,
+                }
+            ]
+        }
+
+    monkeypatch.setattr(agent_client, "post_scan", fake_post_scan)
+
+    result = scan_worker.process_scan_job_task(task.id)
+
+    asset = CbomSnapshot.objects.get(id=result["snapshot_id"]).assets.get()
+    assert asset.asset_type == "key"
+    assert asset.algorithm == "RSA-1024"
+    assert asset.algorithm_family == "RSA"
+    assert asset.metadata == {
+        "scanner": "agent.private_key_files",
+        "type": "dormant_private_key",
+        "path": "/etc/nginx/ssl/legacy-rsa1024.key",
+        "fingerprint_sha256": "a" * 64,
+        "key_size_bits": 1024,
+        "in_use": False,
+        "dormant": True,
+    }
+
+
 def test_api_job_006_failed_job_returns_error_and_finished_at(client):
     finished_at = timezone.now()
     job = create_async_job(
