@@ -8,6 +8,7 @@ from apps.jobs.models import AsyncJob, QueuedTask
 from apps.jobs.services import enqueue_task, serialize_dt
 from apps.risk import services as risk_services
 from risk_engine import compute_dhs_risk
+from risk_engine import llm as llm_client
 from risk_engine.prompts import (
     QualitativeRiskResponseParseError,
     build_qualitative_risk_prompt,
@@ -19,7 +20,7 @@ CONTEXT_FIELDS = ["sensitivity", "lifespan_years", "criticality", "exposure", "s
 QUALITATIVE_TASK_NAME = "qualitative_assessment"
 QUALITATIVE_PROVIDER = "mock-rulebook"
 QUALITATIVE_FALLBACK_PROVIDER = "mock-rulebook-fallback"
-QUALITATIVE_PROMPT_METADATA_KEYS = {"llm_cache", "llm_fallback"}
+QUALITATIVE_PROMPT_METADATA_KEYS = {"llm_cache", "llm_fallback", "llm_provider"}
 QUANTUM_VULNERABLE_FAMILIES = {"RSA", "DSA", "ECDSA", "ECDH", "DH"}
 CONTEXT_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 EXPOSURE_LEVELS = {"air_gapped": 0, "internal_network": 1, "dmz": 2, "public_internet": 3}
@@ -159,17 +160,20 @@ def generate_qualitative_assessment(asset, cached_assessment=None):
         operational_context=_qualitative_operational_context(asset, context, sources),
         risk=_qualitative_risk_payload(risk_score, score),
     )
-    cache_key = _qualitative_prompt_cache_key(prompt["payload"])
-    if _qualitative_cache_hit(cached_assessment, prompt, cache_key):
+    provider_identity = _qualitative_provider_cache_identity()
+    cache_key = _qualitative_prompt_cache_key({"prompt": prompt["payload"], "llm_provider": provider_identity})
+    if _qualitative_cache_hit(cached_assessment, prompt, cache_key, provider_identity):
         return None
 
     fallback_response = _heuristic_qualitative_response(asset, context, risk_score, score)
     fallback_metadata = {"used": False, "reason": None}
+    provider_metadata = {"provider": QUALITATIVE_PROVIDER, "model": None, "usage": {}}
     provider = QUALITATIVE_PROVIDER
     try:
-        raw_response = _mock_qualitative_llm_response(fallback_response)
+        raw_response, provider_metadata = _qualitative_llm_response(prompt, fallback_response)
+        provider = provider_metadata["provider"]
         parsed_response = parse_qualitative_risk_response(raw_response)
-    except (QualitativeRiskResponseParseError, TimeoutError) as exc:
+    except (QualitativeRiskResponseParseError, TimeoutError, llm_client.LlmProviderError) as exc:
         provider = QUALITATIVE_FALLBACK_PROVIDER
         fallback_metadata = {"used": True, "reason": exc.__class__.__name__}
         parsed_response = fallback_response
@@ -178,8 +182,9 @@ def generate_qualitative_assessment(asset, cached_assessment=None):
         "prompt_version": prompt["version"],
         "prompt_payload": {
             **prompt["payload"],
-            "llm_cache": {"key": cache_key},
+            "llm_cache": {"key": cache_key, "provider": provider_identity},
             "llm_fallback": fallback_metadata,
+            "llm_provider": provider_metadata,
         },
         **parsed_response,
     }
@@ -190,11 +195,13 @@ def _qualitative_prompt_cache_key(payload: dict) -> str:
     return sha256(encoded).hexdigest()
 
 
-def _qualitative_cache_hit(assessment, prompt: dict, cache_key: str) -> bool:
+def _qualitative_cache_hit(assessment, prompt: dict, cache_key: str, provider_identity: dict) -> bool:
     if assessment is None or assessment.prompt_version != prompt["version"]:
         return False
     prompt_payload = assessment.prompt_payload or {}
     metadata = prompt_payload.get("llm_cache") or {}
+    if metadata.get("provider") != provider_identity:
+        return False
     if metadata.get("key") == cache_key:
         return True
     cached_payload = {
@@ -217,6 +224,36 @@ def _heuristic_qualitative_response(asset, context, risk_score, score):
 
 def _mock_qualitative_llm_response(payload: dict) -> str:
     return "Mock qualitative assessment:\n```json\n" + json.dumps(payload, sort_keys=True) + "\n```"
+
+
+def _qualitative_provider_cache_identity() -> dict:
+    try:
+        config = llm_client.load_llm_config()
+    except llm_client.LlmProviderUnavailable as exc:
+        return {"provider": QUALITATIVE_PROVIDER, "model": None, "config_error": exc.__class__.__name__}
+    if config.provider in llm_client.DISABLED_PROVIDERS:
+        return {"provider": QUALITATIVE_PROVIDER, "model": None}
+    return {
+        "provider": config.provider,
+        "model": config.model or None,
+        "base_url": config.base_url,
+    }
+
+
+def _qualitative_llm_response(prompt: dict, fallback_response: dict) -> tuple[str, dict]:
+    try:
+        completion = llm_client.call_qualitative_risk_llm(prompt)
+    except llm_client.LlmProviderUnavailable:
+        return _mock_qualitative_llm_response(fallback_response), {
+            "provider": QUALITATIVE_PROVIDER,
+            "model": None,
+            "usage": {},
+        }
+    return completion.content, {
+        "provider": completion.provider,
+        "model": completion.model,
+        "usage": dict(completion.usage),
+    }
 
 
 def _qualitative_asset_payload(asset):

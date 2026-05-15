@@ -252,7 +252,7 @@ inherit(asset):
 
 ## 6.6 정성 평가 (LLM, 18c)
 
-정량 점수와 별개로, 자산별 LLM 기반 정성 분석 텍스트를 제공한다. **인터페이스만 정의, 구현은 v2.**
+정량 점수와 별개로, 자산별 LLM 기반 정성 분석 텍스트를 제공한다. 현재 구현은 기본적으로 결정론적 `mock-rulebook`을 사용하며, 환경변수로 OpenAI 호환 Chat Completions provider를 설정하면 실제 LLM 호출 결과를 같은 파서와 저장 경로로 처리한다.
 
 ### 6.6.1 인터페이스
 
@@ -275,9 +275,9 @@ class QualitativeAssessment:
     provider: str              # "mock" | "openai-gpt-4" | ...
 ```
 
-### 6.6.2 Mock 구현
+### 6.6.2 Provider 구현
 
-기본 구현 `MockLlmRiskAnalyzer`는 정량 점수와 알고리즘 패밀리에 기반한 템플릿 문자열을 반환한다.
+기본 구현 `mock-rulebook`은 정량 점수와 알고리즘 패밀리에 기반한 템플릿 문자열을 반환한다. 실제 provider 사용 시에는 `QUALITATIVE_LLM_PROVIDER=openai-compatible`, `QUALITATIVE_LLM_MODEL`, `QUALITATIVE_LLM_API_KEY`, `QUALITATIVE_LLM_BASE_URL`을 설정한다. provider 응답이 파싱 실패하거나 호출에 실패하면 같은 휴리스틱 결과로 폴백하여 전체 파이프라인은 계속 진행된다.
 
 ```python
 def analyze(self, asset, context, related_assets):

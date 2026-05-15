@@ -31,14 +31,14 @@ flowchart LR
 - **테스트베드**: 25개 서비스 환경 구성 (core protocol fixtures + 200~300명 IT 회사 PoC용 enterprise TLS fixtures)
 - **암호자산 식별**: Network Scanner + Agent 기반 File Scanner를 통한 다중 경로 식별
 - **CBOM 생성**: CycloneDX 1.6 CBOM 스펙 기반 + 자체 확장 필드
-- **위험도 평가**: 정량(휴리스틱 + 사용자 입력) + 정성(LLM, 인터페이스만 정의) 하이브리드
+- **위험도 평가**: 정량(휴리스틱 + 사용자 입력) + 정성(LLM provider 또는 mock-rulebook) 하이브리드
 - **CBOM 스냅샷 관리**: 스캔 단위 스냅샷 저장 및 diff 비교
 - **Migration Plan 보고서**: 자산별 권장 PQC 전환 전략 (실제 전환 실행은 v2)
 
 ### 범위 외 (Out of Scope, v2 이후)
 
 - 실제 PQC 전환 실행 (인증서 재발급, 서비스 설정 변경, 재시작) — D2 단계
-- LLM 정성 분석 모듈의 실제 구현 (인터페이스만 정의, mock으로 처리)
+- 운영용 LLM provider 선정과 프롬프트 품질 검증
 - 멀티 사용자, RBAC, SSO
 - 외부 GRC/SIEM 시스템 연동
 

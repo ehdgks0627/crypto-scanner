@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from tests.api.factories import (
@@ -586,3 +588,112 @@ def test_api_ast_009_qualitative_request_reuses_cache_until_prompt_changes(monke
     assert third.id == first.id
     assert calls["count"] == 2
     assert third.prompt_payload["context"]["sensitivity"] == "critical"
+
+
+def test_api_ast_010_qualitative_worker_uses_external_llm_provider(monkeypatch):
+    from apps.assets import services
+    from apps.assets.models import QualitativeAssessment
+    from risk_engine.llm import LlmCompletion
+
+    target = create_target(
+        host="llm-api.testbed.local",
+        context={
+            "sensitivity": "critical",
+            "lifespan_years": 12,
+            "criticality": "critical",
+            "exposure": "public_internet",
+            "service_role": "customer-api",
+        },
+    )
+    asset = create_asset(
+        target=target,
+        name="external LLM API certificate",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        bom_ref="qualitative:external-llm:rsa",
+    )
+    provider_payload = {
+        "summary": "External provider assessment for customer API certificate.",
+        "threat_scenarios": ["harvest_now_decrypt_later"],
+        "migration_recommendation": "Plan a hybrid certificate migration.",
+        "dhs_criteria": {
+            "asset_value": {
+                "question": "Q1: asset value based on external exposure and business importance.",
+                "rating": "critical",
+                "score": 0.9,
+                "rationale": "Public customer API certificate.",
+                "signals": ["public_internet", "customer-api"],
+            },
+            "protected_information": {
+                "question": "Q2: protected information based on data classification and confidentiality needs.",
+                "rating": "critical",
+                "score": 0.9,
+                "data_classification": "critical",
+                "rationale": "Protects long-lived customer traffic.",
+                "signals": ["sensitivity:critical", "lifespan_years:12"],
+            },
+            "communication_scope": {
+                "question": "Q3: communication scope based on internal-only versus external bidirectional exposure.",
+                "rating": "critical",
+                "score": 0.95,
+                "exposure": "public_internet",
+                "direction": "external_bidirectional",
+                "rationale": "Reachable by public clients.",
+                "signals": ["exposure:public_internet"],
+            },
+            "sharing_level": {
+                "question": "Q4: sharing level based on third-party or partner integration.",
+                "rating": "high",
+                "score": 0.72,
+                "sharing_scope": "public",
+                "external_parties": ["public_clients"],
+                "rationale": "Public API sharing path.",
+                "signals": ["sharing_scope:public"],
+            },
+            "critical_infrastructure": {
+                "question": "Q5: critical infrastructure dependency based on DB, identity, payment, KMS, or gateway role.",
+                "rating": "high",
+                "score": 0.78,
+                "dependency_level": "core",
+                "infrastructure_roles": ["service_gateway"],
+                "rationale": "Gateway certificate.",
+                "signals": ["service_gateway"],
+            },
+            "protection_duration": {
+                "question": "Q6: protection duration based on retention period and HNDL exposure.",
+                "rating": "critical",
+                "score": 0.96,
+                "lifespan_years": 12,
+                "hndl_exposure": "critical",
+                "rationale": "Long-lived protected traffic.",
+                "signals": ["quantum_vulnerable:true"],
+            },
+        },
+        "confidence": 0.88,
+    }
+    calls = {"count": 0}
+
+    def fake_provider(prompt):
+        calls["count"] += 1
+        assert prompt["payload"]["asset"]["name"] == "external LLM API certificate"
+        return LlmCompletion(
+            provider="openai-compatible",
+            model="qualitative-risk-test",
+            content=json.dumps(provider_payload),
+            usage={"prompt_tokens": 100, "completion_tokens": 50},
+        )
+
+    monkeypatch.setattr(services.llm_client, "call_qualitative_risk_llm", fake_provider)
+
+    assessment = services.refresh_qualitative_assessment(asset.id)
+
+    assert calls["count"] == 1
+    assert assessment == QualitativeAssessment.objects.get(asset=asset)
+    assert assessment.provider == "openai-compatible"
+    assert assessment.summary == "External provider assessment for customer API certificate."
+    assert assessment.prompt_payload["llm_provider"] == {
+        "provider": "openai-compatible",
+        "model": "qualitative-risk-test",
+        "usage": {"prompt_tokens": 100, "completion_tokens": 50},
+    }
+    assert assessment.prompt_payload["llm_fallback"] == {"used": False, "reason": None}
