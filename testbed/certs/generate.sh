@@ -155,6 +155,7 @@ fi
 cat > "$ROOT_DIR/README.generated.txt" <<EOF
 Generated testbed certificates.
 
-pqc-tls/server.crt is a TLS 1.3 placeholder certificate until the OQS-provider
-service image is introduced. Keep the hostname and port stable for scanners.
+pqc-tls/server.crt bootstraps the TLS 1.3 reference endpoint. The service
+publishes ML-KEM/ML-DSA readiness metadata at /.well-known/pqc-readiness.json
+so scanners can validate PQC asset handling without requiring an OQS build.
 EOF

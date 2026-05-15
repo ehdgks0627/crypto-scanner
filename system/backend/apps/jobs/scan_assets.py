@@ -16,9 +16,9 @@ class AssetCandidate:
 
 def family_from_algorithm(algorithm: str | None) -> str:
     value = (algorithm or "").upper()
-    if "ML-KEM" in value:
+    if "ML-KEM" in value or "MLKEM" in value:
         return "ML-KEM"
-    if "ML-DSA" in value:
+    if "ML-DSA" in value or "MLDSA" in value:
         return "ML-DSA"
     if "SLH-DSA" in value:
         return "SLH-DSA"

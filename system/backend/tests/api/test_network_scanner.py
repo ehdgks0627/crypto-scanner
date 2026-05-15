@@ -95,6 +95,43 @@ def test_network_scanner_mqtt_tls_records_application_protocol(monkeypatch):
     assert any(item.asset_type == "protocol" and item.algorithm == "MQTT over TLS" for item in candidates)
 
 
+def test_network_scanner_tls_records_pqc_readiness_assets(monkeypatch):
+    monkeypatch.setattr(network_scanner, "_known_sni_aliases", lambda _target: [])
+    monkeypatch.setattr(
+        network_scanner,
+        "_tls_probe",
+        lambda _target, _timeout_sec, sni=None, starttls=None: network_scanner.TlsProbeResult(
+            sni=sni,
+            der_chain=[],
+            tls_version="TLSv1.3",
+            cipher_suite="TLS_AES_256_GCM_SHA384",
+            alpn="http/1.1",
+            pqc_readiness={
+                "pqc_enabled": True,
+                "standard": "NIST FIPS 203/204",
+                "implementation": "testbed-reference",
+                "signature_algorithm": "ML-DSA-65",
+                "kem_group": "ML-KEM-768",
+                "hybrid_group": "X25519MLKEM768",
+                "evidence_path": "/.well-known/pqc-readiness.json",
+            },
+        ),
+    )
+
+    candidates = network_scanner.scan_network_target(
+        target(host="pqc-tls.testbed.local", port=443, protocol_hint="TLS", sni="pqc-tls.testbed.local")
+    )
+
+    assert {(item.asset_type, item.algorithm, item.algorithm_family) for item in candidates} >= {
+        ("certificate", "ML-DSA-65", "ML-DSA"),
+        ("key_agreement", "ML-KEM-768", "ML-KEM"),
+        ("protocol", "X25519MLKEM768", "ML-KEM"),
+    }
+    signature = next(item for item in candidates if item.algorithm == "ML-DSA-65")
+    assert signature.metadata["source"] == "tls-pqc-readiness"
+    assert signature.metadata["pqc_role"] == "signature"
+
+
 def test_network_scanner_ssh_keyscan_maps_rsa_ecdsa_and_ed25519(monkeypatch):
     stdout = "\n".join(
         [

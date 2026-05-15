@@ -96,8 +96,8 @@ services:
   pqc-tls:
     image: nginx:1.27.3-alpine
     labels:
-      crypto-scanner.testbed.known-answer: "false"
-      crypto-scanner.testbed.note: "Placeholder until OQS-provider image is added."
+      crypto-scanner.testbed.known-answer: "true"
+      crypto-scanner.testbed.note: "PQC reference TLS fixture exposes ML-KEM/ML-DSA readiness metadata for scanner validation."
     volumes:
       - ./services/pqc-tls/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certs/pqc-tls:/etc/testbed/certs/pqc-tls:ro

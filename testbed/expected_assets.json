@@ -3,7 +3,7 @@
   "scope": "known-answer metadata for scanner/testbed validation",
   "notes": [
     "Fingerprints and serial numbers are intentionally omitted because local cert generation is ignored by git.",
-    "pqc-tls is marked as a placeholder until an OQS-provider service image is introduced."
+    "pqc-tls exposes a deterministic PQC readiness endpoint so scanners can assetize ML-KEM/ML-DSA coverage without requiring an OQS-provider build."
   ],
   "services": [
     {
@@ -21,10 +21,11 @@
     {
       "host": "pqc-tls.testbed.local",
       "ports": [443],
-      "placeholder": true,
-      "expected_future_assets": [
-        {"type": "tls_kem", "algorithm": "ML-KEM-768"},
-        {"type": "tls_signature", "algorithm": "ML-DSA-65"}
+      "network_assets": [
+        {"type": "tls_certificate", "algorithm_family": "RSA", "key_size_bits": 2048, "purpose": "bootstrap_certificate"},
+        {"type": "pqc_readiness_signature", "algorithm": "ML-DSA-65"},
+        {"type": "pqc_readiness_kem", "algorithm": "ML-KEM-768"},
+        {"type": "pqc_readiness_hybrid_group", "algorithm": "X25519MLKEM768"}
       ]
     },
     {

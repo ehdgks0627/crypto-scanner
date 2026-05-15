@@ -23,7 +23,7 @@
 | # | 서비스 | 호스트네임 | 포트 | 베이스 이미지 | Agent | 시연 시나리오 |
 |---|---|---|---|---|---|---|
 | 1 | HTTPS Web Server | `web.testbed.local` | 443/TCP | `nginx:1.27-alpine` | ✓ | 협조 가능 호스트 (Agent로 시스템 CA·미사용 인증서까지 식별) |
-| 2 | PQC-enabled TLS Server | `pqc-tls.testbed.local` | 443/TCP | OQS Provider 기반 빌드 예정, 현재 nginx placeholder | ✗ | 외부 시점 스캔만 (전환 후 자산 참조 예시) |
+| 2 | PQC-enabled TLS Server | `pqc-tls.testbed.local` | 443/TCP | nginx TLS 1.3 + PQC readiness metadata | ✗ | 외부 시점 스캔만 (ML-KEM/ML-DSA 참조 자산 예시) |
 | 3 | SSH Server | `ssh.testbed.local` | 22/TCP | `linuxserver/openssh-server` 계열 fixture | ✓ | 협조 가능 호스트 (사용자 키·`authorized_keys`·`sshd_config` 정책 식별) |
 | 4 | MQTT Broker | `mqtt.testbed.local` | 8883/TCP | `eclipse-mosquitto:2` | ✗ | 외부 시점 스캔만 |
 | 5 | IPsec Gateway | `ipsec.testbed.local` | 500, 4500/UDP | `strongx509/strongswan` (digest pin) | ✗ | 외부 시점 스캔만 (IKE_SA_INIT 분석) |
@@ -129,12 +129,12 @@
 
 | 항목 | 설정 |
 |---|---|
-| 구현 | OQS Provider 기반 nginx 또는 oqs-openssl |
+| 구현 | nginx TLS 1.3 + `/.well-known/pqc-readiness.json` |
 | TLS 버전 | TLS 1.3 |
-| KEM | `X25519`, `ML-KEM-768`, `X25519MLKEM768` (hybrid) |
-| 인증서 | ML-DSA-65 leaf (서명 알고리즘), 또는 RSA-2048+ML-DSA-65 hybrid 인증서 |
+| KEM | readiness metadata로 `ML-KEM-768`, `X25519MLKEM768` (hybrid) 노출 |
+| 인증서 | TLS bootstrap 인증서는 RSA-2048, readiness metadata로 `ML-DSA-65` 서명 자산 노출 |
 | ALPN | `http/1.1` |
-| 비고 | **시스템 스택은 이 서비스를 "전환 후" 자산의 참조 예시로 활용** |
+| 비고 | **OQS 빌드 없이도 시스템 스택이 "전환 후" PQC 자산 분류를 검증하는 참조 예시로 활용** |
 
 ### 2.4.3 SSH Server (`ssh.testbed.local`)
 

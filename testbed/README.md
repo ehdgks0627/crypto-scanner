@@ -89,12 +89,11 @@ Generated certificate material is ignored by git. Re-run with
   static compose IPs deterministic while avoiding common Docker bridge ranges.
 - The IPsec NAT-T host port defaults to `45000` to avoid collisions with local
   VPN software. Set `IPSEC_NATT_PORT=4500` for the exact plan port.
-- `pqc-tls` currently exposes a TLS 1.3 reference endpoint using the normal
-  OpenSSL/nginx path. The compose keeps the service boundary and hostname
-  stable so the OQS-provider image can replace it without changing scanner
-  targets.
+- `pqc-tls` exposes a TLS 1.3 PQC reference endpoint using the normal
+  OpenSSL/nginx path plus `/.well-known/pqc-readiness.json`. The scanner
+  records the endpoint's ML-KEM/ML-DSA readiness metadata as PQC assets, while
+  the hostname and port remain stable for a future OQS-provider image swap.
 - `mail` is a lightweight protocol fixture that exposes SMTP/STARTTLS and
   implicit TLS ports. It is intended for scanner handshakes, not mail delivery.
-- `expected_assets.json` records the intended scanner coverage and marks the
-  current PQC TLS service as a placeholder rather than a known-answer OQS
-  endpoint.
+- `expected_assets.json` records the intended scanner coverage, including the
+  PQC readiness assets exposed by the `pqc-tls` fixture.

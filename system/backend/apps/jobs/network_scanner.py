@@ -1,5 +1,6 @@
 import base64
 import ipaddress
+import json
 import os
 import re
 import socket
@@ -87,6 +88,7 @@ class TlsProbeResult:
     cipher_suite: str | None
     alpn: str | None
     supported_cipher_suites: tuple[str, ...] = ()
+    pqc_readiness: dict | None = None
 
 
 def scan_network_target(target, timeout_sec: float = 5.0) -> list[AssetCandidate]:
@@ -196,6 +198,7 @@ def _tls_probe(target, timeout_sec: float, sni: str | None = None, starttls: str
             alpn = tls_sock.selected_alpn_protocol()
     chain = _openssl_certificate_chain(target, timeout_sec, sni=sni) or ([der] if der else [])
     supported_cipher_suites = _accepted_tls_cipher_suites(target, timeout_sec, sni=sni)
+    pqc_readiness = _pqc_readiness_metadata(target, timeout_sec, sni=sni)
     return TlsProbeResult(
         sni=sni,
         der_chain=chain,
@@ -203,6 +206,7 @@ def _tls_probe(target, timeout_sec: float, sni: str | None = None, starttls: str
         cipher_suite=cipher,
         alpn=alpn,
         supported_cipher_suites=tuple(supported_cipher_suites),
+        pqc_readiness=pqc_readiness,
     )
 
 
@@ -321,6 +325,61 @@ def _probe_tls13_cipher_suite(target, timeout_sec: float, sni: str | None, ciphe
     return negotiated if negotiated == cipher_name else None
 
 
+def _pqc_readiness_metadata(target, timeout_sec: float, sni: str | None) -> dict | None:
+    if str(os.getenv("NETWORK_TLS_PQC_READINESS", "1")).lower() in {"0", "false", "no"}:
+        return None
+    if target.port not in _pqc_readiness_ports():
+        return None
+    path = os.getenv("NETWORK_TLS_PQC_READINESS_PATH", "/.well-known/pqc-readiness.json")
+    host_header = sni or target.sni or target.host
+    context = _tls_context()
+    try:
+        with socket.create_connection((_target_address(target), target.port), timeout=timeout_sec) as raw_sock:
+            raw_sock.settimeout(max(0.5, min(timeout_sec, 2.0)))
+            with context.wrap_socket(raw_sock, server_hostname=sni) as tls_sock:
+                request = f"GET {path} HTTP/1.1\r\nHost: {host_header}\r\nConnection: close\r\n\r\n"
+                tls_sock.sendall(request.encode("ascii"))
+                response = _recv_http_response(tls_sock)
+    except (OSError, ssl.SSLError, TimeoutError):
+        return None
+    try:
+        header, body = response.split(b"\r\n\r\n", 1)
+    except ValueError:
+        return None
+    if not header.startswith(b"HTTP/1.") or b" 200 " not in header[:32]:
+        return None
+    try:
+        data = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _recv_http_response(tls_sock) -> bytes:
+    chunks = []
+    total = 0
+    while total < 16384:
+        try:
+            chunk = tls_sock.recv(4096)
+        except socket.timeout as exc:
+            raise TimeoutError from exc
+        if not chunk:
+            break
+        chunks.append(chunk)
+        total += len(chunk)
+        if b"\r\n\r\n" in b"".join(chunks) and b"}" in chunk:
+            break
+    return b"".join(chunks)
+
+
+def _pqc_readiness_ports() -> set[int]:
+    raw = os.getenv("NETWORK_TLS_PQC_READINESS_PORTS", "443,5000,8200,8443,9090,9200,9443,15017")
+    try:
+        return {int(item.strip()) for item in raw.split(",") if item.strip()}
+    except ValueError:
+        return {443, 5000, 8200, 8443, 9090, 9200, 9443, 15017}
+
+
 def _tls_candidates_from_result(target, result: TlsProbeResult, source: str) -> list[AssetCandidate]:
     candidates = []
     for index, der in enumerate(result.der_chain):
@@ -329,10 +388,72 @@ def _tls_candidates_from_result(target, result: TlsProbeResult, source: str) -> 
         candidates.append(_tls_version_candidate(target, result))
     for cipher_suite in _dedupe([result.cipher_suite, *result.supported_cipher_suites]):
         candidates.append(_tls_cipher_candidate(target, result, cipher_suite))
+    candidates.extend(_pqc_readiness_candidates(target, result))
     if result.alpn:
         candidates.append(_application_protocol_candidate(target, result.alpn.upper(), f"ALPN {result.alpn}", result.sni))
     if target.port in MQTT_TLS_PORTS or result.alpn == "mqtt":
         candidates.append(_application_protocol_candidate(target, "MQTT", "MQTT over TLS", result.sni))
+    return candidates
+
+
+def _pqc_readiness_candidates(target, result: TlsProbeResult) -> list[AssetCandidate]:
+    metadata = result.pqc_readiness or {}
+    if not metadata or metadata.get("pqc_enabled") is not True:
+        return []
+    sni_label = result.sni or target.sni or target.host
+    signature_algorithm = str(metadata.get("signature_algorithm") or "").strip()
+    kem_group = str(metadata.get("kem_group") or metadata.get("key_exchange_group") or "").strip()
+    hybrid_group = str(metadata.get("hybrid_group") or "").strip()
+    source_metadata = {
+        "scanner": "network",
+        "type": "pqc_readiness",
+        "source": "tls-pqc-readiness",
+        "sni": sni_label,
+        "evidence_path": metadata.get("evidence_path") or "/.well-known/pqc-readiness.json",
+        "hybrid_group": hybrid_group,
+        "standard": metadata.get("standard"),
+        "implementation": metadata.get("implementation"),
+    }
+    candidates = []
+    if signature_algorithm:
+        candidates.append(
+            AssetCandidate(
+                target_id=target.id,
+                scanner_kind="network",
+                name=f"{target.host}:{target.port} {sni_label} PQC signature",
+                asset_type="certificate",
+                algorithm=signature_algorithm,
+                algorithm_family=family_from_algorithm(signature_algorithm),
+                bom_ref=f"network:pqc-readiness:signature:{stable_bom_ref(target.host, target.port, sni_label, signature_algorithm)}",
+                metadata={**source_metadata, "pqc_role": "signature"},
+            )
+        )
+    if kem_group:
+        candidates.append(
+            AssetCandidate(
+                target_id=target.id,
+                scanner_kind="network",
+                name=f"{target.host}:{target.port} {sni_label} PQC key agreement",
+                asset_type="key_agreement",
+                algorithm=kem_group,
+                algorithm_family=family_from_algorithm(kem_group),
+                bom_ref=f"network:pqc-readiness:kem:{stable_bom_ref(target.host, target.port, sni_label, kem_group)}",
+                metadata={**source_metadata, "pqc_role": "kem"},
+            )
+        )
+    if hybrid_group:
+        candidates.append(
+            AssetCandidate(
+                target_id=target.id,
+                scanner_kind="network",
+                name=f"{target.host}:{target.port} {sni_label} hybrid TLS group",
+                asset_type="protocol",
+                algorithm=hybrid_group,
+                algorithm_family=family_from_algorithm(hybrid_group),
+                bom_ref=f"network:pqc-readiness:hybrid-group:{stable_bom_ref(target.host, target.port, sni_label, hybrid_group)}",
+                metadata={**source_metadata, "pqc_role": "hybrid_group"},
+            )
+        )
     return candidates
 
 
