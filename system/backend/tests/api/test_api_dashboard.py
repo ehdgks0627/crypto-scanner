@@ -45,6 +45,13 @@ def test_api_dsh_001_dashboard_summary_uses_latest_snapshot(client):
         "snapshot_id": latest.id,
         "scan_job_id": None,
     }
+    assert body["kpis"]["quantum_vulnerable_assets_per_scan"] == {
+        "value": 1,
+        "unit": "assets",
+        "source": "algorithm_family_classification",
+        "snapshot_id": latest.id,
+        "scan_job_id": None,
+    }
     assert body["by_tier"]["CRITICAL"] == 1
     assert body["by_asset_type"]["certificate"] == 1
     assert body["by_algorithm_family"]["RSA"] == 1
@@ -67,6 +74,7 @@ def test_api_dsh_002_dashboard_empty_state_without_snapshots(client):
     assert body["by_algorithm_family"] == {}
     assert body["quantum_vulnerable_ratio"] == {"vulnerable": 0, "safe": 0, "unknown": 0}
     assert body["kpis"]["discovered_crypto_assets_per_scan"]["value"] == 0
+    assert body["kpis"]["quantum_vulnerable_assets_per_scan"]["value"] == 0
     assert body["recent_jobs"] == []
     assert body["trend"] == []
 

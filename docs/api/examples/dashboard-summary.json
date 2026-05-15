@@ -43,6 +43,13 @@
       "source": "cbom_snapshot",
       "snapshot_id": 56,
       "scan_job_id": 123
+    },
+    "quantum_vulnerable_assets_per_scan": {
+      "value": 75,
+      "unit": "assets",
+      "source": "algorithm_family_classification",
+      "snapshot_id": 56,
+      "scan_job_id": 123
     }
   },
   "recent_jobs": [

@@ -3943,9 +3943,11 @@ components:
 
     DashboardKpis:
       type: object
-      required: [discovered_crypto_assets_per_scan]
+      required: [discovered_crypto_assets_per_scan, quantum_vulnerable_assets_per_scan]
       properties:
         discovered_crypto_assets_per_scan:
+          $ref: '#/components/schemas/DashboardKpiMetric'
+        quantum_vulnerable_assets_per_scan:
           $ref: '#/components/schemas/DashboardKpiMetric'
 
     DashboardKpiMetric:

@@ -11,6 +11,8 @@ from apps.targets.models import Target
 
 pytestmark = pytest.mark.django_db
 
+VULNERABLE_ALGORITHM_FAMILIES = {"RSA", "ECDSA", "ECDH", "DH"}
+
 
 def test_seed_testbed_demo_populates_dashboard_scenario(client):
     call_command("seed_testbed_demo", "--reset")
@@ -33,6 +35,10 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert body["snapshot"]["asset_count"] == len(LATEST_ASSETS)
     assert body["kpis"]["discovered_crypto_assets_per_scan"]["value"] == len(LATEST_ASSETS)
     assert body["kpis"]["discovered_crypto_assets_per_scan"]["scan_job_id"] == latest.scan_job_id
+    assert body["kpis"]["quantum_vulnerable_assets_per_scan"]["value"] == len(
+        [asset for asset in LATEST_ASSETS if asset.algorithm_family in VULNERABLE_ALGORITHM_FAMILIES]
+    )
+    assert body["kpis"]["quantum_vulnerable_assets_per_scan"]["scan_job_id"] == latest.scan_job_id
     assert body["by_tier"]["CRITICAL"] == 18
     assert body["by_tier"]["HIGH"] == 31
     assert body["quantum_vulnerable_ratio"]["vulnerable"] == 52

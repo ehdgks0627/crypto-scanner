@@ -148,6 +148,7 @@ export function DashboardView() {
 
   const dashboardSnapshot = summary.data.snapshot;
   const discoveredAssetsKpi = summary.data.kpis.discovered_crypto_assets_per_scan;
+  const vulnerableAssetsKpi = summary.data.kpis.quantum_vulnerable_assets_per_scan;
 
   return (
     <Section>
@@ -179,7 +180,7 @@ export function DashboardView() {
         />
         <MetricCard
           label="양자취약"
-          value={formatNumber(summary.data.quantum_vulnerable_ratio.vulnerable)}
+          value={formatNumber(vulnerableAssetsKpi.value)}
           meta={`안전 ${summary.data.quantum_vulnerable_ratio.safe}`}
         />
         <MetricCard

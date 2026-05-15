@@ -21,7 +21,16 @@ describe("DashboardView", () => {
       by_asset_type: {},
       by_algorithm_family: {},
       quantum_vulnerable_ratio: { vulnerable: 0, safe: 0, unknown: 0 },
-      kpis: { discovered_crypto_assets_per_scan: { value: 0, unit: "assets", source: "cbom_snapshot", snapshot_id: null, scan_job_id: null } },
+      kpis: {
+        discovered_crypto_assets_per_scan: { value: 0, unit: "assets", source: "cbom_snapshot", snapshot_id: null, scan_job_id: null },
+        quantum_vulnerable_assets_per_scan: {
+          value: 0,
+          unit: "assets",
+          source: "algorithm_family_classification",
+          snapshot_id: null,
+          scan_job_id: null
+        }
+      },
       recent_jobs: [],
       agents_status: { total: 0, active: 0, stale: 0 },
       trend: []
@@ -45,7 +54,16 @@ describe("DashboardView", () => {
       by_asset_type: {},
       by_algorithm_family: {},
       quantum_vulnerable_ratio: { vulnerable: 0, safe: 0, unknown: 0 },
-      kpis: { discovered_crypto_assets_per_scan: { value: 0, unit: "assets", source: "cbom_snapshot", snapshot_id: null, scan_job_id: null } },
+      kpis: {
+        discovered_crypto_assets_per_scan: { value: 0, unit: "assets", source: "cbom_snapshot", snapshot_id: null, scan_job_id: null },
+        quantum_vulnerable_assets_per_scan: {
+          value: 0,
+          unit: "assets",
+          source: "algorithm_family_classification",
+          snapshot_id: null,
+          scan_job_id: null
+        }
+      },
       recent_jobs: [],
       agents_status: { total: 0, active: 0, stale: 0 },
       trend: []
@@ -59,7 +77,7 @@ describe("DashboardView", () => {
       scenario: "testbed_demo",
       latest_snapshot_id: 22,
       baseline_snapshot_id: 21,
-      asset_count: 65,
+      asset_count: 67,
       message: "Seeded testbed-demo"
     });
 
@@ -91,6 +109,13 @@ describe("DashboardView", () => {
           value: snapshotId === 2 ? 12 : 0,
           unit: "assets",
           source: "cbom_snapshot",
+          snapshot_id: snapshotId ?? 1,
+          scan_job_id: 44
+        },
+        quantum_vulnerable_assets_per_scan: {
+          value: snapshotId === 2 ? 5 : 0,
+          unit: "assets",
+          source: "algorithm_family_classification",
           snapshot_id: snapshotId ?? 1,
           scan_job_id: 44
         }

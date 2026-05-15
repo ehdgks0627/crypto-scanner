@@ -43,7 +43,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             "by_asset_type": {},
             "by_algorithm_family": {},
             "quantum_vulnerable_ratio": {"vulnerable": 0, "safe": 0, "unknown": 0},
-            "kpis": _dashboard_kpis(None, []),
+            "kpis": _dashboard_kpis(None, [], 0),
             "recent_jobs": recent_jobs,
             "agents_status": agent_status,
             "trend": [],
@@ -92,7 +92,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             "safe": safe_count,
             "unknown": unknown_count,
         },
-        "kpis": _dashboard_kpis(latest, assets),
+        "kpis": _dashboard_kpis(latest, assets, vulnerable_count),
         "recent_jobs": recent_jobs,
         "agents_status": agent_status,
         "trend": trend,
@@ -121,12 +121,19 @@ def seed_dashboard_demo(request, payload: DemoSeedPayload):
     )
 
 
-def _dashboard_kpis(snapshot: CbomSnapshot | None, assets: list) -> dict:
+def _dashboard_kpis(snapshot: CbomSnapshot | None, assets: list, vulnerable_count: int) -> dict:
     return {
         "discovered_crypto_assets_per_scan": {
             "value": len(assets),
             "unit": "assets",
             "source": "cbom_snapshot",
+            "snapshot_id": snapshot.id if snapshot else None,
+            "scan_job_id": snapshot.scan_job_id if snapshot else None,
+        },
+        "quantum_vulnerable_assets_per_scan": {
+            "value": vulnerable_count,
+            "unit": "assets",
+            "source": "algorithm_family_classification",
             "snapshot_id": snapshot.id if snapshot else None,
             "scan_job_id": snapshot.scan_job_id if snapshot else None,
         }
