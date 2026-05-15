@@ -55,6 +55,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   · Host Agent 내부 점검 클레임은 docs/kpi/host-agent-evidence.json 근거와 데모 시드 테스트로 고정한다.
   · AI 자동 위험 평가 클레임은 docs/kpi/llm-risk-evidence.json 근거와 OpenAI 호환 provider 응답 저장 테스트로 고정한다.
   · GitHub 공개 리포지토리와 라이브 대시보드 접근성은 docs/kpi/open-demo-evidence.json 확인 결과로 고정한다.
+  · 소요 시간 "분" 단위 클레임은 docs/kpi/runtime-minutes-evidence.json 근거와 데모 시드 timestamp 테스트로 고정한다.
   · pqc-tls 테스트베드는 ML-KEM/ML-DSA readiness endpoint를 노출하고 Discovery/Scanner가 이를 PQC 자산으로 수집한다.
   · 네트워크 스캔과 Host Agent가 같은 인증서를 발견하면 fingerprint 기반으로 단일 자산으로 병합한다.
   · Discovery Agent, 대시보드, CBOM 스냅샷, 마이그레이션 추천, 가용성 검사 UI는 코드 기준으로 반영한다.
@@ -334,7 +335,8 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
               (OpenAI 호환 provider 응답을 QualitativeAssessment로 저장하는 경로와 fallback/cache 근거 고정)
     [x] 7.1.4  오픈 · 시연 가능 — GitHub 리포 + 라이브 시연 가능
               (GitHub public, raw README, pqc.sprout.kr health/dashboard HTTP 200 확인. 단, push 후 배포 최신성 재확인 필요)
-    [ ] 7.1.5  소요 시간 "분" 단위 — 측정값 확보
+    [x] 7.1.5  소요 시간 "분" 단위 — 측정값 확보
+              (데모 시드 timestamp 기준 자동 자산화 6분, 전체 파이프라인 9분 근거 고정)
 
 7.2 정직성 (△ 클레임)
     [ ] 7.2.1  코드 정적 분석 — △로 표시 (제한적 지원)
@@ -420,13 +422,13 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   4. Step 04 검증                         13      0       0      0     13    100.0%
   5. 시연 플로우 6단계                     8      0       0      0      8    100.0%
   6. KPI                                   7      0       0      0      7    100.0%
-  7. 비교 클레임                           4      1       5      0     10     40.0%
+  7. 비교 클레임                           5      1       4      0     10     50.0%
   8. 인용 사실 확인                        1      0       6      0      7     14.3%
   9. 비기능                                2      7       3      0     12     16.7%
   10. 발표 직전 점검                       0      0       5      0      5      0.0%
   ─────────────────────────────────────  ────   ────   ──────   ────   ────   ──────
-  TOTAL                                 118      8      19      3    148     81.4%
-  참고: 부분 구현([~])까지 포함하면 126 / 145 = 86.9%
+  TOTAL                                 119      8      18      3    148     82.1%
+  참고: 부분 구현([~])까지 포함하면 127 / 145 = 87.6%
 
 
 ════════════════════════════════════════════════════════════════════════════════

@@ -60,3 +60,20 @@
 > 리포지토리는 공개 접근 가능하고, 발표용 대시보드는 `pqc.sprout.kr/dashboard`에서 열 수 있습니다. 발표 직전에는 health check를 다시 실행해 API, DB, Redis, worker 상태를 확인합니다.
 
 주의할 점은 이 근거가 영구적인 가동률을 보장하지 않는다는 것이다. 또한 로컬 브랜치가 `origin/main`보다 앞선 상태라면 새 커밋이 아직 배포되지 않았을 수 있으므로, 발표 직전에는 push 이후 health/dashboard 확인을 다시 수행해야 한다.
+
+## 16.4 소요 시간 분 단위 측정
+
+`소요 시간 "분" 단위` 주장은 데모 시드의 작업 timestamp에서 자동 계산되는 값에 한정한다. 구조화된 근거는 `docs/kpi/runtime-minutes-evidence.json`에 둔다.
+
+| 측정 항목 | 값 | 산출 방식 |
+| --- | ---: | --- |
+| Discovery 실행 시간 | 2분 | Discovery `AsyncJob.started_at/finished_at` 차이 |
+| 자동 자산화 실행 시간 | 6분 | 최신 CBOM 스냅샷과 연결된 Scan Job timestamp 차이 |
+| Risk recompute 실행 시간 | 1분 | Recompute `AsyncJob.started_at/finished_at` 차이 |
+| 전체 파이프라인 | 9분 | Discovery + Scan + Recompute 합산 |
+
+발표에서는 다음 수준으로 제한한다.
+
+> 현재 데모 데이터 기준으로 자동 자산화는 6분, 탐색부터 위험 재계산까지의 전체 파이프라인은 9분으로 기록되어 대시보드에서 분 단위로 확인할 수 있습니다.
+
+주의할 점은 이 값이 데모 시드의 timestamp 기반 측정값이라는 것이다. 실제 운영 환경에서는 대상 수, 네트워크 지연, 타임아웃, 선택한 scanner 조합, Agent 응답성에 따라 달라질 수 있다.

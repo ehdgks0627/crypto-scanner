@@ -1,0 +1,40 @@
+{
+  "id": "runtime_minutes_evidence_v1",
+  "title": "Minute-scale runtime evidence for the demo pipeline",
+  "scenario": "testbed_demo",
+  "claim": "The demo scenario records minute-scale execution time for automated inventory and the full presentation pipeline.",
+  "claim_ko": "데모 시나리오는 자동 자산화와 전체 발표 파이프라인의 실행 시간을 분 단위로 기록한다.",
+  "measurements": {
+    "discovery_runtime_minutes": {
+      "value": 2,
+      "unit": "minutes",
+      "source": "AsyncJob(kind=discovery).started_at/finished_at"
+    },
+    "automated_inventory_runtime_minutes_per_scan": {
+      "value": 6,
+      "unit": "minutes",
+      "source": "latest CbomSnapshot.scan_job.async_job started_at/finished_at"
+    },
+    "risk_recompute_runtime_minutes": {
+      "value": 1,
+      "unit": "minutes",
+      "source": "AsyncJob(kind=recompute).started_at/finished_at"
+    },
+    "full_pipeline_runtime_minutes": {
+      "value": 9,
+      "unit": "minutes",
+      "threshold_minutes": 10,
+      "passed": true,
+      "source": "Discovery + Scan + Recompute timestamp duration sum"
+    }
+  },
+  "dashboard_kpis": [
+    "automated_inventory_runtime_minutes_per_scan",
+    "full_pipeline_runtime_minutes"
+  ],
+  "presentation_guidance": [
+    "Use '6 minutes for automated inventory' when referring only to the scan-to-CBOM step.",
+    "Use '9 minutes for the full demo pipeline' when referring to discovery, inventory, and risk recompute together.",
+    "Do not present these seeded demo values as production benchmarks; real runtime depends on network latency, timeouts, selected scanners, and target count."
+  ]
+}

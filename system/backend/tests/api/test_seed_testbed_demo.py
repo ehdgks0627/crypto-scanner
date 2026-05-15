@@ -3,6 +3,8 @@ from django.core.management import call_command
 
 from apps.agents.models import Agent
 from apps.core.management.commands.seed_testbed_demo import (
+    DEMO_FULL_PIPELINE_RUNTIME_MINUTES,
+    DEMO_SCAN_RUNTIME_MINUTES,
     DORMANT_PRIVATE_KEY_PATHS,
     EXPIRING_CERTIFICATE_DAYS,
     LATEST_ASSETS,
@@ -49,9 +51,9 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert body["kpis"]["expiring_certificates_90d_per_scan"]["scan_job_id"] == latest.scan_job_id
     assert body["kpis"]["dormant_private_keys_per_scan"]["value"] == len(DORMANT_PRIVATE_KEY_PATHS)
     assert body["kpis"]["dormant_private_keys_per_scan"]["scan_job_id"] == latest.scan_job_id
-    assert body["kpis"]["automated_inventory_runtime_minutes_per_scan"]["value"] == 6
+    assert body["kpis"]["automated_inventory_runtime_minutes_per_scan"]["value"] == DEMO_SCAN_RUNTIME_MINUTES
     assert body["kpis"]["automated_inventory_runtime_minutes_per_scan"]["scan_job_id"] == latest.scan_job_id
-    assert body["kpis"]["full_pipeline_runtime_minutes"]["value"] == 9
+    assert body["kpis"]["full_pipeline_runtime_minutes"]["value"] == DEMO_FULL_PIPELINE_RUNTIME_MINUTES
     assert body["kpis"]["full_pipeline_runtime_minutes"]["scan_job_id"] == latest.scan_job_id
     assert body["by_tier"]["CRITICAL"] == 18
     assert body["by_tier"]["HIGH"] == 31

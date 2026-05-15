@@ -27,7 +27,7 @@
 
 ## 15.2 After: 시스템 실행 시간
 
-`After · 우리 시스템 — 수 분`은 최신 CBOM 스냅샷과 연결된 Scan Job의 `started_at`과 `finished_at` 차이로 계산한다. 대시보드의 `automated_inventory_runtime_minutes_per_scan` KPI는 이 값을 분 단위로 표시한다.
+`After · 우리 시스템 — 수 분`은 최신 CBOM 스냅샷과 연결된 Scan Job의 `started_at`과 `finished_at` 차이로 계산한다. 대시보드의 `automated_inventory_runtime_minutes_per_scan` KPI는 이 값을 분 단위로 표시한다. 구조화된 근거는 `docs/kpi/runtime-minutes-evidence.json`에 둔다.
 
 현재 데모 시드는 25개 서비스 테스트베드의 최신 스캔 작업을 6분 실행으로 기록한다. 이 값은 수동 기준선과 달리 DB에 저장된 작업 timestamp에서 직접 계산되므로 발표에서는 `시스템에서는 같은 데모 범위의 자동 스캔 결과가 6분 단위로 확인된다`고 표현할 수 있다.
 

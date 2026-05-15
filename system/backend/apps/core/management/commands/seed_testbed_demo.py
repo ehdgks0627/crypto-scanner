@@ -21,6 +21,12 @@ from risk_engine import compute_dhs_risk
 
 SCENARIO = "testbed_demo"
 SERIAL_PREFIX = "testbed-demo"
+DEMO_DISCOVERY_RUNTIME_MINUTES = 2
+DEMO_SCAN_RUNTIME_MINUTES = 6
+DEMO_RECOMPUTE_RUNTIME_MINUTES = 1
+DEMO_FULL_PIPELINE_RUNTIME_MINUTES = (
+    DEMO_DISCOVERY_RUNTIME_MINUTES + DEMO_SCAN_RUNTIME_MINUTES + DEMO_RECOMPUTE_RUNTIME_MINUTES
+)
 
 
 @dataclass(frozen=True)
@@ -302,7 +308,7 @@ class Command(BaseCommand):
             },
             progress={"completed": total_scan_runs, "total": total_scan_runs},
             started_at=now - timedelta(minutes=55),
-            finished_at=now - timedelta(minutes=49),
+            finished_at=now - timedelta(minutes=55 - DEMO_SCAN_RUNTIME_MINUTES),
             result={"snapshot_serial": f"{SERIAL_PREFIX}-latest", "findings_count": len(LATEST_ASSETS)},
         )
         scan_job = ScanJob.objects.create(
@@ -559,7 +565,7 @@ class Command(BaseCommand):
             },
             progress={"completed": len(DISCOVERY_ENDPOINTS), "total": len(DISCOVERY_ENDPOINTS)},
             started_at=created_at,
-            finished_at=created_at + timedelta(minutes=2),
+            finished_at=created_at + timedelta(minutes=DEMO_DISCOVERY_RUNTIME_MINUTES),
             result={"endpoint_count": len(DISCOVERY_ENDPOINTS), "promoted_count": promoted_count},
         )
         discovery = Discovery.objects.create(
@@ -577,8 +583,16 @@ class Command(BaseCommand):
         )
         async_job.resource_id = discovery.id
         async_job.save(update_fields=["resource_id"])
-        self._timestamp(async_job, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=2))
-        self._timestamp(discovery, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=2))
+        self._timestamp(
+            async_job,
+            created_at=created_at - timedelta(minutes=1),
+            updated_at=created_at + timedelta(minutes=DEMO_DISCOVERY_RUNTIME_MINUTES),
+        )
+        self._timestamp(
+            discovery,
+            created_at=created_at - timedelta(minutes=1),
+            updated_at=created_at + timedelta(minutes=DEMO_DISCOVERY_RUNTIME_MINUTES),
+        )
         for host, port, transport, detected_protocol, suggested_protocol_hint, promoted, target_key in DISCOVERY_ENDPOINTS:
             DiscoveredEndpoint.objects.create(
                 discovery=discovery,
@@ -604,12 +618,16 @@ class Command(BaseCommand):
             },
             progress={"completed": snapshot.assets.count(), "total": snapshot.assets.count()},
             started_at=created_at,
-            finished_at=created_at + timedelta(minutes=1),
+            finished_at=created_at + timedelta(minutes=DEMO_RECOMPUTE_RUNTIME_MINUTES),
             result={"updated_scores": snapshot.assets.count()},
         )
         async_job.resource_id = async_job.id
         async_job.save(update_fields=["resource_id"])
-        self._timestamp(async_job, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=1))
+        self._timestamp(
+            async_job,
+            created_at=created_at - timedelta(minutes=1),
+            updated_at=created_at + timedelta(minutes=DEMO_RECOMPUTE_RUNTIME_MINUTES),
+        )
 
     def _seed_failed_scan_job(self, targets, created_at):
         db_target = targets[("db.testbed.local", 5432, "TCP")]

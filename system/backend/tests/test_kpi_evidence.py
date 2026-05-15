@@ -3,6 +3,10 @@ from pathlib import Path
 
 from apps.core.management.commands.seed_testbed_demo import (
     AGENT_FIXTURES,
+    DEMO_DISCOVERY_RUNTIME_MINUTES,
+    DEMO_FULL_PIPELINE_RUNTIME_MINUTES,
+    DEMO_RECOMPUTE_RUNTIME_MINUTES,
+    DEMO_SCAN_RUNTIME_MINUTES,
     DISCOVERY_ENDPOINTS,
     DORMANT_PRIVATE_KEY_PATHS,
     LATEST_ASSETS,
@@ -19,6 +23,7 @@ MANUAL_BASELINE_PATH = REPO_ROOT / "docs" / "kpi" / "manual-grep-baseline.json"
 HOST_AGENT_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "host-agent-evidence.json"
 LLM_RISK_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "llm-risk-evidence.json"
 OPEN_DEMO_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "open-demo-evidence.json"
+RUNTIME_MINUTES_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "runtime-minutes-evidence.json"
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -107,3 +112,17 @@ def test_open_demo_evidence_records_public_repo_and_live_dashboard_checks():
     assert checks["live_dashboard"]["http_status"] == 200
     assert checks["live_dashboard"]["page_title"] == "PQC Risk Assessment"
     assert any("deployment freshness" in limitation for limitation in evidence["limitations"])
+
+
+def test_runtime_minutes_evidence_matches_demo_seed_constants():
+    evidence = json.loads(RUNTIME_MINUTES_EVIDENCE_PATH.read_text())
+    measurements = evidence["measurements"]
+
+    assert evidence["scenario"] == "testbed_demo"
+    assert measurements["discovery_runtime_minutes"]["value"] == DEMO_DISCOVERY_RUNTIME_MINUTES
+    assert measurements["automated_inventory_runtime_minutes_per_scan"]["value"] == DEMO_SCAN_RUNTIME_MINUTES
+    assert measurements["risk_recompute_runtime_minutes"]["value"] == DEMO_RECOMPUTE_RUNTIME_MINUTES
+    assert measurements["full_pipeline_runtime_minutes"]["value"] == DEMO_FULL_PIPELINE_RUNTIME_MINUTES
+    assert measurements["full_pipeline_runtime_minutes"]["threshold_minutes"] == 10
+    assert measurements["full_pipeline_runtime_minutes"]["passed"] is True
+    assert DEMO_FULL_PIPELINE_RUNTIME_MINUTES <= 10
