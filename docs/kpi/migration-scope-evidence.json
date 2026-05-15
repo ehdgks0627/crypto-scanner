@@ -1,0 +1,51 @@
+{
+  "id": "migration_scope_evidence_v1",
+  "title": "PQC migration scope evidence",
+  "claim_level": "recommendation_only",
+  "comparison_mark": "△",
+  "claim": "The system recommends PQC migration mappings and estimates impact, but it does not execute key replacement, certificate reissue, service configuration changes, or rollout automation.",
+  "claim_ko": "시스템은 PQC 전환 매핑 추천과 영향도 산정을 제공하지만, 실제 키 교체, 인증서 재발급, 서비스 설정 변경, 배포 자동화는 수행하지 않는다.",
+  "implemented_outputs": [
+    "asset_purpose",
+    "current",
+    "recommendation",
+    "alternatives",
+    "risk_score",
+    "tier",
+    "agility",
+    "playbook"
+  ],
+  "api_endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/snapshots/{snapshot_id}/migration-plan",
+      "purpose": "Return recommendation items for assets in a CBOM snapshot."
+    },
+    {
+      "method": "GET",
+      "path": "/api/snapshots/{snapshot_id}/migration-plan/impact",
+      "purpose": "Estimate affected hosts, services, and expected work items for selected assets."
+    }
+  ],
+  "implementation_files": [
+    "system/backend/migration_engine/engine.py",
+    "system/backend/migration_engine/mapping_rules.json",
+    "system/backend/apps/snapshots/migration_plan.py",
+    "system/backend/apps/snapshots/api.py",
+    "system/frontend/src/features/migration/MigrationViews.tsx",
+    "system/frontend/src/domain/migrationReport.ts"
+  ],
+  "unsupported_execution": [
+    "actual key replacement automation",
+    "certificate reissue automation",
+    "service configuration file mutation",
+    "service restart or rollout orchestration",
+    "rollback execution automation",
+    "OpenSSL or oqs-provider runtime migration execution"
+  ],
+  "presentation_guidance": [
+    "Describe the current migration step as recommendation, review, and reporting.",
+    "Do not claim that the system changes production keys, certificates, service configuration, or live traffic.",
+    "State that actual PQC migration execution is a future extension."
+  ]
+}

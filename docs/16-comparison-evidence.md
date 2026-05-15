@@ -97,3 +97,23 @@
 > 소스코드 정적 분석은 완전 지원이 아니라 제한적 지원입니다. 현재는 Host Agent가 설정 파일, 인증서 파일, 개인키 파일, keystore를 읽어 암호 사용 증거를 찾는 수준이므로 비교표에서는 △로 표기합니다.
 
 주의할 점은 이 기능을 언어별 crypto API 호출 추적, dataflow 분석, 일반 SAST, 자동 수정 패치 생성으로 설명하면 안 된다는 것이다.
+
+## 16.6 PQC 전환 범위 표기
+
+`PQC 전환` 항목은 실제 운영 환경의 키나 설정을 자동 변경하는 의미로 설명하지 않는다. 현재 구현은 자산별 알고리즘 매핑 추천, 영향도 산정, 보고서 다운로드, CBOM annotation 부착까지이며, 실행 자동화는 향후 확장 범위다. 구조화된 근거는 `docs/kpi/migration-scope-evidence.json`에 둔다.
+
+지원되는 범위는 다음과 같다.
+
+| 범위 | 지원 방식 |
+| --- | --- |
+| 알고리즘 매핑 추천 | `migration_engine/mapping_rules.json`의 규칙을 통해 현재 알고리즘과 자산 용도에 맞는 PQC 후보를 산출 |
+| 전환 후보 검토 | `GET /api/snapshots/{snapshot_id}/migration-plan`으로 자산별 권고, 단계, 근거, 차단 요인, 검증 항목을 반환 |
+| 영향도 산정 | `GET /api/snapshots/{snapshot_id}/migration-plan/impact`로 선택 자산 기준 호스트, 서비스, 예상 작업량을 계산 |
+| 보고서 생성 | 프론트엔드가 선택 자산과 영향도 데이터를 Markdown 보고서로 직렬화 |
+| CBOM 첨부 | CBOM export에 `migration.*` property와 migration plan annotation을 포함 |
+
+발표에서는 다음 수준으로 제한한다.
+
+> PQC 전환은 자동 실행이 아니라 매핑 추천과 검토 단계까지 구현했습니다. 시스템은 어떤 자산을 어떤 PQC 후보로 전환해야 하는지와 예상 영향도를 보여주지만, 인증서 재발급, 키 교체, 서비스 설정 변경은 수행하지 않습니다.
+
+주의할 점은 이 기능을 운영 서버의 OpenSSL 설정 변경, oqs-provider 배포, 인증서 자동 재발급, 서비스 재시작, 롤백 자동화로 설명하면 안 된다는 것이다.

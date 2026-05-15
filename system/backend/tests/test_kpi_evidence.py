@@ -16,6 +16,7 @@ from apps.core.management.commands.seed_testbed_demo import (
 from apps.assets import services as asset_services
 from apps.jobs.agent_asset_mapper import TYPE_SCANNER_KIND
 from apps.meta.services import list_scanners
+from migration_engine import recommend_migration
 from risk_engine.llm import OPENAI_COMPATIBLE_PROVIDERS
 from risk_engine.prompts import QUALITATIVE_RISK_PROMPT_VERSION, QUALITATIVE_RISK_RESPONSE_SCHEMA
 
@@ -27,6 +28,7 @@ LLM_RISK_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "llm-risk-evidence.json"
 OPEN_DEMO_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "open-demo-evidence.json"
 RUNTIME_MINUTES_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "runtime-minutes-evidence.json"
 STATIC_ANALYSIS_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "static-analysis-evidence.json"
+MIGRATION_SCOPE_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "migration-scope-evidence.json"
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -143,3 +145,27 @@ def test_static_analysis_evidence_is_limited_to_file_and_config_inspection():
     assert set(evidence["mapped_finding_types"]) == set(TYPE_SCANNER_KIND)
     assert "generic source-code repository scanning" in evidence["unsupported_static_analysis"]
     assert "language-level crypto API dataflow analysis" in evidence["unsupported_static_analysis"]
+
+
+def test_migration_scope_evidence_is_recommendation_only():
+    evidence = json.loads(MIGRATION_SCOPE_EVIDENCE_PATH.read_text())
+    recommendation = recommend_migration(
+        asset_id=1,
+        asset_name="web.testbed.local certificate",
+        asset_type="certificate",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        risk_score=82,
+        tier="CRITICAL",
+        context={"exposure": "public_internet", "criticality": "high"},
+        capabilities={"inventory_fresh", "owner_known"},
+    )
+    endpoint_methods = {endpoint["method"] for endpoint in evidence["api_endpoints"]}
+
+    assert evidence["comparison_mark"] == "△"
+    assert evidence["claim_level"] == "recommendation_only"
+    assert set(evidence["implemented_outputs"]) <= set(recommendation)
+    assert recommendation["recommendation"]["target_algorithm"]
+    assert endpoint_methods == {"GET"}
+    assert "actual key replacement automation" in evidence["unsupported_execution"]
+    assert "service configuration file mutation" in evidence["unsupported_execution"]

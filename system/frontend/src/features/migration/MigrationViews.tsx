@@ -101,13 +101,16 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
     <Section>
       <PageHeader
         title={`스냅샷 #${snapshotId} Review Targets`}
-        description="위험 자산의 PQC 전환 우선순위와 영향도를 검토합니다."
+        description="위험 자산의 PQC 전환 후보와 영향도를 검토합니다."
         actions={
           <Button type="button" disabled={!reportSelectionAvailable || impact.isFetching} onClick={downloadReport}>
             <Download size={15} />보고서 다운로드
           </Button>
         }
       />
+      <div className="callout" role="note">
+        현재 화면은 전환 권고 검토와 보고서 생성 전용입니다. 인증서 재발급, 키 교체, 서비스 설정 변경은 수행하지 않습니다.
+      </div>
       <div className="split-pane">
         <Card>
           <CardHeader>

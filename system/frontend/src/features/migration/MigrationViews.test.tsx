@@ -66,6 +66,7 @@ describe("MigrationPlanView", () => {
     renderWithApp(<MigrationPlanView snapshotId={3} />);
 
     expect(await screen.findByRole("heading", { name: "스냅샷 #3 Review Targets" })).toBeInTheDocument();
+    expect(screen.getByText("현재 화면은 전환 권고 검토와 보고서 생성 전용입니다. 인증서 재발급, 키 교체, 서비스 설정 변경은 수행하지 않습니다.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "전환 대상 계획" })).toBeInTheDocument();
     expect(await screen.findByText("cert-leaf-web-rsa2048")).toBeInTheDocument();
     expect(screen.getByText("디지털 서명")).toBeInTheDocument();
