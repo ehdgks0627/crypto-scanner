@@ -51,10 +51,12 @@ def test_api_perf_001_create_run_and_record_result(client):
     assert result["asset_id"] == asset.id
     assert result["status"] == "PASS"
     assert result["recommendation"] == "proceed"
+    assert result["metrics"]["handshake_success_rate"] == 1.0
 
     detail = client.get(f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}").json()
     assert detail["status"] == "RUNNING"
     assert detail["summary"]["by_status"]["PASS"] == 1
+    assert detail["summary"]["average_metrics"]["handshake_success_rate"] == 1.0
     assert detail["results"][0]["bom_ref"] == "tls:web:leaf"
 
 
@@ -128,3 +130,30 @@ def test_api_perf_004_lists_asset_performance_history(client):
     assert response.status_code == 200
     assert response.json()["total"] == 1
     assert response.json()["items"][0]["run_id"] == run["id"]
+
+
+def test_api_perf_005_records_tls_handshake_success_rate_from_counts(client):
+    snapshot = create_snapshot()
+    asset = create_asset(snapshot=snapshot, bom_ref="tls:web:success-rate")
+    run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
+
+    response = client.post(
+        f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}/results",
+        data={
+            "asset_id": asset.id,
+            "metrics": {
+                "successful_handshakes": 19,
+                "failed_handshakes": 1,
+                "handshake_ms": {"p50": 40, "p95": 120, "samples": 20},
+            },
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "FAIL"
+    assert body["metrics"]["total_handshakes"] == 20
+    assert body["metrics"]["handshake_success_rate"] == 0.95
+    assert body["metrics"]["failure_rate"] == 0.05
+    assert any(signal["reason"] == "handshake_success_rate_below_fail_threshold" for signal in body["signals"])

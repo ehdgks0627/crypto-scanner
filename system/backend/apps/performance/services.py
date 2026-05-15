@@ -6,7 +6,7 @@ from apps.assets.models import Asset
 from apps.jobs import services as job_services
 from apps.performance.models import AssetPerformanceResult, PerformanceEvaluationRun
 from apps.snapshots.models import CbomSnapshot
-from performance_engine import DEFAULT_THRESHOLDS, evaluate_asset_performance, summarize_results
+from performance_engine import DEFAULT_THRESHOLDS, evaluate_asset_performance, normalize_availability_metrics, summarize_results
 
 
 class InvalidPerformanceResult(Exception):
@@ -52,9 +52,10 @@ def upsert_result(run: PerformanceEvaluationRun, payload: dict) -> AssetPerforma
         )
 
     compatibility_status = payload.get("compatibility_status", "PASS")
+    metrics = normalize_availability_metrics(payload.get("metrics") or {})
     baseline_metrics = _baseline_metrics_for(run, asset)
     evaluation = evaluate_asset_performance(
-        metrics=payload.get("metrics") or {},
+        metrics=metrics,
         baseline_metrics=baseline_metrics,
         compatibility_status=compatibility_status,
         thresholds=run.thresholds,
@@ -70,7 +71,7 @@ def upsert_result(run: PerformanceEvaluationRun, payload: dict) -> AssetPerforma
             "status": status,
             "compatibility_status": compatibility_status,
             "negotiated_algorithm": payload.get("negotiated_algorithm", ""),
-            "metrics": payload.get("metrics") or {},
+            "metrics": metrics,
             "deltas": evaluation["deltas"],
             "signals": evaluation["signals"],
             "recommendation": recommendation,
@@ -101,7 +102,7 @@ def update_run_status(run: PerformanceEvaluationRun, status: str, summary: dict 
 
 def refresh_run_summary(run: PerformanceEvaluationRun) -> dict:
     results = [
-        {"status": result.status, "deltas": result.deltas}
+        {"status": result.status, "deltas": result.deltas, "metrics": result.metrics}
         for result in run.results.all()
     ]
     run.summary = summarize_results(results)

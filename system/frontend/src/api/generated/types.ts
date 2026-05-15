@@ -1304,6 +1304,9 @@ export interface components {
             average_deltas: {
                 [key: string]: number;
             };
+            average_metrics?: {
+                [key: string]: number;
+            };
             /** @enum {string} */
             overall_status: "PENDING" | "PASS" | "WARN" | "FAIL" | "ERROR";
         };
@@ -1321,6 +1324,11 @@ export interface components {
             handshake_ms?: components["schemas"]["PerformanceMetricSeries"];
             ttfb_ms?: components["schemas"]["PerformanceMetricSeries"];
             total_request_ms?: components["schemas"]["PerformanceMetricSeries"];
+            successful_handshakes?: number;
+            failed_handshakes?: number;
+            total_handshakes?: number;
+            attempted_handshakes?: number;
+            handshake_success_rate?: number;
             failure_rate?: number;
             timeout_rate?: number;
             session_resumption_rate?: number;

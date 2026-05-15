@@ -3154,6 +3154,10 @@ components:
           type: object
           additionalProperties:
             type: number
+        average_metrics:
+          type: object
+          additionalProperties:
+            type: number
         overall_status:
           type: string
           enum: [PENDING, PASS, WARN, FAIL, ERROR]
@@ -3188,15 +3192,34 @@ components:
           $ref: '#/components/schemas/PerformanceMetricSeries'
         total_request_ms:
           $ref: '#/components/schemas/PerformanceMetricSeries'
+        successful_handshakes:
+          type: integer
+          minimum: 0
+        failed_handshakes:
+          type: integer
+          minimum: 0
+        total_handshakes:
+          type: integer
+          minimum: 0
+        attempted_handshakes:
+          type: integer
+          minimum: 0
+        handshake_success_rate:
+          type: number
+          minimum: 0
+          maximum: 1
         failure_rate:
           type: number
           minimum: 0
+          maximum: 1
         timeout_rate:
           type: number
           minimum: 0
+          maximum: 1
         session_resumption_rate:
           type: number
           minimum: 0
+          maximum: 1
         handshake_bytes_sent:
           type: integer
           minimum: 0

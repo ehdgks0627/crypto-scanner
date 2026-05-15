@@ -42,6 +42,7 @@ const detail = {
       metrics: {
         handshake_ms: { p50: 40, p95: 118.2, samples: 30 },
         ttfb_ms: { p50: 80, p95: 160.4, samples: 30 },
+        handshake_success_rate: 0.98,
         failure_rate: 0,
         timeout_rate: 0,
         handshake_bytes_sent: 3400,
@@ -70,6 +71,7 @@ describe("PerformanceEvaluationView", () => {
     expect(await screen.findByText("스냅샷 #3 가용성 검사")).toBeInTheDocument();
     expect(await screen.findByText("tls:web:leaf")).toBeInTheDocument();
     expect(screen.getByText("post_migration")).toBeInTheDocument();
+    expect(screen.getAllByText("98.0%")).toHaveLength(2);
     expect(screen.getByText("118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("+18.2%")).toBeInTheDocument();
     expect(screen.getByText("canary_more")).toBeInTheDocument();

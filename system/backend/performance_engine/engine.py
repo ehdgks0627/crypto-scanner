@@ -8,6 +8,8 @@ DEFAULT_THRESHOLDS = {
     "fail_latency_delta_percent": 30.0,
     "warn_failure_rate": 0.01,
     "fail_failure_rate": 0.03,
+    "warn_handshake_success_rate": 0.99,
+    "fail_handshake_success_rate": 0.97,
     "warn_timeout_rate": 0.01,
     "fail_timeout_rate": 0.03,
     "warn_handshake_bytes_delta_percent": 50.0,
@@ -25,6 +27,8 @@ def evaluate_asset_performance(
     thresholds: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     merged_thresholds = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
+    metrics = normalize_availability_metrics(metrics)
+    baseline_metrics = normalize_availability_metrics(baseline_metrics or {})
     deltas = _calculate_deltas(metrics, baseline_metrics or {})
     signals = _collect_signals(metrics, deltas, compatibility_status, merged_thresholds)
     status = _status_from_signals(signals)
@@ -55,12 +59,43 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         if values:
             average_deltas[key] = round(sum(values) / len(values), 2)
 
+    average_metrics = {}
+    for key in ("handshake_success_rate", "failure_rate", "timeout_rate"):
+        values = [
+            value
+            for result in results
+            if isinstance((value := (result.get("metrics") or {}).get(key)), (int, float))
+        ]
+        if values:
+            average_metrics[key] = round(sum(values) / len(values), 4)
+
     return {
         "total_results": completed_count,
         "by_status": counts,
         "average_deltas": average_deltas,
+        "average_metrics": average_metrics,
         "overall_status": _overall_status(counts),
     }
+
+
+def normalize_availability_metrics(metrics: dict[str, Any] | None) -> dict[str, Any]:
+    normalized = dict(metrics or {})
+    success = _number(normalized.get("successful_handshakes"))
+    failed = _number(normalized.get("failed_handshakes"))
+    total = _number(normalized.get("total_handshakes")) or _number(normalized.get("attempted_handshakes"))
+
+    if total is None and success is not None:
+        total = success + (failed or 0.0)
+    if total and total > 0 and success is not None:
+        success_rate = _clamp_rate(success / total)
+        normalized["handshake_success_rate"] = round(success_rate, 4)
+        normalized.setdefault("failure_rate", round(_clamp_rate(1 - success_rate), 4))
+        normalized.setdefault("total_handshakes", int(total) if total.is_integer() else total)
+    elif "handshake_success_rate" not in normalized:
+        failure_rate = _number(normalized.get("failure_rate"))
+        if failure_rate is not None:
+            normalized["handshake_success_rate"] = round(_clamp_rate(1 - failure_rate), 4)
+    return normalized
 
 
 def _calculate_deltas(metrics: dict[str, Any], baseline_metrics: dict[str, Any]) -> dict[str, float]:
@@ -87,6 +122,15 @@ def _collect_signals(metrics: dict[str, Any], deltas: dict[str, float], compatib
 
     failure_rate = _number(metrics.get("failure_rate"), 0.0)
     timeout_rate = _number(metrics.get("timeout_rate"), 0.0)
+    handshake_success_rate = _number(metrics.get("handshake_success_rate"))
+    if handshake_success_rate is not None:
+        _append_min_rate_signal(
+            signals,
+            "handshake_success_rate",
+            handshake_success_rate,
+            thresholds["warn_handshake_success_rate"],
+            thresholds["fail_handshake_success_rate"],
+        )
     _append_rate_signal(signals, "failure_rate", failure_rate, thresholds["warn_failure_rate"], thresholds["fail_failure_rate"])
     _append_rate_signal(signals, "timeout_rate", timeout_rate, thresholds["warn_timeout_rate"], thresholds["fail_timeout_rate"])
 
@@ -109,6 +153,13 @@ def _append_rate_signal(signals: list[dict[str, Any]], key: str, value: float, w
         signals.append({"level": "FAIL", "reason": f"{key}_above_fail_threshold", "value": value})
     elif value > warn:
         signals.append({"level": "WARN", "reason": f"{key}_above_warn_threshold", "value": value})
+
+
+def _append_min_rate_signal(signals: list[dict[str, Any]], key: str, value: float, warn: float, fail: float) -> None:
+    if value < fail:
+        signals.append({"level": "FAIL", "reason": f"{key}_below_fail_threshold", "value": value})
+    elif value < warn:
+        signals.append({"level": "WARN", "reason": f"{key}_below_warn_threshold", "value": value})
 
 
 def _status_from_signals(signals: list[dict[str, Any]]) -> str:
@@ -161,6 +212,10 @@ def _percent_delta(candidate: float | None, baseline: float | None) -> float | N
     if candidate is None or baseline is None or baseline <= 0:
         return None
     return round(((candidate - baseline) / baseline) * 100, 2)
+
+
+def _clamp_rate(value: float) -> float:
+    return max(0.0, min(1.0, value))
 
 
 def _number(value: Any, default: float | None = None) -> float | None:

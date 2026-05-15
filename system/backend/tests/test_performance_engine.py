@@ -1,4 +1,4 @@
-from performance_engine import evaluate_asset_performance, summarize_results
+from performance_engine import evaluate_asset_performance, normalize_availability_metrics, summarize_results
 
 
 def test_performance_engine_fails_on_latency_regression_above_fail_threshold():
@@ -28,12 +28,25 @@ def test_performance_engine_fails_on_latency_regression_above_fail_threshold():
 def test_performance_engine_summarizes_status_counts_and_average_deltas():
     summary = summarize_results(
         [
-            {"status": "PASS", "deltas": {"handshake_p95_percent": 4}},
-            {"status": "WARN", "deltas": {"handshake_p95_percent": 12}},
-            {"status": "FAIL", "deltas": {"handshake_p95_percent": 40}},
+            {"status": "PASS", "deltas": {"handshake_p95_percent": 4}, "metrics": {"handshake_success_rate": 1.0}},
+            {"status": "WARN", "deltas": {"handshake_p95_percent": 12}, "metrics": {"handshake_success_rate": 0.98}},
+            {"status": "FAIL", "deltas": {"handshake_p95_percent": 40}, "metrics": {"handshake_success_rate": 0.96}},
         ]
     )
 
     assert summary["overall_status"] == "FAIL"
     assert summary["by_status"] == {"PASS": 1, "WARN": 1, "FAIL": 1, "ERROR": 0}
     assert summary["average_deltas"]["handshake_p95_percent"] == 18.67
+    assert summary["average_metrics"]["handshake_success_rate"] == 0.98
+
+
+def test_performance_engine_normalizes_tls_handshake_success_rate_and_flags_regression():
+    metrics = normalize_availability_metrics({"successful_handshakes": 98, "failed_handshakes": 2})
+
+    result = evaluate_asset_performance(metrics=metrics, compatibility_status="PASS")
+
+    assert metrics["total_handshakes"] == 100
+    assert metrics["handshake_success_rate"] == 0.98
+    assert metrics["failure_rate"] == 0.02
+    assert result["status"] == "WARN"
+    assert any(signal["reason"] == "handshake_success_rate_below_warn_threshold" for signal in result["signals"])
