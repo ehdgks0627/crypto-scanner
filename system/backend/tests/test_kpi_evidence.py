@@ -14,6 +14,8 @@ from apps.core.management.commands.seed_testbed_demo import (
     TARGET_FIXTURE,
 )
 from apps.assets import services as asset_services
+from apps.jobs.agent_asset_mapper import TYPE_SCANNER_KIND
+from apps.meta.services import list_scanners
 from risk_engine.llm import OPENAI_COMPATIBLE_PROVIDERS
 from risk_engine.prompts import QUALITATIVE_RISK_PROMPT_VERSION, QUALITATIVE_RISK_RESPONSE_SCHEMA
 
@@ -24,6 +26,7 @@ HOST_AGENT_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "host-agent-evidence.jso
 LLM_RISK_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "llm-risk-evidence.json"
 OPEN_DEMO_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "open-demo-evidence.json"
 RUNTIME_MINUTES_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "runtime-minutes-evidence.json"
+STATIC_ANALYSIS_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "static-analysis-evidence.json"
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -126,3 +129,17 @@ def test_runtime_minutes_evidence_matches_demo_seed_constants():
     assert measurements["full_pipeline_runtime_minutes"]["threshold_minutes"] == 10
     assert measurements["full_pipeline_runtime_minutes"]["passed"] is True
     assert DEMO_FULL_PIPELINE_RUNTIME_MINUTES <= 10
+
+
+def test_static_analysis_evidence_is_limited_to_file_and_config_inspection():
+    evidence = json.loads(STATIC_ANALYSIS_EVIDENCE_PATH.read_text())
+    available_scanners = {scanner["id"] for scanner in list_scanners()}
+    supported_scanners = {item["scanner"] for item in evidence["supported_static_inputs"]}
+
+    assert evidence["comparison_mark"] == "△"
+    assert evidence["claim_level"] == "partial"
+    assert supported_scanners <= available_scanners
+    assert supported_scanners <= {scanner for scanner in SCAN_SCANNERS if scanner.startswith("agent.")}
+    assert set(evidence["mapped_finding_types"]) == set(TYPE_SCANNER_KIND)
+    assert "generic source-code repository scanning" in evidence["unsupported_static_analysis"]
+    assert "language-level crypto API dataflow analysis" in evidence["unsupported_static_analysis"]

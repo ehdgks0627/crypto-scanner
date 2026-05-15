@@ -77,3 +77,23 @@
 > 현재 데모 데이터 기준으로 자동 자산화는 6분, 탐색부터 위험 재계산까지의 전체 파이프라인은 9분으로 기록되어 대시보드에서 분 단위로 확인할 수 있습니다.
 
 주의할 점은 이 값이 데모 시드의 timestamp 기반 측정값이라는 것이다. 실제 운영 환경에서는 대상 수, 네트워크 지연, 타임아웃, 선택한 scanner 조합, Agent 응답성에 따라 달라질 수 있다.
+
+## 16.5 코드 정적 분석 표기
+
+`코드 정적 분석` 항목은 `○`가 아니라 `△`로 표시한다. 현재 구현은 일반 소스코드 저장소를 분석하는 SAST가 아니라, Host Agent가 접근 가능한 파일과 설정을 정적으로 읽어 암호자산 후보를 수집하는 수준이다. 구조화된 근거는 `docs/kpi/static-analysis-evidence.json`에 둔다.
+
+지원되는 범위는 다음과 같다.
+
+| 범위 | 지원 방식 |
+| --- | --- |
+| 애플리케이션 TLS 설정 | `agent.app_config`가 nginx, Apache, Postfix, PostgreSQL, JWKS, properties 파일을 읽음 |
+| 인증서 파일 | `agent.app_cert_files`, `agent.cert_store`가 인증서 파일을 파싱 |
+| 개인키 파일 | `agent.private_key_files`가 원문 없이 알고리즘, 크기, 지문, dormant 여부를 수집 |
+| Keystore 및 패키지 키 | `agent.keystore`, `agent.pkg_keyring`이 알려진 경로의 키 저장소와 서명키를 점검 |
+| SSH 설정/사용자 키 | `agent.ssh_config`, `agent.ssh_userkey`가 SSH 정책과 authorized_keys를 점검 |
+
+발표에서는 다음 수준으로 제한한다.
+
+> 소스코드 정적 분석은 완전 지원이 아니라 제한적 지원입니다. 현재는 Host Agent가 설정 파일, 인증서 파일, 개인키 파일, keystore를 읽어 암호 사용 증거를 찾는 수준이므로 비교표에서는 △로 표기합니다.
+
+주의할 점은 이 기능을 언어별 crypto API 호출 추적, dataflow 분석, 일반 SAST, 자동 수정 패치 생성으로 설명하면 안 된다는 것이다.

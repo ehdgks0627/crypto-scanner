@@ -1,0 +1,71 @@
+{
+  "id": "static_analysis_evidence_v1",
+  "title": "Limited static analysis evidence",
+  "claim_level": "partial",
+  "comparison_mark": "△",
+  "claim": "The system has limited static inspection for files and configuration, but it is not a general source-code static analysis or SAST tool.",
+  "claim_ko": "시스템은 파일과 설정에 대한 제한적 정적 점검을 지원하지만, 일반 소스코드 정적 분석 또는 SAST 도구는 아니다.",
+  "supported_static_inputs": [
+    {
+      "scanner": "agent.app_config",
+      "coverage": "Application TLS and crypto-related configuration files such as nginx, Apache, Postfix, PostgreSQL, JWKS, and properties files."
+    },
+    {
+      "scanner": "agent.app_cert_files",
+      "coverage": "Certificate files under known application certificate paths."
+    },
+    {
+      "scanner": "agent.private_key_files",
+      "coverage": "Private key files under known host/application paths. The scanner extracts metadata only and marks referenced versus dormant keys."
+    },
+    {
+      "scanner": "agent.keystore",
+      "coverage": "PKCS#12, PFX, JKS, keystore, and metadata files under known host/application paths."
+    },
+    {
+      "scanner": "agent.pkg_keyring",
+      "coverage": "Package repository and image signing key files."
+    },
+    {
+      "scanner": "agent.ssh_userkey",
+      "coverage": "SSH authorized_keys and public key files."
+    },
+    {
+      "scanner": "agent.ssh_config",
+      "coverage": "OpenSSH server configuration policy lines."
+    }
+  ],
+  "mapped_finding_types": [
+    "certificate_file",
+    "private_key_file",
+    "dormant_private_key",
+    "system_ca",
+    "postgres_tls_config",
+    "keystore",
+    "java_keystore",
+    "ssh_authorized_key",
+    "ssh_config",
+    "jwt_signing_key",
+    "mtls_trust_bundle",
+    "oidc_jwks",
+    "saml_signing_certificate",
+    "saml_encryption_certificate",
+    "container_image_signing_key",
+    "package_signing_key",
+    "kms_key_reference",
+    "backup_encryption_key",
+    "tls_config"
+  ],
+  "unsupported_static_analysis": [
+    "generic source-code repository scanning",
+    "language-level crypto API dataflow analysis",
+    "build artifact dependency analysis",
+    "SAST-style taint analysis",
+    "automatic remediation patch generation"
+  ],
+  "presentation_guidance": [
+    "Mark code/static analysis as △, not ○.",
+    "Describe the current support as file and configuration inspection through Host Agent.",
+    "Do not claim parity with source-code SAST or full codebase crypto API discovery tools."
+  ]
+}
