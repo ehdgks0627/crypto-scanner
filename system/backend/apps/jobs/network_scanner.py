@@ -9,6 +9,7 @@ import struct
 import subprocess
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime, timezone as dt_timezone
 from hashlib import sha256
 
 from apps.jobs.scan_assets import AssetCandidate, family_from_algorithm, stable_bom_ref
@@ -852,6 +853,7 @@ def _certificate_candidate(target, der: bytes | None, source: str, sni: str | No
             "sni": sni_label,
             "chain_index": chain_index,
             "source": source,
+            **_certificate_validity_metadata(parsed),
         },
     )
 
@@ -950,14 +952,43 @@ def _parse_openssl_certificate_text(text: str) -> dict[str, object]:
     if "Public Key Algorithm: rsaEncryption" in text:
         bits = _first_match(text, r"Public-Key: \((\d+) bit\)")
         algorithm = f"RSA-{bits}" if bits else "RSA"
-        return {"algorithm": algorithm, "algorithm_family": "RSA", "subject_alt_names": subject_alt_names}
+        return _certificate_parse_result(text, algorithm, "RSA", subject_alt_names)
     if "Public Key Algorithm: id-ecPublicKey" in text:
         curve = _first_match(text, r"ASN1 OID: ([A-Za-z0-9-]+)") or _first_match(text, r"NIST CURVE: ([A-Za-z0-9-]+)")
         algorithm = f"ECDSA-{_normalize_curve(curve)}" if curve else "ECDSA"
-        return {"algorithm": algorithm, "algorithm_family": "ECDSA", "subject_alt_names": subject_alt_names}
+        return _certificate_parse_result(text, algorithm, "ECDSA", subject_alt_names)
     if "PUBLIC KEY ALGORITHM: ED25519" in text.upper():
-        return {"algorithm": "Ed25519", "algorithm_family": "EdDSA", "subject_alt_names": subject_alt_names}
-    return {"algorithm": "", "algorithm_family": "", "subject_alt_names": subject_alt_names}
+        return _certificate_parse_result(text, "Ed25519", "EdDSA", subject_alt_names)
+    return _certificate_parse_result(text, "", "", subject_alt_names)
+
+
+def _certificate_parse_result(text: str, algorithm: str, algorithm_family: str, subject_alt_names: list[str]) -> dict[str, object]:
+    result = {"algorithm": algorithm, "algorithm_family": algorithm_family, "subject_alt_names": subject_alt_names}
+    not_after = _first_match(text, r"Not After\s*:\s*(.+)")
+    if not_after:
+        result["not_after"] = not_after.strip()
+        expires_at = _parse_openssl_time(not_after.strip())
+        if expires_at:
+            result["expires_at"] = expires_at.isoformat().replace("+00:00", "Z")
+    return result
+
+
+def _certificate_validity_metadata(parsed: dict[str, object]) -> dict:
+    metadata = {}
+    for key in ("not_after", "expires_at"):
+        value = parsed.get(key)
+        if value:
+            metadata[key] = value
+    return metadata
+
+
+def _parse_openssl_time(value: str) -> datetime | None:
+    for fmt in ("%b %d %H:%M:%S %Y %Z", "%b %d %H:%M:%S %Y GMT"):
+        try:
+            return datetime.strptime(value, fmt).replace(tzinfo=dt_timezone.utc)
+        except ValueError:
+            continue
+    return None
 
 
 def _parse_subject_alt_names(text: str) -> list[str]:

@@ -62,6 +62,16 @@ AGENT_FIXTURES = [
     ("legacy-java-app.testbed.local", ["agent.cert_store", "agent.keystore", "agent.app_config"], "RHEL 8", True),
 ]
 DISCOVERY_AGENT_HOSTNAME = "probe.dmz.testbed.local"
+EXPIRING_CERTIFICATE_DAYS = {
+    "tls:web:leaf:rsa": 14,
+    "tls:mqtt:leaf:rsa": 21,
+    "smtp:starttls:leaf:rsa": 30,
+    "smtp:smtps:leaf:rsa": 45,
+    "smtp:submission:leaf:rsa": 60,
+    "imap:imaps:leaf:rsa": 75,
+    "pop3:pop3s:leaf:rsa": 85,
+    "tls:monitoring:leaf:ecdsa": 89,
+}
 
 
 LATEST_ASSETS = [
@@ -349,6 +359,7 @@ class Command(BaseCommand):
                 bom_ref=asset_data.bom_ref,
                 algorithm=asset_data.algorithm,
                 algorithm_family=asset_data.algorithm_family,
+                metadata=self._asset_metadata(asset_data, created_at),
             )
             created_assets[asset_data.bom_ref] = asset
             risk_score = RiskScore.objects.create(
@@ -672,6 +683,17 @@ class Command(BaseCommand):
             "by_tier": by_tier,
             "by_asset_type": by_asset_type,
             "by_algorithm_family": by_algorithm_family,
+        }
+
+    def _asset_metadata(self, asset_data, snapshot_created_at):
+        if asset_data.bom_ref not in EXPIRING_CERTIFICATE_DAYS:
+            return {}
+        expires_at = snapshot_created_at + timedelta(days=EXPIRING_CERTIFICATE_DAYS[asset_data.bom_ref])
+        return {
+            "expires_at": expires_at.isoformat(),
+            "validity": {
+                "not_after": expires_at.isoformat(),
+            },
         }
 
     def _timestamp(self, instance, *, created_at=None, updated_at=None):

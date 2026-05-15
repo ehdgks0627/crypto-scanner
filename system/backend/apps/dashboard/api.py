@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta, timezone as dt_timezone
 from io import StringIO
 
 from django.core.management import call_command
 from django.http import JsonResponse
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from ninja import Router
 from pydantic import Field
 
@@ -19,6 +22,8 @@ router = Router(tags=["Dashboard"])
 
 
 VULNERABLE_ALGORITHM_FAMILIES = {"RSA", "ECDSA", "ECDH", "DH"}
+EXPIRING_CERTIFICATE_WINDOW_DAYS = 90
+CERTIFICATE_EXPIRY_KEYS = ("expires_at", "not_after", "valid_to", "valid_until", "expiration")
 
 
 class DemoSeedPayload(StrictSchema):
@@ -43,7 +48,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             "by_asset_type": {},
             "by_algorithm_family": {},
             "quantum_vulnerable_ratio": {"vulnerable": 0, "safe": 0, "unknown": 0},
-            "kpis": _dashboard_kpis(None, [], 0),
+            "kpis": _dashboard_kpis(None, [], 0, 0),
             "recent_jobs": recent_jobs,
             "agents_status": agent_status,
             "trend": [],
@@ -92,7 +97,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             "safe": safe_count,
             "unknown": unknown_count,
         },
-        "kpis": _dashboard_kpis(latest, assets, vulnerable_count),
+        "kpis": _dashboard_kpis(latest, assets, vulnerable_count, _expiring_certificate_count(assets)),
         "recent_jobs": recent_jobs,
         "agents_status": agent_status,
         "trend": trend,
@@ -121,7 +126,7 @@ def seed_dashboard_demo(request, payload: DemoSeedPayload):
     )
 
 
-def _dashboard_kpis(snapshot: CbomSnapshot | None, assets: list, vulnerable_count: int) -> dict:
+def _dashboard_kpis(snapshot: CbomSnapshot | None, assets: list, vulnerable_count: int, expiring_certificate_count: int) -> dict:
     return {
         "discovered_crypto_assets_per_scan": {
             "value": len(assets),
@@ -136,5 +141,62 @@ def _dashboard_kpis(snapshot: CbomSnapshot | None, assets: list, vulnerable_coun
             "source": "algorithm_family_classification",
             "snapshot_id": snapshot.id if snapshot else None,
             "scan_job_id": snapshot.scan_job_id if snapshot else None,
+        },
+        "expiring_certificates_90d_per_scan": {
+            "value": expiring_certificate_count,
+            "unit": "certificates",
+            "source": "certificate_metadata_expires_at",
+            "snapshot_id": snapshot.id if snapshot else None,
+            "scan_job_id": snapshot.scan_job_id if snapshot else None,
         }
     }
+
+
+def _expiring_certificate_count(assets: list, now=None) -> int:
+    now = now or timezone.now()
+    deadline = now + timedelta(days=EXPIRING_CERTIFICATE_WINDOW_DAYS)
+    count = 0
+    for asset in assets:
+        if asset.asset_type != "certificate":
+            continue
+        expires_at = _asset_expiration(asset)
+        if expires_at and now <= expires_at <= deadline:
+            count += 1
+    return count
+
+
+def _asset_expiration(asset) -> datetime | None:
+    metadata = asset.metadata or {}
+    containers = [metadata]
+    for key in ("summary", "certificate", "validity"):
+        value = metadata.get(key)
+        if isinstance(value, dict):
+            containers.append(value)
+    for container in containers:
+        for key in CERTIFICATE_EXPIRY_KEYS:
+            parsed = _parse_expiration_datetime(container.get(key))
+            if parsed:
+                return parsed
+    return None
+
+
+def _parse_expiration_datetime(value) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        text = str(value).strip()
+        parsed = parse_datetime(text)
+        if parsed is None:
+            for fmt in ("%b %d %H:%M:%S %Y %Z", "%b %d %H:%M:%S %Y GMT"):
+                try:
+                    parsed = datetime.strptime(text, fmt).replace(tzinfo=dt_timezone.utc)
+                    break
+                except ValueError:
+                    continue
+    if parsed is None:
+        return None
+    if timezone.is_naive(parsed):
+        return timezone.make_aware(parsed, dt_timezone.utc)
+    return parsed

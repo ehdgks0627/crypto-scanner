@@ -149,6 +149,7 @@ export function DashboardView() {
   const dashboardSnapshot = summary.data.snapshot;
   const discoveredAssetsKpi = summary.data.kpis.discovered_crypto_assets_per_scan;
   const vulnerableAssetsKpi = summary.data.kpis.quantum_vulnerable_assets_per_scan;
+  const expiringCertificatesKpi = summary.data.kpis.expiring_certificates_90d_per_scan;
 
   return (
     <Section>
@@ -182,6 +183,12 @@ export function DashboardView() {
           label="양자취약"
           value={formatNumber(vulnerableAssetsKpi.value)}
           meta={`안전 ${summary.data.quantum_vulnerable_ratio.safe}`}
+        />
+        <MetricCard
+          label="만료 임박 인증서"
+          value={formatNumber(expiringCertificatesKpi.value)}
+          meta="90일 이내"
+          onClick={() => navigate("/snapshots?asset_type=certificate")}
         />
         <MetricCard
           label="에이전트"

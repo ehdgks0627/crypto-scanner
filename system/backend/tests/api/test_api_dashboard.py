@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from django.utils import timezone
 
@@ -19,7 +21,12 @@ def test_api_dsh_001_dashboard_summary_uses_latest_snapshot(client):
     older = create_snapshot(serial_number="older")
     latest = create_snapshot(serial_number="latest")
     old_asset = create_asset(snapshot=older, bom_ref="old")
-    latest_asset = create_asset(snapshot=latest, bom_ref="latest", asset_type="certificate")
+    latest_asset = create_asset(
+        snapshot=latest,
+        bom_ref="latest",
+        asset_type="certificate",
+        metadata={"expires_at": (timezone.now() + timedelta(days=30)).isoformat()},
+    )
     create_risk_score(old_asset, score=20.0, tier="LOW")
     create_risk_score(latest_asset, score=95.0, tier="CRITICAL")
     job = create_async_job(kind="scan_job", status="COMPLETED", result={"snapshot_id": latest.id})
@@ -52,6 +59,13 @@ def test_api_dsh_001_dashboard_summary_uses_latest_snapshot(client):
         "snapshot_id": latest.id,
         "scan_job_id": None,
     }
+    assert body["kpis"]["expiring_certificates_90d_per_scan"] == {
+        "value": 1,
+        "unit": "certificates",
+        "source": "certificate_metadata_expires_at",
+        "snapshot_id": latest.id,
+        "scan_job_id": None,
+    }
     assert body["by_tier"]["CRITICAL"] == 1
     assert body["by_asset_type"]["certificate"] == 1
     assert body["by_algorithm_family"]["RSA"] == 1
@@ -75,6 +89,7 @@ def test_api_dsh_002_dashboard_empty_state_without_snapshots(client):
     assert body["quantum_vulnerable_ratio"] == {"vulnerable": 0, "safe": 0, "unknown": 0}
     assert body["kpis"]["discovered_crypto_assets_per_scan"]["value"] == 0
     assert body["kpis"]["quantum_vulnerable_assets_per_scan"]["value"] == 0
+    assert body["kpis"]["expiring_certificates_90d_per_scan"]["value"] == 0
     assert body["recent_jobs"] == []
     assert body["trend"] == []
 

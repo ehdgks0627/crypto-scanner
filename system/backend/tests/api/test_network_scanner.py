@@ -74,6 +74,25 @@ def test_network_scanner_tls_records_sni_alias_chain_version_and_cipher(monkeypa
     assert enumerated[0].metadata["supported_cipher_suites"] == ["TLS_AES_128_GCM_SHA256", "TLS_CHACHA20_POLY1305_SHA256"]
 
 
+def test_network_scanner_certificate_parser_records_expiration():
+    parsed = network_scanner._parse_openssl_certificate_text(
+        """
+        Certificate:
+            Data:
+                Validity
+                    Not Before: May  1 00:00:00 2026 GMT
+                    Not After : Jun 15 12:30:00 2026 GMT
+                Subject Public Key Info:
+                    Public Key Algorithm: rsaEncryption
+                        Public-Key: (2048 bit)
+        """
+    )
+
+    assert parsed["algorithm"] == "RSA-2048"
+    assert parsed["not_after"] == "Jun 15 12:30:00 2026 GMT"
+    assert parsed["expires_at"] == "2026-06-15T12:30:00Z"
+
+
 def test_network_scanner_mqtt_tls_records_application_protocol(monkeypatch):
     monkeypatch.setattr(network_scanner, "_known_sni_aliases", lambda _target: [])
     monkeypatch.setattr(

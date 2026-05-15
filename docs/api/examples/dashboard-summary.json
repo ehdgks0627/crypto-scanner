@@ -50,6 +50,13 @@
       "source": "algorithm_family_classification",
       "snapshot_id": 56,
       "scan_job_id": 123
+    },
+    "expiring_certificates_90d_per_scan": {
+      "value": 8,
+      "unit": "certificates",
+      "source": "certificate_metadata_expires_at",
+      "snapshot_id": 56,
+      "scan_job_id": 123
     }
   },
   "recent_jobs": [
