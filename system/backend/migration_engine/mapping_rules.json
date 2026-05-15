@@ -1,7 +1,7 @@
 {
   "version": "migration-mapping-v1",
   "pqc_markers": ["ML-KEM", "ML-DSA", "SLH-DSA", "FALCON", "FN-DSA"],
-  "quantum_vulnerable_markers": ["RSA", "DSA", "ECDSA", "ECDH", "DH", "ED25519", "ED448", "X25519", "X448"],
+  "quantum_vulnerable_markers": ["RSA", "DSA", "ECDSA", "ECDH", "DH", "ED25519", "ED448", "X25519", "X448", "P-256", "P256", "PRIME256V1", "SECP256R1", "NISTP256"],
   "rules": [
     {
       "id": "pqc-ready",
@@ -51,6 +51,16 @@
       "purpose": "digital_signature",
       "hybrid_set": ["ECDSA P-384", "ML-DSA-87"],
       "replace_set": ["ML-DSA-87"],
+      "classically_weak": false
+    },
+    {
+      "id": "ecdsa-p256-aliases",
+      "match_regex": "\\b(P-256|P256|PRIME256V1|SECP256R1|NISTP256)\\b",
+      "asset_types": ["certificate", "key", "algorithm", "ssh_host_key", "ssh_user_key"],
+      "kind": "signature",
+      "purpose": "digital_signature",
+      "hybrid_set": ["ECDSA P-256", "ML-DSA-65"],
+      "replace_set": ["ML-DSA-65"],
       "classically_weak": false
     },
     {

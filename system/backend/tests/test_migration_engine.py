@@ -7,7 +7,7 @@ def test_migration_mapping_rules_are_loaded_from_external_config():
     assert MAPPING_RULES_PATH.name == "mapping_rules.json"
     assert MAPPING_RULES_PATH.exists()
     assert config["version"] == "migration-mapping-v1"
-    assert {rule["id"] for rule in config["rules"]} >= {"rsa-signature", "rsa-kem-like", "ecdsa-default", "dh-default"}
+    assert {rule["id"] for rule in config["rules"]} >= {"rsa-signature", "rsa-kem-like", "ecdsa-p256-aliases", "ecdsa-default", "dh-default"}
     assert candidate_for_algorithm("RSA-2048", "RSA", "certificate") == {
         "kind": "signature",
         "purpose": "digital_signature",
@@ -24,6 +24,9 @@ def test_migration_mapping_rules_classify_kem_and_signature_paths_separately():
     assert candidate_for_algorithm("RSA-2048", "RSA", "key_agreement")["purpose"] == "key_exchange"
     assert candidate_for_algorithm("ECDSA-P384", "ECDSA", "certificate")["replace_set"] == ["ML-DSA-87"]
     assert candidate_for_algorithm("ECDSA-P384", "ECDSA", "certificate")["purpose"] == "digital_signature"
+    assert candidate_for_algorithm("ECDSA-P-256", "ECDSA", "certificate")["replace_set"] == ["ML-DSA-65"]
+    assert candidate_for_algorithm("prime256v1", None, "certificate")["replace_set"] == ["ML-DSA-65"]
+    assert candidate_for_algorithm("secp256r1", None, "ssh_host_key")["purpose"] == "digital_signature"
     assert candidate_for_algorithm("ECDH-P384", "ECDH", "protocol")["replace_set"] == ["ML-KEM-1024"]
     assert candidate_for_algorithm("ECDH-P384", "ECDH", "protocol")["purpose"] == "key_agreement"
     assert candidate_for_algorithm("SHA-256", "SHA", "algorithm")["kind"] == "safe_classical"
@@ -95,6 +98,25 @@ def test_migration_engine_maps_rsa_key_exchange_to_ml_kem_without_changing_signa
     assert certificate_item["asset_purpose"] == "digital_signature"
     assert certificate_item["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
     assert certificate_item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
+
+
+def test_migration_engine_maps_ecdsa_p256_aliases_to_ml_dsa_65():
+    item = recommend_migration(
+        asset_id=12,
+        asset_name="curve-only ECDSA certificate",
+        asset_type="certificate",
+        algorithm="prime256v1",
+        algorithm_family=None,
+        risk_score=79,
+        tier="HIGH",
+        context={"lifespan_years": 8, "criticality": "high", "exposure": "public_internet"},
+        capabilities=["runtime_pqc_supported", "config_policy", "rescan_validation", "rollback_supported"],
+    )
+
+    assert item["asset_purpose"] == "digital_signature"
+    assert item["current"]["quantum_vulnerable"] is True
+    assert item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "ML-DSA-65"]
+    assert item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
 
 
 def test_migration_engine_marks_pqc_assets_as_no_change_with_high_agility():

@@ -355,6 +355,28 @@ def test_api_mig_006b_migration_plan_maps_rsa_key_agreement_to_ml_kem(client):
     assert by_asset[certificate_asset.id]["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
 
 
+def test_api_mig_006c_migration_plan_maps_ecdsa_p256_alias_to_ml_dsa(client):
+    snapshot = create_snapshot()
+    ecdsa_asset = create_asset(
+        snapshot=snapshot,
+        name="curve-only ECDSA certificate",
+        asset_type="certificate",
+        algorithm="prime256v1",
+        algorithm_family="",
+        bom_ref="mig:ecdsa:p256-alias",
+    )
+    create_risk_score(ecdsa_asset, score=84.0, tier="HIGH")
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/migration-plan?asset_ids={ecdsa_asset.id}")
+
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert item["asset_purpose"] == "digital_signature"
+    assert item["current"]["quantum_vulnerable"] is True
+    assert item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "ML-DSA-65"]
+    assert item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
+
+
 def test_api_mig_007_migration_plan_rejects_non_integer_asset_ids(client):
     snapshot = create_snapshot()
 

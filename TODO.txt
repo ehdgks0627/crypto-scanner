@@ -3,7 +3,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
 프로젝트: 양자택일 (Quantum-Either)
 근거: 최종 발표 자료 (MainDeck.html)
 체크 기준: [ ] 미구현 / [~] 부분 구현 / [x] 구현 완료 / [-] 향후 확장 (의도적 미포함)
-최근 점검: 2026-05-15, 현재 main 코드 기준
+최근 점검: 2026-05-16, 현재 main 코드 기준
 점검 메모:
   · Host Agent 최소 구현을 반영했다. 시스템 CA, 인증서 파일, 개인키 파일, SSH 설정, 애플리케이션 TLS 설정을 수집한다.
   · 개인키는 원문을 저장하지 않고 path/algorithm/key_size/fingerprint/in_use/dormant 메타데이터만 저장한다.
@@ -27,6 +27,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   · 마이그레이션 알고리즘 매핑은 migration_engine/mapping_rules.json 설정 파일로 외부화했다.
   · 마이그레이션 계획은 asset_purpose로 키 교환/디지털 서명/키 합의/장기 서명 용도를 API와 대시보드에 표시한다.
   · RSA 자산은 용도별로 분기해 key/key_agreement/protocol은 ML-KEM-768, certificate는 ML-DSA-65 경로를 권고한다.
+  · ECDSA P-256 계열은 ECDSA-P-256/prime256v1/secp256r1 표기를 ML-DSA-65 경로로 정규 매핑한다.
   · pqc-tls 테스트베드는 ML-KEM/ML-DSA readiness endpoint를 노출하고 Discovery/Scanner가 이를 PQC 자산으로 수집한다.
   · 네트워크 스캔과 Host Agent가 같은 인증서를 발견하면 fingerprint 기반으로 단일 자산으로 병합한다.
   · Discovery Agent, 대시보드, CBOM 스냅샷, 마이그레이션 추천, 가용성 검사 UI는 코드 기준으로 반영한다.
@@ -194,7 +195,8 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
               (asset_purpose를 API/대시보드/보고서에 노출하고 mapping_rules.json의 purpose로 분류)
     [x] 3.1.2  RSA-2048 → ML-KEM-768 (FIPS 203, 키 교환) 매핑
               (key/key_agreement/protocol은 ML-KEM-768, certificate/서명 계열은 ML-DSA-65로 분리)
-    [~] 3.1.3  ECDSA P-256 → ML-DSA-65 (FIPS 204, 디지털 서명) 매핑
+    [x] 3.1.3  ECDSA P-256 → ML-DSA-65 (FIPS 204, 디지털 서명) 매핑
+              (ECDSA-P-256/prime256v1/secp256r1/nistp256 인증서·키 표기 지원)
     [~] 3.1.4  X25519 / DH → ML-KEM-768 (키 합의) 매핑
     [~] 3.1.5  장기 보존용 서명 → SLH-DSA (FIPS 205, 해시 기반) 매핑
     [x] 3.1.6  매핑 추천이 자산별로 대시보드 화면에 표시됨
@@ -372,7 +374,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   0. 시스템 전경 · 컴포넌트                38      0       0      0     38    100.0%
   1. Step 01 자산 식별                    18      0       0      0     18    100.0%
   2. Step 02 위험도 평가                  17      0       0      0     17    100.0%
-  3. Step 03 PQC 전환                      5      4       1      3     13     50.0%
+  3. Step 03 PQC 전환                      6      3       1      3     13     60.0%
   4. Step 04 검증                          1     10       2      0     13      7.7%
   5. 시연 플로우 6단계                     7      1       0      0      8     87.5%
   6. KPI                                   0      0       7      0      7      0.0%
@@ -381,7 +383,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   9. 비기능                                2      7       3      0     12     16.7%
   10. 발표 직전 점검                       0      0       5      0      5      0.0%
   ─────────────────────────────────────  ────   ────   ──────   ────   ────   ──────
-  TOTAL                                  90     24      31      3    148     62.1%
+  TOTAL                                  91     23      31      3    148     62.8%
   참고: 부분 구현([~])까지 포함하면 114 / 145 = 78.6%
 
 
