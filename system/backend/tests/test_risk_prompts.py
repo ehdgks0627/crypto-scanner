@@ -37,7 +37,7 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
 
     assert prompt["version"] == QUALITATIVE_RISK_PROMPT_VERSION
     assert "PQC migration risk analyst" in prompt["system"]
-    assert prompt["version"] == "qualitative-risk-v5"
+    assert prompt["version"] == "qualitative-risk-v6"
     assert "RSA-2048" in prompt["user"]
     assert "/etc/nginx/server.crt" in prompt["user"]
     assert "public_internet" in prompt["user"]
@@ -45,6 +45,7 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
     assert "DHS Q2 protected_information" in prompt["user"]
     assert "DHS Q3 communication_scope" in prompt["user"]
     assert "DHS Q4 sharing_level" in prompt["user"]
+    assert "DHS Q5 critical_infrastructure" in prompt["user"]
     assert "operational_context" in prompt["user"]
     assert "Required JSON schema" in prompt["user"]
     assert "dhs_criteria" in prompt["user"]
@@ -97,6 +98,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
               "external_parties": ["public_clients", "customer_clients"],
               "rationale": "The API is shared with customer clients.",
               "signals": ["service_role:customer-api", "exposure:public_internet"]
+            },
+            "critical_infrastructure": {
+              "question": "Q5: critical infrastructure dependency based on DB, identity, payment, KMS, or gateway role.",
+              "rating": "CRITICAL",
+              "score": 94,
+              "dependency_level": "CRITICAL",
+              "infrastructure_roles": ["service_gateway", "identity_auth"],
+              "rationale": "The API is part of a core customer gateway and identity path.",
+              "signals": ["service_role:customer-api", "dependency_count:2"]
             }
           },
           "confidence": 86
@@ -142,6 +152,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
                 "external_parties": ["public_clients", "customer_clients"],
                 "rationale": "The API is shared with customer clients.",
                 "signals": ["service_role:customer-api", "exposure:public_internet"],
+            },
+            "critical_infrastructure": {
+                "question": "Q5: critical infrastructure dependency based on DB, identity, payment, KMS, or gateway role.",
+                "rating": "critical",
+                "score": 0.94,
+                "dependency_level": "critical",
+                "infrastructure_roles": ["service_gateway", "identity_auth"],
+                "rationale": "The API is part of a core customer gateway and identity path.",
+                "signals": ["service_role:customer-api", "dependency_count:2"],
             }
         },
         "confidence": 0.86,

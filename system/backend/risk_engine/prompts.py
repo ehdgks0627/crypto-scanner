@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v5"
+QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v6"
 
 QUALITATIVE_RISK_SYSTEM_PROMPT = """You are a PQC migration risk analyst.
 Assess one cryptographic asset for quantum-era migration planning.
@@ -49,6 +49,15 @@ QUALITATIVE_RISK_RESPONSE_SCHEMA = {
             "external_parties": ["partner_idp", "public_clients"],
             "rationale": "One-sentence evidence-based explanation.",
             "signals": ["service_role:api-gateway", "exposure:public_internet"],
+        },
+        "critical_infrastructure": {
+            "question": "Q5: critical infrastructure dependency based on DB, identity, payment, KMS, or gateway role.",
+            "rating": "low|medium|high|critical",
+            "score": 0.0,
+            "dependency_level": "none|supporting|core|critical|unknown",
+            "infrastructure_roles": ["identity_auth", "data_store", "payment", "key_management"],
+            "rationale": "One-sentence evidence-based explanation.",
+            "signals": ["service_role:auth", "dependency_count:2"],
         }
     },
     "confidence": 0.0,
@@ -81,6 +90,7 @@ def build_qualitative_risk_prompt(
         "For DHS Q2 protected_information, rate the information protected by the asset using data classification and confidentiality needs.\n"
         "For DHS Q3 communication_scope, rate internal-only versus external bidirectional communication exposure.\n"
         "For DHS Q4 sharing_level, rate third-party, partner, or public sharing paths.\n"
+        "For DHS Q5 critical_infrastructure, rate dependency on DB, identity, payment, KMS, gateway, or other core services.\n"
         "Do not invent facts not present in the payload.\n\n"
         f"Payload:\n{json.dumps(payload, sort_keys=True, indent=2)}\n\n"
         f"Required JSON schema:\n{json.dumps(QUALITATIVE_RISK_RESPONSE_SCHEMA, sort_keys=True, indent=2)}"
@@ -157,6 +167,7 @@ def _dhs_criteria(value: Any) -> dict[str, Any]:
         "protected_information": _dhs_protected_information(value.get("protected_information")),
         "communication_scope": _dhs_communication_scope(value.get("communication_scope")),
         "sharing_level": _dhs_sharing_level(value.get("sharing_level")),
+        "critical_infrastructure": _dhs_critical_infrastructure(value.get("critical_infrastructure")),
     }
 
 
@@ -234,6 +245,29 @@ def _dhs_sharing_level(value: Any) -> dict[str, Any]:
         "score": _confidence(value.get("score")),
         "sharing_scope": sharing_scope,
         "external_parties": _string_list(value.get("external_parties")),
+        "rationale": _required_string(value, "rationale"),
+        "signals": _string_list(value.get("signals")),
+    }
+
+
+def _dhs_critical_infrastructure(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise QualitativeRiskResponseParseError("LLM response field 'dhs_criteria.critical_infrastructure' must be an object")
+    rating = _rating(value, "dhs_criteria.critical_infrastructure.rating")
+    dependency_level = _required_string(value, "dependency_level").lower()
+    if dependency_level not in {"none", "supporting", "core", "critical", "unknown"}:
+        raise QualitativeRiskResponseParseError(
+            "LLM response field 'dhs_criteria.critical_infrastructure.dependency_level' has an invalid value"
+        )
+    return {
+        "question": str(
+            value.get("question")
+            or "Q5: critical infrastructure dependency based on DB, identity, payment, KMS, or gateway role."
+        ),
+        "rating": rating,
+        "score": _confidence(value.get("score")),
+        "dependency_level": dependency_level,
+        "infrastructure_roles": _string_list(value.get("infrastructure_roles")),
         "rationale": _required_string(value, "rationale"),
         "signals": _string_list(value.get("signals")),
     }

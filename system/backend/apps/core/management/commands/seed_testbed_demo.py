@@ -487,6 +487,15 @@ class Command(BaseCommand):
                     "external_parties": ["third_party_integrations"],
                     "rationale": "Demo assets include API, identity, mail, and public-facing integration paths.",
                     "signals": ["service_role:demo", "exposure:demo", "managed_target"],
+                },
+                "critical_infrastructure": {
+                    "question": "Q5: critical infrastructure dependency based on DB, identity, payment, KMS, or gateway role.",
+                    "rating": "high",
+                    "score": 0.76,
+                    "dependency_level": "core",
+                    "infrastructure_roles": ["service_gateway", "identity_auth", "data_store"],
+                    "rationale": "Demo assets include API gateways, identity systems, databases, and key management services.",
+                    "signals": ["service_role:demo", "dependency_level:core", "managed_target"],
                 }
             },
             confidence=0.78,

@@ -369,8 +369,8 @@ def test_api_ast_006_qualitative_request_uses_asset_context_and_risk(client):
     assert "harvest_now_decrypt_later" in rsa_body["threat_scenarios"]
     assert 0 <= rsa_body["confidence"] <= 1
     assert 0 <= pqc_body["confidence"] <= 1
-    assert rsa_body["prompt_version"] == "qualitative-risk-v5"
-    assert pqc_body["prompt_version"] == "qualitative-risk-v5"
+    assert rsa_body["prompt_version"] == "qualitative-risk-v6"
+    assert pqc_body["prompt_version"] == "qualitative-risk-v6"
     assert rsa_body["dhs_criteria"]["asset_value"]["rating"] in {"high", "critical"}
     assert "public_internet" in rsa_body["dhs_criteria"]["asset_value"]["signals"][0]
     assert 0 <= rsa_body["dhs_criteria"]["asset_value"]["score"] <= 1
@@ -383,6 +383,9 @@ def test_api_ast_006_qualitative_request_uses_asset_context_and_risk(client):
     assert rsa_body["dhs_criteria"]["sharing_level"]["rating"] == "critical"
     assert rsa_body["dhs_criteria"]["sharing_level"]["sharing_scope"] == "public"
     assert "customer_clients" in rsa_body["dhs_criteria"]["sharing_level"]["external_parties"]
+    assert rsa_body["dhs_criteria"]["critical_infrastructure"]["rating"] == "critical"
+    assert rsa_body["dhs_criteria"]["critical_infrastructure"]["dependency_level"] in {"core", "critical"}
+    assert "service_gateway" in rsa_body["dhs_criteria"]["critical_infrastructure"]["infrastructure_roles"]
 
 
 def test_api_ast_007_qualitative_worker_processes_asset_task():
@@ -428,7 +431,7 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
     }
     assert "worker API certificate" in assessment.summary
     assert "harvest_now_decrypt_later" in assessment.threat_scenarios
-    assert assessment.prompt_version == "qualitative-risk-v5"
+    assert assessment.prompt_version == "qualitative-risk-v6"
     assert assessment.prompt_payload["asset"]["name"] == "worker API certificate"
     assert assessment.prompt_payload["context"]["exposure"] == "public_internet"
     assert assessment.prompt_payload["operational_context"]["connected_service"]["label"] == "worker-api.testbed.local:443"
@@ -448,6 +451,8 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
     assert "protocol:TLS" in assessment.dhs_criteria["communication_scope"]["signals"]
     assert assessment.dhs_criteria["sharing_level"]["sharing_scope"] == "public"
     assert "customer_clients" in assessment.dhs_criteria["sharing_level"]["external_parties"]
+    assert assessment.dhs_criteria["critical_infrastructure"]["dependency_level"] == "critical"
+    assert "service_gateway" in assessment.dhs_criteria["critical_infrastructure"]["infrastructure_roles"]
     assert isinstance(assessment.confidence, float)
 
 
@@ -498,6 +503,8 @@ def test_api_ast_008_qualitative_worker_falls_back_when_llm_response_is_invalid(
     assert assessment.dhs_criteria["communication_scope"]["direction"] == "external_bidirectional"
     assert assessment.dhs_criteria["sharing_level"]["question"].startswith("Q4:")
     assert assessment.dhs_criteria["sharing_level"]["sharing_scope"] == "public"
+    assert assessment.dhs_criteria["critical_infrastructure"]["question"].startswith("Q5:")
+    assert "service_gateway" in assessment.dhs_criteria["critical_infrastructure"]["infrastructure_roles"]
     assert 0 <= assessment.confidence <= 1
 
 

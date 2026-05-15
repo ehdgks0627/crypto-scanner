@@ -19,6 +19,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   · LLM 정성 분석은 DHS Q2 보호 정보(protected_information)를 데이터 분류와 기밀성 기준으로 구조화한다.
   · LLM 정성 분석은 DHS Q3 통신 범위(communication_scope)를 내부 전용/외부 양방향 기준으로 구조화한다.
   · LLM 정성 분석은 DHS Q4 공유 수준(sharing_level)을 3rd-party/파트너/공개 연동 기준으로 구조화한다.
+  · LLM 정성 분석은 DHS Q5 핵심 인프라(critical_infrastructure)를 DB/인증/결제/KMS/게이트웨이 의존도 기준으로 구조화한다.
   · 네트워크 스캔과 Host Agent가 같은 인증서를 발견하면 fingerprint 기반으로 단일 자산으로 병합한다.
   · Discovery Agent, 대시보드, CBOM 스냅샷, 마이그레이션 추천, 가용성 검사 UI는 코드 기준으로 반영한다.
   · KPI 숫자, 외부 도구 비교, 인용 자료는 별도 실측/사실 확인 전까지 완료로 처리하지 않는다.
@@ -55,9 +56,9 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
 0.4 AI / LLM Engine
     [ ] 0.4.1  LLM 호출 모듈 (위험도 평가용)
     [x] 0.4.2  자산 메타데이터 + 컨텍스트를 LLM 프롬프트로 조립
-              (qualitative-risk-v5 prompt payload에 asset/context/operational_context/risk 주입)
+              (qualitative-risk-v6 prompt payload에 asset/context/operational_context/risk 주입)
     [~] 0.4.3  DHS 6가지 기준 응답 파싱 → 구조화된 결과로 저장
-              (Q1~Q4는 구조화 저장, Q5~Q6는 순차 구현 예정)
+              (Q1~Q5는 구조화 저장, Q6는 순차 구현 예정)
     [ ] 0.4.4  가중치 합산 → 0~10 Risk Score → P1/P2/P3 분류
 
 0.5 출력 (Output)
@@ -155,7 +156,8 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
               (dhs_criteria.communication_scope에 rating/score/exposure/direction/rationale/signals 저장)
     [x] 2.2.4  Q4 · 공유 수준   — 3rd-party / 파트너 연동 여부
               (dhs_criteria.sharing_level에 rating/score/sharing_scope/external_parties/rationale/signals 저장)
-    [ ] 2.2.5  Q5 · 핵심 인프라 — DB/인증/결제 의존도
+    [x] 2.2.5  Q5 · 핵심 인프라 — DB/인증/결제 의존도
+              (dhs_criteria.critical_infrastructure에 rating/score/dependency_level/infrastructure_roles/rationale/signals 저장)
     [ ] 2.2.6  Q6 · 보호 기간   — 보존 기간 (HNDL 가중치 핵심 항목)
 
 2.3 점수화 · 우선순위
@@ -353,7 +355,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   ─────────────────────────────────────  ────   ────   ──────   ────   ────   ──────
   0. 시스템 전경 · 컴포넌트                33      3       2      0     38     86.8%
   1. Step 01 자산 식별                    18      0       0      0     18    100.0%
-  2. Step 02 위험도 평가                  10      2       5      0     17     58.8%
+  2. Step 02 위험도 평가                  11      2       4      0     17     64.7%
   3. Step 03 PQC 전환                      2      6       2      3     13     20.0%
   4. Step 04 검증                          1     10       2      0     13      7.7%
   5. 시연 플로우 6단계                     7      1       0      0      8     87.5%
@@ -363,8 +365,8 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   9. 비기능                                2      7       3      0     12     16.7%
   10. 발표 직전 점검                       0      0       5      0      5      0.0%
   ─────────────────────────────────────  ────   ────   ──────   ────   ────   ──────
-  TOTAL                                  75     31      39      3    148     51.7%
-  참고: 부분 구현([~])까지 포함하면 106 / 145 = 73.1%
+  TOTAL                                  76     31      38      3    148     52.4%
+  참고: 부분 구현([~])까지 포함하면 107 / 145 = 73.8%
 
 
 ════════════════════════════════════════════════════════════════════════════════

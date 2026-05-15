@@ -382,6 +382,7 @@ def _qualitative_dhs_criteria(asset, context, score):
         "protected_information": _qualitative_protected_information_criterion(asset, context, score),
         "communication_scope": _qualitative_communication_scope_criterion(asset, context, score),
         "sharing_level": _qualitative_sharing_level_criterion(asset, context, score),
+        "critical_infrastructure": _qualitative_critical_infrastructure_criterion(asset, context, score),
     }
 
 
@@ -652,6 +653,102 @@ def _qualitative_sharing_level_rationale(asset, service_role, exposure, sharing_
     return (
         f"{name} has sharing_scope={sharing_scope} from service_role={service_role or 'unknown'} "
         f"and exposure={exposure or 'unknown'}; baseline migration score is {round(score)}."
+    )
+
+
+def _qualitative_critical_infrastructure_criterion(asset, context, score):
+    metadata = asset.metadata or {}
+    service_role = context.get("service_role") or asset.asset_type or "unknown"
+    roles = _qualitative_infrastructure_roles(asset, context, metadata)
+    dependency_level = _qualitative_dependency_level(roles, context)
+    dependency_count = _qualitative_dependency_count(asset)
+    value_score = {
+        "none": 0.08,
+        "supporting": 0.32,
+        "core": 0.62,
+        "critical": 0.82,
+        "unknown": 0.24,
+    }[dependency_level]
+    if context.get("criticality") in {"high", "critical"}:
+        value_score += 0.08
+    if context.get("sensitivity") in {"high", "critical"} and dependency_level in {"core", "critical"}:
+        value_score += 0.05
+    if dependency_count:
+        value_score += min(dependency_count * 0.03, 0.09)
+    value_score = round(max(0.0, min(1.0, value_score)), 2)
+    signals = _dedupe_values(
+        [
+            f"dependency_level:{dependency_level}",
+            f"service_role:{service_role}",
+            f"criticality:{context.get('criticality') or 'unknown'}",
+            f"dependency_count:{dependency_count}",
+            f"algorithm_family:{asset.algorithm_family or 'unknown'}",
+            *[f"infrastructure_role:{role}" for role in roles],
+        ]
+    )
+    return {
+        "question": "Q5: critical infrastructure dependency based on DB, identity, payment, KMS, or gateway role.",
+        "rating": _qualitative_rating(value_score),
+        "score": value_score,
+        "dependency_level": dependency_level,
+        "infrastructure_roles": roles,
+        "rationale": _qualitative_critical_infrastructure_rationale(asset, service_role, dependency_level, roles, score),
+        "signals": signals,
+    }
+
+
+def _qualitative_infrastructure_roles(asset, context, metadata):
+    service_role = (context.get("service_role") or "").lower()
+    asset_text = " ".join(
+        [
+            str(asset.name or ""),
+            str(asset.asset_type or ""),
+            str(asset.algorithm_family or ""),
+            json.dumps(metadata or {}, sort_keys=True),
+        ]
+    ).lower()
+    combined = f"{service_role} {asset_text}"
+    role_checks = [
+        ("identity_auth", ["auth", "identity", "oidc", "oauth", "saml", "sso", "token"]),
+        ("data_store", ["db", "database", "postgres", "mysql", "redis", "kafka", "storage"]),
+        ("payment", ["payment", "billing", "settlement", "pci"]),
+        ("key_management", ["kms", "vault", "pki", "ca", "signing", "certificate", "secret"]),
+        ("backup_recovery", ["backup", "archive", "recovery"]),
+        ("service_gateway", ["gateway", "api", "proxy", "ingress", "mesh"]),
+        ("operations_monitoring", ["monitoring", "logging", "ci runner", "admin"]),
+    ]
+    roles = [role for role, tokens in role_checks if any(token in combined for token in tokens)]
+    if not roles and asset.target_id:
+        roles.append("network_service")
+    return roles or ["none_detected"]
+
+
+def _qualitative_dependency_level(roles, context):
+    role_set = set(roles)
+    if "none_detected" in role_set:
+        return "none"
+    critical_roles = {"identity_auth", "data_store", "payment", "key_management", "backup_recovery"}
+    core_roles = {"service_gateway", "network_service"}
+    if role_set & critical_roles:
+        return "critical"
+    if role_set & core_roles or context.get("criticality") == "critical":
+        return "core"
+    if "operations_monitoring" in role_set:
+        return "supporting"
+    return "unknown"
+
+
+def _qualitative_dependency_count(asset):
+    if not asset.id:
+        return 0
+    return asset.dependency_edges.count() + asset.depended_by_edges.count()
+
+
+def _qualitative_critical_infrastructure_rationale(asset, service_role, dependency_level, roles, score):
+    name = asset.name or asset.bom_ref or f"asset {asset.id}"
+    return (
+        f"{name} maps to dependency_level={dependency_level} through roles={','.join(roles)} "
+        f"from service_role={service_role or 'unknown'}; baseline migration score is {round(score)}."
     )
 
 
