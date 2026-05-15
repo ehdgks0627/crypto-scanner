@@ -19,6 +19,19 @@ const run = {
     total_results: 1,
     by_status: { PASS: 0, WARN: 1, FAIL: 0, ERROR: 0 },
     average_deltas: { handshake_p95_percent: 18.2 },
+    average_metrics: { handshake_success_rate: 0.965 },
+    by_protocol: {
+      TLS: {
+        total_results: 1,
+        by_status: { PASS: 0, WARN: 1, FAIL: 0, ERROR: 0 },
+        average_metrics: { handshake_success_rate: 0.98 }
+      },
+      SSH: {
+        total_results: 1,
+        by_status: { PASS: 1, WARN: 0, FAIL: 0, ERROR: 0 },
+        average_metrics: { handshake_success_rate: 0.95 }
+      }
+    },
     overall_status: "WARN"
   },
   started_at: "2026-05-01T00:00:00Z",
@@ -36,6 +49,7 @@ const detail = {
       asset_name: "web TLS leaf",
       bom_ref: "tls:web:leaf",
       target_label: "web.testbed.local:443",
+      protocol: "TLS",
       status: "WARN",
       compatibility_status: "PASS",
       negotiated_algorithm: "ML-KEM-768+ECDHE",
@@ -53,6 +67,30 @@ const detail = {
       recommendation: "canary_more",
       error_message: "",
       measured_at: "2026-05-01T00:01:00Z"
+    },
+    {
+      id: 91,
+      run_id: 44,
+      asset_id: 8,
+      asset_name: "ssh host key",
+      bom_ref: "ssh:host:rsa",
+      target_label: "ssh.testbed.local:22",
+      protocol: "SSH",
+      status: "PASS",
+      compatibility_status: "PASS",
+      negotiated_algorithm: "curve25519-sha256 + ssh-rsa",
+      metrics: {
+        protocol: "SSH",
+        handshake_ms: { p50: 20, p95: 40, samples: 20 },
+        handshake_success_rate: 0.95,
+        failure_rate: 0.05,
+        timeout_rate: 0
+      },
+      deltas: { handshake_p95_percent: 0 },
+      signals: [],
+      recommendation: "proceed",
+      error_message: "",
+      measured_at: "2026-05-01T00:01:05Z"
     }
   ]
 } satisfies Schema<"PerformanceEvaluationRunDetail">;
@@ -70,8 +108,13 @@ describe("PerformanceEvaluationView", () => {
 
     expect(await screen.findByText("스냅샷 #3 가용성 검사")).toBeInTheDocument();
     expect(await screen.findByText("tls:web:leaf")).toBeInTheDocument();
+    expect(screen.getByText("ssh:host:rsa")).toBeInTheDocument();
     expect(screen.getByText("post_migration")).toBeInTheDocument();
-    expect(screen.getAllByText("98.0%")).toHaveLength(2);
+    expect(screen.getByText("96.5%")).toBeInTheDocument();
+    expect(screen.getByText("98.0%")).toBeInTheDocument();
+    expect(screen.getByText("95.0%")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "프로토콜" })).toBeInTheDocument();
+    expect(screen.getByText("SSH")).toBeInTheDocument();
     expect(screen.getByText("118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("+18.2%")).toBeInTheDocument();
     expect(screen.getByText("canary_more")).toBeInTheDocument();

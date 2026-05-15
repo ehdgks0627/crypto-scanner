@@ -3158,6 +3158,35 @@ components:
           type: object
           additionalProperties:
             type: number
+        by_protocol:
+          type: object
+          additionalProperties:
+            type: object
+            required: [total_results, by_status, average_metrics]
+            properties:
+              total_results:
+                type: integer
+                minimum: 0
+              by_status:
+                type: object
+                required: [PASS, WARN, FAIL, ERROR]
+                properties:
+                  PASS:
+                    type: integer
+                    minimum: 0
+                  WARN:
+                    type: integer
+                    minimum: 0
+                  FAIL:
+                    type: integer
+                    minimum: 0
+                  ERROR:
+                    type: integer
+                    minimum: 0
+              average_metrics:
+                type: object
+                additionalProperties:
+                  type: number
         overall_status:
           type: string
           enum: [PENDING, PASS, WARN, FAIL, ERROR]
@@ -3184,6 +3213,8 @@ components:
     PerformanceMetrics:
       type: object
       properties:
+        protocol:
+          type: string
         tcp_connect_ms:
           $ref: '#/components/schemas/PerformanceMetricSeries'
         handshake_ms:
@@ -3349,6 +3380,7 @@ components:
         - asset_name
         - bom_ref
         - target_label
+        - protocol
         - status
         - compatibility_status
         - negotiated_algorithm
@@ -3372,6 +3404,8 @@ components:
         target_label:
           type: string
           nullable: true
+        protocol:
+          type: string
         status:
           $ref: '#/components/schemas/PerformanceResultStatus'
         compatibility_status:

@@ -1307,6 +1307,20 @@ export interface components {
             average_metrics?: {
                 [key: string]: number;
             };
+            by_protocol?: {
+                [key: string]: {
+                    total_results: number;
+                    by_status: {
+                        PASS: number;
+                        WARN: number;
+                        FAIL: number;
+                        ERROR: number;
+                    };
+                    average_metrics: {
+                        [key: string]: number;
+                    };
+                };
+            };
             /** @enum {string} */
             overall_status: "PENDING" | "PASS" | "WARN" | "FAIL" | "ERROR";
         };
@@ -1320,6 +1334,7 @@ export interface components {
             samples?: number;
         };
         PerformanceMetrics: {
+            protocol?: string;
             tcp_connect_ms?: components["schemas"]["PerformanceMetricSeries"];
             handshake_ms?: components["schemas"]["PerformanceMetricSeries"];
             ttfb_ms?: components["schemas"]["PerformanceMetricSeries"];
@@ -1396,6 +1411,7 @@ export interface components {
             asset_name: string;
             bom_ref: string;
             target_label: string | null;
+            protocol: string;
             status: components["schemas"]["PerformanceResultStatus"];
             compatibility_status: components["schemas"]["PerformanceResultStatus"];
             negotiated_algorithm: string;

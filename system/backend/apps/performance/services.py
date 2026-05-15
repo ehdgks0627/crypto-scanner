@@ -52,7 +52,7 @@ def upsert_result(run: PerformanceEvaluationRun, payload: dict) -> AssetPerforma
         )
 
     compatibility_status = payload.get("compatibility_status", "PASS")
-    metrics = normalize_availability_metrics(payload.get("metrics") or {})
+    metrics = normalize_availability_metrics(_metrics_with_protocol(asset, payload.get("metrics") or {}))
     baseline_metrics = _baseline_metrics_for(run, asset)
     evaluation = evaluate_asset_performance(
         metrics=metrics,
@@ -131,6 +131,7 @@ def serialize_result(result: AssetPerformanceResult) -> dict:
     target_label = None
     if result.asset.target:
         target_label = f"{result.asset.target.host}:{result.asset.target.port}"
+    protocol = _result_protocol(result)
     return {
         "id": result.id,
         "run_id": result.run_id,
@@ -138,6 +139,7 @@ def serialize_result(result: AssetPerformanceResult) -> dict:
         "asset_name": result.asset.name,
         "bom_ref": result.asset.bom_ref,
         "target_label": target_label,
+        "protocol": protocol,
         "status": result.status,
         "compatibility_status": result.compatibility_status,
         "negotiated_algorithm": result.negotiated_algorithm,
@@ -176,3 +178,25 @@ def _baseline_metrics_for(run: PerformanceEvaluationRun, asset: Asset) -> dict |
         return None
     baseline_result = AssetPerformanceResult.objects.filter(run=baseline_run, asset=baseline_asset).order_by("-measured_at").first()
     return baseline_result.metrics if baseline_result else None
+
+
+def _metrics_with_protocol(asset: Asset, metrics: dict) -> dict:
+    enriched = dict(metrics)
+    if not enriched.get("protocol"):
+        enriched["protocol"] = _asset_protocol(asset)
+    return enriched
+
+
+def _result_protocol(result: AssetPerformanceResult) -> str:
+    return str(result.metrics.get("protocol") or _asset_protocol(result.asset)).upper()
+
+
+def _asset_protocol(asset: Asset) -> str:
+    if asset.target and asset.target.protocol_hint:
+        return asset.target.protocol_hint
+    metadata = asset.metadata or {}
+    if metadata.get("protocol"):
+        return str(metadata["protocol"])
+    if asset.asset_type in {"ssh_host_key", "ssh_user_key"} or "ssh" in asset.bom_ref.lower():
+        return "SSH"
+    return "UNKNOWN"

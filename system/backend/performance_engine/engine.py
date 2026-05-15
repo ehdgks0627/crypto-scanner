@@ -74,12 +74,15 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "by_status": counts,
         "average_deltas": average_deltas,
         "average_metrics": average_metrics,
+        "by_protocol": _summarize_by_protocol(results),
         "overall_status": _overall_status(counts),
     }
 
 
 def normalize_availability_metrics(metrics: dict[str, Any] | None) -> dict[str, Any]:
     normalized = dict(metrics or {})
+    if normalized.get("protocol"):
+        normalized["protocol"] = str(normalized["protocol"]).upper()
     success = _number(normalized.get("successful_handshakes"))
     failed = _number(normalized.get("failed_handshakes"))
     total = _number(normalized.get("total_handshakes")) or _number(normalized.get("attempted_handshakes"))
@@ -96,6 +99,43 @@ def normalize_availability_metrics(metrics: dict[str, Any] | None) -> dict[str, 
         if failure_rate is not None:
             normalized["handshake_success_rate"] = round(_clamp_rate(1 - failure_rate), 4)
     return normalized
+
+
+def _summarize_by_protocol(results: list[dict[str, Any]]) -> dict[str, Any]:
+    protocols: dict[str, dict[str, Any]] = {}
+    for result in results:
+        metrics = result.get("metrics") or {}
+        protocol = str(metrics.get("protocol") or "UNKNOWN").upper()
+        entry = protocols.setdefault(
+            protocol,
+            {
+                "total_results": 0,
+                "by_status": {"PASS": 0, "WARN": 0, "FAIL": 0, "ERROR": 0},
+                "_metrics": {"handshake_success_rate": [], "failure_rate": [], "timeout_rate": []},
+            },
+        )
+        entry["total_results"] += 1
+        status = result.get("status")
+        if status in entry["by_status"]:
+            entry["by_status"][status] += 1
+        for key, values in entry["_metrics"].items():
+            value = metrics.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                values.append(value)
+
+    summary = {}
+    for protocol, entry in protocols.items():
+        average_metrics = {
+            key: round(sum(values) / len(values), 4)
+            for key, values in entry["_metrics"].items()
+            if values
+        }
+        summary[protocol] = {
+            "total_results": entry["total_results"],
+            "by_status": entry["by_status"],
+            "average_metrics": average_metrics,
+        }
+    return summary
 
 
 def _calculate_deltas(metrics: dict[str, Any], baseline_metrics: dict[str, Any]) -> dict[str, float]:

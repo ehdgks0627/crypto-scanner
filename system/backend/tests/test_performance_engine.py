@@ -50,3 +50,22 @@ def test_performance_engine_normalizes_tls_handshake_success_rate_and_flags_regr
     assert metrics["failure_rate"] == 0.02
     assert result["status"] == "WARN"
     assert any(signal["reason"] == "handshake_success_rate_below_warn_threshold" for signal in result["signals"])
+
+
+def test_performance_engine_summarizes_ssh_handshake_success_rate_by_protocol():
+    summary = summarize_results(
+        [
+            {"status": "PASS", "deltas": {}, "metrics": normalize_availability_metrics({"protocol": "SSH", "successful_handshakes": 10})},
+            {
+                "status": "WARN",
+                "deltas": {},
+                "metrics": normalize_availability_metrics({"protocol": "SSH", "successful_handshakes": 19, "failed_handshakes": 1}),
+            },
+            {"status": "PASS", "deltas": {}, "metrics": normalize_availability_metrics({"protocol": "TLS", "failure_rate": 0.0})},
+        ]
+    )
+
+    assert summary["by_protocol"]["SSH"]["total_results"] == 2
+    assert summary["by_protocol"]["SSH"]["by_status"]["WARN"] == 1
+    assert summary["by_protocol"]["SSH"]["average_metrics"]["handshake_success_rate"] == 0.975
+    assert summary["by_protocol"]["TLS"]["average_metrics"]["handshake_success_rate"] == 1.0

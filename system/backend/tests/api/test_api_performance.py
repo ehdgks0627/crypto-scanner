@@ -1,6 +1,6 @@
 import pytest
 
-from tests.api.factories import create_asset, create_snapshot
+from tests.api.factories import create_asset, create_snapshot, create_target
 
 
 pytestmark = pytest.mark.django_db
@@ -51,12 +51,15 @@ def test_api_perf_001_create_run_and_record_result(client):
     assert result["asset_id"] == asset.id
     assert result["status"] == "PASS"
     assert result["recommendation"] == "proceed"
+    assert result["protocol"] == "TLS"
+    assert result["metrics"]["protocol"] == "TLS"
     assert result["metrics"]["handshake_success_rate"] == 1.0
 
     detail = client.get(f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}").json()
     assert detail["status"] == "RUNNING"
     assert detail["summary"]["by_status"]["PASS"] == 1
     assert detail["summary"]["average_metrics"]["handshake_success_rate"] == 1.0
+    assert detail["summary"]["by_protocol"]["TLS"]["average_metrics"]["handshake_success_rate"] == 1.0
     assert detail["results"][0]["bom_ref"] == "tls:web:leaf"
 
 
@@ -157,3 +160,42 @@ def test_api_perf_005_records_tls_handshake_success_rate_from_counts(client):
     assert body["metrics"]["handshake_success_rate"] == 0.95
     assert body["metrics"]["failure_rate"] == 0.05
     assert any(signal["reason"] == "handshake_success_rate_below_fail_threshold" for signal in body["signals"])
+
+
+def test_api_perf_006_records_ssh_handshake_success_rate_by_protocol(client):
+    snapshot = create_snapshot()
+    ssh_target = create_target(host="ssh.testbed.local", port=22, protocol_hint="SSH")
+    asset = create_asset(
+        snapshot=snapshot,
+        target=ssh_target,
+        bom_ref="ssh:host:rsa",
+        asset_type="ssh_host_key",
+        algorithm="RSA-3072",
+        algorithm_family="RSA",
+    )
+    run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
+
+    response = client.post(
+        f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}/results",
+        data={
+            "asset_id": asset.id,
+            "negotiated_algorithm": "curve25519-sha256 + ssh-rsa",
+            "metrics": {
+                "successful_handshakes": 20,
+                "failed_handshakes": 0,
+                "handshake_ms": {"p50": 30, "p95": 55, "samples": 20},
+            },
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["protocol"] == "SSH"
+    assert body["metrics"]["protocol"] == "SSH"
+    assert body["metrics"]["total_handshakes"] == 20
+    assert body["metrics"]["handshake_success_rate"] == 1.0
+
+    detail = client.get(f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}").json()
+    assert detail["summary"]["by_protocol"]["SSH"]["total_results"] == 1
+    assert detail["summary"]["by_protocol"]["SSH"]["average_metrics"]["handshake_success_rate"] == 1.0
