@@ -22,7 +22,7 @@ import { formatNumber, formatScore } from "../../lib/format";
 
 type MigrationRow = Schema<"MigrationPlanItem">;
 
-const assetTypeOptions: AssetType[] = ["algorithm", "certificate", "key", "protocol", "keystore", "device", "service", "data"];
+const assetTypeOptions: AssetType[] = ["algorithm", "certificate", "key", "key_agreement", "protocol", "keystore", "device", "service", "data"];
 
 export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
   const [searchParams, setSearchParams] = useSearchParams();

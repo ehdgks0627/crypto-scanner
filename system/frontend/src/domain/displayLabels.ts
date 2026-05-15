@@ -48,6 +48,7 @@ const assetTypeLabels: Record<AssetType | string, string> = {
   algorithm: "알고리즘",
   certificate: "인증서",
   key: "키",
+  key_agreement: "키 합의",
   protocol: "프로토콜",
   keystore: "키 저장소",
   device: "장비",

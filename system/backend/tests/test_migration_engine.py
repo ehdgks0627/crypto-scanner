@@ -20,6 +20,8 @@ def test_migration_mapping_rules_are_loaded_from_external_config():
 def test_migration_mapping_rules_classify_kem_and_signature_paths_separately():
     assert candidate_for_algorithm("RSA-2048", "RSA", "key")["kind"] == "kem"
     assert candidate_for_algorithm("RSA-2048", "RSA", "key")["purpose"] == "key_exchange"
+    assert candidate_for_algorithm("RSA-2048", "RSA", "key_agreement")["replace_set"] == ["ML-KEM-768"]
+    assert candidate_for_algorithm("RSA-2048", "RSA", "key_agreement")["purpose"] == "key_exchange"
     assert candidate_for_algorithm("ECDSA-P384", "ECDSA", "certificate")["replace_set"] == ["ML-DSA-87"]
     assert candidate_for_algorithm("ECDSA-P384", "ECDSA", "certificate")["purpose"] == "digital_signature"
     assert candidate_for_algorithm("ECDH-P384", "ECDH", "protocol")["replace_set"] == ["ML-KEM-1024"]
@@ -61,6 +63,38 @@ def test_migration_engine_recommends_hybrid_first_for_long_lived_rsa():
     assert "runtime_capability_unknown" in item["recommendation"]["blockers"]
     assert "enable_hybrid" in [step["kind"] for step in item["playbook"]]
     assert item["agility"]["level"] == "LOW"
+
+
+def test_migration_engine_maps_rsa_key_exchange_to_ml_kem_without_changing_signature_path():
+    key_exchange_item = recommend_migration(
+        asset_id=10,
+        asset_name="legacy RSA key exchange",
+        asset_type="key_agreement",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        risk_score=81,
+        tier="HIGH",
+        context={"lifespan_years": 10, "criticality": "high", "exposure": "public_internet"},
+        capabilities=["runtime_pqc_supported", "config_policy", "rescan_validation", "rollback_supported"],
+    )
+    certificate_item = recommend_migration(
+        asset_id=11,
+        asset_name="legacy RSA certificate",
+        asset_type="certificate",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        risk_score=81,
+        tier="HIGH",
+        context={"lifespan_years": 10, "criticality": "high", "exposure": "public_internet"},
+        capabilities=["runtime_pqc_supported", "config_policy", "rescan_validation", "rollback_supported"],
+    )
+
+    assert key_exchange_item["asset_purpose"] == "key_exchange"
+    assert key_exchange_item["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert key_exchange_item["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
+    assert certificate_item["asset_purpose"] == "digital_signature"
+    assert certificate_item["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
+    assert certificate_item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
 
 
 def test_migration_engine_marks_pqc_assets_as_no_change_with_high_agility():

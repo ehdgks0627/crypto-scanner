@@ -728,7 +728,7 @@ export interface components {
         /** @enum {string} */
         AssetClass: "crypto" | "host" | "service" | "data";
         /** @enum {string} */
-        AssetType: "algorithm" | "certificate" | "key" | "protocol" | "keystore" | "device" | "service" | "data";
+        AssetType: "algorithm" | "certificate" | "key" | "key_agreement" | "protocol" | "keystore" | "device" | "service" | "data";
         /** @enum {string} */
         ScannerId: "network" | "agent.cert_store" | "agent.pkg_keyring" | "agent.ssh_userkey" | "agent.ssh_config" | "agent.keystore" | "agent.app_cert_files" | "agent.private_key_files" | "agent.app_config";
         ErrorResponse: {

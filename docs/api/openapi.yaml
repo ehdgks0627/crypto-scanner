@@ -1687,7 +1687,7 @@ components:
       enum: [crypto, host, service, data]
     AssetType:
       type: string
-      enum: [algorithm, certificate, key, protocol, keystore, device, service, data]
+      enum: [algorithm, certificate, key, key_agreement, protocol, keystore, device, service, data]
     ScannerId:
       type: string
       enum:

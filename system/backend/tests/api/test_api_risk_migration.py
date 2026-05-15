@@ -323,6 +323,38 @@ def test_api_mig_006_migration_plan_marks_rsa_hybrid_and_safe_no_change(client):
     assert by_asset[pqc_asset.id]["recommendation"]["phase"] == "monitor"
 
 
+def test_api_mig_006b_migration_plan_maps_rsa_key_agreement_to_ml_kem(client):
+    snapshot = create_snapshot()
+    key_exchange_asset = create_asset(
+        snapshot=snapshot,
+        name="legacy RSA key exchange",
+        asset_type="key_agreement",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        bom_ref="mig:rsa:key-agreement",
+    )
+    certificate_asset = create_asset(
+        snapshot=snapshot,
+        name="legacy RSA certificate",
+        asset_type="certificate",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        bom_ref="mig:rsa:certificate",
+    )
+    create_risk_score(key_exchange_asset, score=88.0, tier="HIGH")
+    create_risk_score(certificate_asset, score=87.0, tier="HIGH")
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/migration-plan?asset_ids={key_exchange_asset.id},{certificate_asset.id}")
+
+    assert response.status_code == 200
+    by_asset = {item["asset_id"]: item for item in response.json()["items"]}
+    assert by_asset[key_exchange_asset.id]["asset_purpose"] == "key_exchange"
+    assert by_asset[key_exchange_asset.id]["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert by_asset[key_exchange_asset.id]["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
+    assert by_asset[certificate_asset.id]["asset_purpose"] == "digital_signature"
+    assert by_asset[certificate_asset.id]["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
+
+
 def test_api_mig_007_migration_plan_rejects_non_integer_asset_ids(client):
     snapshot = create_snapshot()
 

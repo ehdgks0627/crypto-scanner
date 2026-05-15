@@ -101,7 +101,7 @@
     {
       "id": "rsa-kem-like",
       "match_regex": "RSA",
-      "asset_types": ["key", "protocol"],
+      "asset_types": ["key", "protocol", "key_agreement"],
       "kind": "kem",
       "purpose": "key_exchange",
       "hybrid_set": ["X25519", "ML-KEM-768"],
