@@ -676,6 +676,15 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
     "summary": "...",
     "threat_scenarios": ["..."],
     "migration_recommendation": "...",
+    "dhs_criteria": {
+      "asset_value": {
+        "question": "Q1: asset value based on external exposure and business importance.",
+        "rating": "high",
+        "score": 0.72,
+        "rationale": "...",
+        "signals": ["exposure:public_internet", "criticality:high"]
+      }
+    },
     "confidence": 0.5,
     "generated_at": "..."
   },
@@ -744,7 +753,7 @@ agent.* 스캐너는 Target의 `agent_enabled=true`이고 매핑된 Agent의 cap
 
 ### 8.8.4 `POST /api/assets/{id}/qualitative`
 
-LLM 정성 분석 요청 (6.6, Mock 응답).
+LLM 정성 분석 요청 (6.6, Mock 응답). 현재 응답은 DHS 6개 기준 중 Q1 `asset_value`를 구조화해 포함한다.
 
 요청 본문 없음 (또는 `{}`).
 
@@ -753,7 +762,7 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 백그라운드 실행이 필요한 경우 동일 생성 로직을 `qualitative_assessment` 큐 작업으로 실행할 수 있다. `process_queued_jobs` worker는 `scan_job`, `discovery`, `recompute`와 함께 `qualitative_assessment` 작업을 폴링한다.
 
 정성 분석 prompt payload는 `asset`, `context`, `context_sources`, `risk` 외에 `operational_context`를 포함한다. `operational_context`에는 연결 서비스(`host:port`, protocol), 파일/설정 경로, 데이터 분류 수준, 통신 노출 범위, 서비스 역할이 정규화되어 들어간다.
-LLM provider 응답은 자유 텍스트 안에 포함된 JSON 객체를 파싱하며, `summary`, `threat_scenarios`, `migration_recommendation`, `confidence` 필드를 구조화된 `QualitativeAssessment`로 정규화한다.
+LLM provider 응답은 자유 텍스트 안에 포함된 JSON 객체를 파싱하며, `summary`, `threat_scenarios`, `migration_recommendation`, `dhs_criteria.asset_value`, `confidence` 필드를 구조화된 `QualitativeAssessment`로 정규화한다. `asset_value`는 외부 노출과 비즈니스 중요도를 기준으로 `rating`, `score`, `rationale`, `signals`를 제공한다.
 provider 응답 파싱 실패 또는 타임아웃이 발생하면 자산 메타데이터와 컨텍스트 기반 휴리스틱 결과로 폴백한다. 이 경우 `provider`는 `mock-rulebook-fallback`으로 저장되고, `prompt_payload.llm_fallback`에 사용 여부와 실패 사유를 기록한다.
 정상 생성된 정성 분석은 `prompt_payload.llm_cache.key`에 prompt 입력 해시를 저장한다. 이후 같은 prompt 입력으로 다시 요청되면 provider 호출 없이 저장된 `QualitativeAssessment`를 반환한다.
 

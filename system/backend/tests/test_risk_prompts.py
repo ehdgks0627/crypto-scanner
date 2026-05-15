@@ -37,11 +37,14 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
 
     assert prompt["version"] == QUALITATIVE_RISK_PROMPT_VERSION
     assert "PQC migration risk analyst" in prompt["system"]
+    assert prompt["version"] == "qualitative-risk-v2"
     assert "RSA-2048" in prompt["user"]
     assert "/etc/nginx/server.crt" in prompt["user"]
     assert "public_internet" in prompt["user"]
+    assert "DHS Q1 asset_value" in prompt["user"]
     assert "operational_context" in prompt["user"]
     assert "Required JSON schema" in prompt["user"]
+    assert "dhs_criteria" in prompt["user"]
     assert prompt["payload"]["asset"]["metadata"]["fingerprint_sha256"] == "a" * 64
     assert prompt["payload"]["context"]["lifespan_years"] == 15
     assert prompt["payload"]["operational_context"]["connected_service"]["protocol_hint"] == "TLS"
@@ -58,6 +61,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
           "summary": "RSA asset protects public customer traffic.",
           "threat_scenarios": ["harvest_now_decrypt_later", "service_identity_compromise"],
           "migration_recommendation": "Use a hybrid certificate during transition.",
+          "dhs_criteria": {
+            "asset_value": {
+              "question": "Q1: asset value based on external exposure and business importance.",
+              "rating": "HIGH",
+              "score": 86,
+              "rationale": "The service is public and protects customer traffic.",
+              "signals": ["public_internet", "customer-api"]
+            }
+          },
           "confidence": 86
         }
         ```
@@ -68,6 +80,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
         "summary": "RSA asset protects public customer traffic.",
         "threat_scenarios": ["harvest_now_decrypt_later", "service_identity_compromise"],
         "migration_recommendation": "Use a hybrid certificate during transition.",
+        "dhs_criteria": {
+            "asset_value": {
+                "question": "Q1: asset value based on external exposure and business importance.",
+                "rating": "high",
+                "score": 0.86,
+                "rationale": "The service is public and protects customer traffic.",
+                "signals": ["public_internet", "customer-api"],
+            }
+        },
         "confidence": 0.86,
     }
 

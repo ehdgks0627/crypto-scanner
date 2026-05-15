@@ -454,6 +454,15 @@ class Command(BaseCommand):
             summary=f"{asset.name} uses {asset.algorithm}, which is exposed to quantum migration planning.",
             threat_scenarios=["store_now_decrypt_later", "long_lived_service_identity", "migration_dependency_delay"],
             migration_recommendation="Prioritize inventory owner confirmation, compatibility testing, and hybrid/PQC rollout planning.",
+            dhs_criteria={
+                "asset_value": {
+                    "question": "Q1: asset value based on external exposure and business importance.",
+                    "rating": "high",
+                    "score": 0.72,
+                    "rationale": "Demo assets represent visible business services or supporting cryptographic infrastructure.",
+                    "signals": ["demo_testbed", "service_role", "managed_target"],
+                }
+            },
             confidence=0.78,
         )
 

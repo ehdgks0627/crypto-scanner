@@ -71,6 +71,7 @@ class QualitativeAssessment(models.Model):
     summary = models.TextField()
     threat_scenarios = models.JSONField(default=list)
     migration_recommendation = models.TextField()
+    dhs_criteria = models.JSONField(default=dict)
     confidence = models.FloatField(default=0.0)
     generated_at = models.DateTimeField(auto_now=True)
 

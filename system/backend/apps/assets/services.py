@@ -209,6 +209,7 @@ def _heuristic_qualitative_response(asset, context, risk_score, score):
         "summary": _qualitative_summary(asset, context, score),
         "threat_scenarios": _qualitative_threat_scenarios(asset, context),
         "migration_recommendation": _qualitative_migration_recommendation(asset, score),
+        "dhs_criteria": _qualitative_dhs_criteria(asset, context, score),
         "confidence": _qualitative_confidence(asset, context, risk_score, score),
     }
 
@@ -373,6 +374,66 @@ def _qualitative_migration_recommendation(asset, score):
     if family.startswith("ML-") or family in {"SLH-DSA", "FN-DSA"}:
         return "Maintain the current PQC posture and monitor interoperability, lifecycle, and policy requirements."
     return f"{priority} owner review and select a PQC or hybrid alternative if this asset protects long-lived data."
+
+
+def _qualitative_dhs_criteria(asset, context, score):
+    return {
+        "asset_value": _qualitative_asset_value_criterion(asset, context, score),
+    }
+
+
+def _qualitative_asset_value_criterion(asset, context, score):
+    exposure = context.get("exposure")
+    criticality = context.get("criticality")
+    service_role = context.get("service_role") or asset.asset_type or "unknown"
+    value_score = 0.2
+    value_score += EXPOSURE_LEVELS.get(exposure, 0) * 0.16
+    value_score += CONTEXT_LEVELS.get(criticality, 0) * 0.14
+    if asset.target_id:
+        value_score += 0.08
+    if _service_role_is_business_critical(service_role):
+        value_score += 0.1
+    value_score = round(max(0.0, min(1.0, value_score)), 2)
+    signals = _dedupe_values(
+        [
+            f"exposure:{exposure or 'unknown'}",
+            f"criticality:{criticality or 'unknown'}",
+            f"service_role:{service_role}",
+            f"target:{target_label(asset)}" if asset.target_id else "target:unmapped",
+        ]
+    )
+    return {
+        "question": "Q1: asset value based on external exposure and business importance.",
+        "rating": _qualitative_rating(value_score),
+        "score": value_score,
+        "rationale": _qualitative_asset_value_rationale(asset, exposure, criticality, service_role, score),
+        "signals": signals,
+    }
+
+
+def _service_role_is_business_critical(service_role):
+    value = (service_role or "").lower()
+    return any(token in value for token in ["auth", "customer", "payment", "db", "database", "api", "gateway", "vpn"])
+
+
+def _qualitative_rating(score):
+    if score >= 0.85:
+        return "critical"
+    if score >= 0.65:
+        return "high"
+    if score >= 0.35:
+        return "medium"
+    return "low"
+
+
+def _qualitative_asset_value_rationale(asset, exposure, criticality, service_role, score):
+    name = asset.name or asset.bom_ref or f"asset {asset.id}"
+    target = target_label(asset) or "no mapped network target"
+    return (
+        f"{name} is valued by exposure={exposure or 'unknown'}, "
+        f"criticality={criticality or 'unknown'}, service_role={service_role or 'unknown'}, "
+        f"and target={target}; baseline migration score is {round(score)}."
+    )
 
 
 def _qualitative_confidence(asset, context, risk_score, score):
@@ -548,6 +609,7 @@ def serialize_qualitative(assessment):
         "summary": assessment.summary,
         "threat_scenarios": assessment.threat_scenarios,
         "migration_recommendation": assessment.migration_recommendation,
+        "dhs_criteria": assessment.dhs_criteria,
         "confidence": assessment.confidence,
         "generated_at": serialize_dt(assessment.generated_at),
     }
