@@ -24,6 +24,7 @@ router = Router(tags=["Dashboard"])
 VULNERABLE_ALGORITHM_FAMILIES = {"RSA", "ECDSA", "ECDH", "DH"}
 EXPIRING_CERTIFICATE_WINDOW_DAYS = 90
 CERTIFICATE_EXPIRY_KEYS = ("expires_at", "not_after", "valid_to", "valid_until", "expiration")
+PRIVATE_KEY_ASSET_TYPES = {"key", "ssh_user_key", "keystore_entry", "package_key"}
 
 
 class DemoSeedPayload(StrictSchema):
@@ -48,7 +49,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             "by_asset_type": {},
             "by_algorithm_family": {},
             "quantum_vulnerable_ratio": {"vulnerable": 0, "safe": 0, "unknown": 0},
-            "kpis": _dashboard_kpis(None, [], 0, 0),
+            "kpis": _dashboard_kpis(None, [], 0, 0, 0),
             "recent_jobs": recent_jobs,
             "agents_status": agent_status,
             "trend": [],
@@ -97,7 +98,13 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             "safe": safe_count,
             "unknown": unknown_count,
         },
-        "kpis": _dashboard_kpis(latest, assets, vulnerable_count, _expiring_certificate_count(assets)),
+        "kpis": _dashboard_kpis(
+            latest,
+            assets,
+            vulnerable_count,
+            _expiring_certificate_count(assets),
+            _dormant_private_key_count(assets),
+        ),
         "recent_jobs": recent_jobs,
         "agents_status": agent_status,
         "trend": trend,
@@ -126,7 +133,13 @@ def seed_dashboard_demo(request, payload: DemoSeedPayload):
     )
 
 
-def _dashboard_kpis(snapshot: CbomSnapshot | None, assets: list, vulnerable_count: int, expiring_certificate_count: int) -> dict:
+def _dashboard_kpis(
+    snapshot: CbomSnapshot | None,
+    assets: list,
+    vulnerable_count: int,
+    expiring_certificate_count: int,
+    dormant_private_key_count: int,
+) -> dict:
     return {
         "discovered_crypto_assets_per_scan": {
             "value": len(assets),
@@ -146,6 +159,13 @@ def _dashboard_kpis(snapshot: CbomSnapshot | None, assets: list, vulnerable_coun
             "value": expiring_certificate_count,
             "unit": "certificates",
             "source": "certificate_metadata_expires_at",
+            "snapshot_id": snapshot.id if snapshot else None,
+            "scan_job_id": snapshot.scan_job_id if snapshot else None,
+        },
+        "dormant_private_keys_per_scan": {
+            "value": dormant_private_key_count,
+            "unit": "keys",
+            "source": "asset_metadata_dormant_private_key",
             "snapshot_id": snapshot.id if snapshot else None,
             "scan_job_id": snapshot.scan_job_id if snapshot else None,
         }
@@ -200,3 +220,50 @@ def _parse_expiration_datetime(value) -> datetime | None:
     if timezone.is_naive(parsed):
         return timezone.make_aware(parsed, dt_timezone.utc)
     return parsed
+
+
+def _dormant_private_key_count(assets: list) -> int:
+    return len([asset for asset in assets if _is_dormant_private_key(asset)])
+
+
+def _is_dormant_private_key(asset) -> bool:
+    metadata = asset.metadata or {}
+    if asset.asset_type not in PRIVATE_KEY_ASSET_TYPES:
+        return False
+    if not _has_private_key_file_evidence(metadata):
+        return False
+    dormant = _metadata_bool(metadata.get("dormant"))
+    in_use = _metadata_bool(metadata.get("in_use"))
+    return dormant is True or in_use is False
+
+
+def _has_private_key_file_evidence(metadata: dict) -> bool:
+    if metadata.get("private_key_paths"):
+        return True
+    evidence_values = [
+        metadata.get("scanner"),
+        metadata.get("type"),
+        metadata.get("path"),
+        metadata.get("source_scanners"),
+        metadata.get("source_paths"),
+    ]
+    for value in evidence_values:
+        if isinstance(value, list):
+            if any("private_key" in str(item).casefold() for item in value):
+                return True
+        elif "private_key" in str(value or "").casefold():
+            return True
+    return False
+
+
+def _metadata_bool(value) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    normalized = str(value).strip().casefold()
+    if normalized in {"true", "1", "yes"}:
+        return True
+    if normalized in {"false", "0", "no"}:
+        return False
+    return None

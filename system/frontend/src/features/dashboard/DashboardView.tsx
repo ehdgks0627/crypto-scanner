@@ -150,6 +150,7 @@ export function DashboardView() {
   const discoveredAssetsKpi = summary.data.kpis.discovered_crypto_assets_per_scan;
   const vulnerableAssetsKpi = summary.data.kpis.quantum_vulnerable_assets_per_scan;
   const expiringCertificatesKpi = summary.data.kpis.expiring_certificates_90d_per_scan;
+  const dormantPrivateKeysKpi = summary.data.kpis.dormant_private_keys_per_scan;
 
   return (
     <Section>
@@ -189,6 +190,12 @@ export function DashboardView() {
           value={formatNumber(expiringCertificatesKpi.value)}
           meta="90일 이내"
           onClick={() => navigate("/snapshots?asset_type=certificate")}
+        />
+        <MetricCard
+          label="잠든 개인키"
+          value={formatNumber(dormantPrivateKeysKpi.value)}
+          meta="미사용 파일"
+          onClick={() => navigate("/snapshots")}
         />
         <MetricCard
           label="에이전트"

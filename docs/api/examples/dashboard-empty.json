@@ -29,6 +29,13 @@
       "source": "certificate_metadata_expires_at",
       "snapshot_id": null,
       "scan_job_id": null
+    },
+    "dormant_private_keys_per_scan": {
+      "value": 0,
+      "unit": "keys",
+      "source": "asset_metadata_dormant_private_key",
+      "snapshot_id": null,
+      "scan_job_id": null
     }
   },
   "recent_jobs": [],

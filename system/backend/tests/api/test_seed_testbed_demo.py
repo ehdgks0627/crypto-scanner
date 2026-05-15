@@ -2,7 +2,7 @@ import pytest
 from django.core.management import call_command
 
 from apps.agents.models import Agent
-from apps.core.management.commands.seed_testbed_demo import EXPIRING_CERTIFICATE_DAYS, LATEST_ASSETS
+from apps.core.management.commands.seed_testbed_demo import DORMANT_PRIVATE_KEY_PATHS, EXPIRING_CERTIFICATE_DAYS, LATEST_ASSETS
 from apps.discoveries.models import Discovery
 from apps.risk.models import RiskScore
 from apps.snapshots.models import CbomSnapshot
@@ -41,6 +41,8 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert body["kpis"]["quantum_vulnerable_assets_per_scan"]["scan_job_id"] == latest.scan_job_id
     assert body["kpis"]["expiring_certificates_90d_per_scan"]["value"] == len(EXPIRING_CERTIFICATE_DAYS)
     assert body["kpis"]["expiring_certificates_90d_per_scan"]["scan_job_id"] == latest.scan_job_id
+    assert body["kpis"]["dormant_private_keys_per_scan"]["value"] == len(DORMANT_PRIVATE_KEY_PATHS)
+    assert body["kpis"]["dormant_private_keys_per_scan"]["scan_job_id"] == latest.scan_job_id
     assert body["by_tier"]["CRITICAL"] == 18
     assert body["by_tier"]["HIGH"] == 31
     assert body["quantum_vulnerable_ratio"]["vulnerable"] == 52

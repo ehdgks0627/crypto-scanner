@@ -27,6 +27,16 @@ def test_api_dsh_001_dashboard_summary_uses_latest_snapshot(client):
         asset_type="certificate",
         metadata={"expires_at": (timezone.now() + timedelta(days=30)).isoformat()},
     )
+    create_asset(
+        snapshot=latest,
+        bom_ref="dormant-key",
+        asset_type="keystore_entry",
+        metadata={
+            "dormant": True,
+            "in_use": False,
+            "private_key_paths": ["/opt/app/unused.key"],
+        },
+    )
     create_risk_score(old_asset, score=20.0, tier="LOW")
     create_risk_score(latest_asset, score=95.0, tier="CRITICAL")
     job = create_async_job(kind="scan_job", status="COMPLETED", result={"snapshot_id": latest.id})
@@ -44,16 +54,16 @@ def test_api_dsh_001_dashboard_summary_uses_latest_snapshot(client):
     body = response.json()
     assert body["snapshot"]["id"] == latest.id
     assert body["snapshot"]["created_at"] is not None
-    assert body["snapshot"]["asset_count"] == 1
+    assert body["snapshot"]["asset_count"] == 2
     assert body["kpis"]["discovered_crypto_assets_per_scan"] == {
-        "value": 1,
+        "value": 2,
         "unit": "assets",
         "source": "cbom_snapshot",
         "snapshot_id": latest.id,
         "scan_job_id": None,
     }
     assert body["kpis"]["quantum_vulnerable_assets_per_scan"] == {
-        "value": 1,
+        "value": 2,
         "unit": "assets",
         "source": "algorithm_family_classification",
         "snapshot_id": latest.id,
@@ -66,10 +76,17 @@ def test_api_dsh_001_dashboard_summary_uses_latest_snapshot(client):
         "snapshot_id": latest.id,
         "scan_job_id": None,
     }
+    assert body["kpis"]["dormant_private_keys_per_scan"] == {
+        "value": 1,
+        "unit": "keys",
+        "source": "asset_metadata_dormant_private_key",
+        "snapshot_id": latest.id,
+        "scan_job_id": None,
+    }
     assert body["by_tier"]["CRITICAL"] == 1
     assert body["by_asset_type"]["certificate"] == 1
-    assert body["by_algorithm_family"]["RSA"] == 1
-    assert body["quantum_vulnerable_ratio"]["vulnerable"] == 1
+    assert body["by_algorithm_family"]["RSA"] == 2
+    assert body["quantum_vulnerable_ratio"]["vulnerable"] == 2
     assert body["quantum_vulnerable_ratio"]["safe"] == 0
     assert body["agents_status"] == {"total": 1, "active": 1, "stale": 0}
     assert body["recent_jobs"][0]["id"] == job.id
@@ -90,6 +107,7 @@ def test_api_dsh_002_dashboard_empty_state_without_snapshots(client):
     assert body["kpis"]["discovered_crypto_assets_per_scan"]["value"] == 0
     assert body["kpis"]["quantum_vulnerable_assets_per_scan"]["value"] == 0
     assert body["kpis"]["expiring_certificates_90d_per_scan"]["value"] == 0
+    assert body["kpis"]["dormant_private_keys_per_scan"]["value"] == 0
     assert body["recent_jobs"] == []
     assert body["trend"] == []
 

@@ -72,6 +72,11 @@ EXPIRING_CERTIFICATE_DAYS = {
     "pop3:pop3s:leaf:rsa": 85,
     "tls:monitoring:leaf:ecdsa": 89,
 }
+DORMANT_PRIVATE_KEY_PATHS = {
+    "ssh:user:deploy:rsa": ["/home/deploy/.ssh/id_rsa.old"],
+    "postgres:jks:app:rsa": ["/opt/postgres/legacy/app-server.key"],
+    "legacy-java:jks:app:rsa1024": ["/opt/legacy-java/conf/old-client.key"],
+}
 
 
 LATEST_ASSETS = [
@@ -686,15 +691,30 @@ class Command(BaseCommand):
         }
 
     def _asset_metadata(self, asset_data, snapshot_created_at):
-        if asset_data.bom_ref not in EXPIRING_CERTIFICATE_DAYS:
-            return {}
-        expires_at = snapshot_created_at + timedelta(days=EXPIRING_CERTIFICATE_DAYS[asset_data.bom_ref])
-        return {
-            "expires_at": expires_at.isoformat(),
-            "validity": {
-                "not_after": expires_at.isoformat(),
-            },
-        }
+        metadata = {}
+        if asset_data.bom_ref in EXPIRING_CERTIFICATE_DAYS:
+            expires_at = snapshot_created_at + timedelta(days=EXPIRING_CERTIFICATE_DAYS[asset_data.bom_ref])
+            metadata.update(
+                {
+                    "expires_at": expires_at.isoformat(),
+                    "validity": {
+                        "not_after": expires_at.isoformat(),
+                    },
+                }
+            )
+        if asset_data.bom_ref in DORMANT_PRIVATE_KEY_PATHS:
+            paths = DORMANT_PRIVATE_KEY_PATHS[asset_data.bom_ref]
+            metadata.update(
+                {
+                    "dormant": True,
+                    "in_use": False,
+                    "private_key_paths": paths,
+                    "source_scanners": ["agent.private_key_files"],
+                    "source_paths": paths,
+                    "referenced_by": [],
+                }
+            )
+        return metadata
 
     def _timestamp(self, instance, *, created_at=None, updated_at=None):
         updates = {}

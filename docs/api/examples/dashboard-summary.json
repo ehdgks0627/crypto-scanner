@@ -57,6 +57,13 @@
       "source": "certificate_metadata_expires_at",
       "snapshot_id": 56,
       "scan_job_id": 123
+    },
+    "dormant_private_keys_per_scan": {
+      "value": 3,
+      "unit": "keys",
+      "source": "asset_metadata_dormant_private_key",
+      "snapshot_id": 56,
+      "scan_job_id": 123
     }
   },
   "recent_jobs": [

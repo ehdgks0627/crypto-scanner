@@ -36,6 +36,13 @@ describe("DashboardView", () => {
           source: "certificate_metadata_expires_at",
           snapshot_id: null,
           scan_job_id: null
+        },
+        dormant_private_keys_per_scan: {
+          value: 0,
+          unit: "keys",
+          source: "asset_metadata_dormant_private_key",
+          snapshot_id: null,
+          scan_job_id: null
         }
       },
       recent_jobs: [],
@@ -74,6 +81,13 @@ describe("DashboardView", () => {
           value: 0,
           unit: "certificates",
           source: "certificate_metadata_expires_at",
+          snapshot_id: null,
+          scan_job_id: null
+        },
+        dormant_private_keys_per_scan: {
+          value: 0,
+          unit: "keys",
+          source: "asset_metadata_dormant_private_key",
           snapshot_id: null,
           scan_job_id: null
         }
@@ -137,6 +151,13 @@ describe("DashboardView", () => {
           value: snapshotId === 2 ? 2 : 0,
           unit: "certificates",
           source: "certificate_metadata_expires_at",
+          snapshot_id: snapshotId ?? 1,
+          scan_job_id: 44
+        },
+        dormant_private_keys_per_scan: {
+          value: snapshotId === 2 ? 3 : 0,
+          unit: "keys",
+          source: "asset_metadata_dormant_private_key",
           snapshot_id: snapshotId ?? 1,
           scan_job_id: 44
         }
@@ -208,10 +229,12 @@ describe("DashboardView", () => {
     expect(await screen.findByText("스캔당 발견 자산")).toBeInTheDocument();
     expect(screen.getByText("스캔 #44")).toBeInTheDocument();
     expect((await screen.findAllByText("12")).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("5")).toBeInTheDocument();
     expect(screen.getByText("만료 임박 인증서")).toBeInTheDocument();
     expect(screen.getByText("90일 이내")).toBeInTheDocument();
+    expect(screen.getByText("잠든 개인키")).toBeInTheDocument();
+    expect(screen.getByText("미사용 파일")).toBeInTheDocument();
     expect(await screen.findByText("네트워크 암호 노출 현황")).toBeInTheDocument();
   });
 });
