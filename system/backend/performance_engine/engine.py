@@ -21,6 +21,7 @@ DEFAULT_THRESHOLDS = {
 LATENCY_SERIES = ("tcp_connect_ms", "handshake_ms", "ttfb_ms", "total_request_ms")
 THROUGHPUT_SERIES = ("throughput_rps", "requests_per_second", "connections_per_second")
 THROUGHPUT_DELTA_KEYS = {f"{series}_percent" for series in THROUGHPUT_SERIES}
+RESULT_STATUSES = ("PASS", "WARN", "FAIL", "ERROR")
 
 
 def evaluate_asset_performance(
@@ -87,6 +88,7 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "average_metrics": average_metrics,
         "latency_comparison": _summarize_latency_comparison(results),
         "throughput_comparison": _summarize_throughput_comparison(results),
+        "client_compatibility": _summarize_client_compatibility(results),
         "by_protocol": _summarize_by_protocol(results),
         "overall_status": _overall_status(counts),
     }
@@ -98,6 +100,11 @@ def normalize_availability_metrics(metrics: dict[str, Any] | None) -> dict[str, 
         normalized["protocol"] = str(normalized["protocol"]).upper()
     _normalize_text_metric(normalized, "response_code")
     _normalize_text_metric(normalized, "failure_reason")
+    client_checks = _normalize_client_compatibility(normalized.get("client_compatibility"))
+    if client_checks:
+        normalized["client_compatibility"] = client_checks
+    else:
+        normalized.pop("client_compatibility", None)
     success_key = _success_rate_key(normalized)
     success = _number(normalized.get("successful_handshakes"))
     failed = _number(normalized.get("failed_handshakes"))
@@ -233,6 +240,41 @@ def _summarize_throughput_comparison(results: list[dict[str, Any]]) -> dict[str,
     return comparison
 
 
+def _summarize_client_compatibility(results: list[dict[str, Any]]) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "total_checks": 0,
+        "by_status": _status_counts(),
+        "by_profile": {},
+        "overall_status": "PENDING",
+    }
+    for result in results:
+        metrics = result.get("metrics") or {}
+        for check in _client_compatibility_checks(metrics):
+            profile = str(check.get("profile") or "unknown")
+            status = _normalize_result_status(check.get("status"), default="ERROR")
+            profile_summary = summary["by_profile"].setdefault(
+                profile,
+                {
+                    "total_checks": 0,
+                    "by_status": _status_counts(),
+                    "response_codes": {},
+                    "failure_reasons": {},
+                    "overall_status": "PENDING",
+                },
+            )
+            summary["total_checks"] += 1
+            summary["by_status"][status] += 1
+            profile_summary["total_checks"] += 1
+            profile_summary["by_status"][status] += 1
+            _increment_count(profile_summary["response_codes"], check.get("response_code"))
+            _increment_count(profile_summary["failure_reasons"], check.get("failure_reason"))
+
+    summary["overall_status"] = _overall_status(summary["by_status"])
+    for profile_summary in summary["by_profile"].values():
+        profile_summary["overall_status"] = _overall_status(profile_summary["by_status"])
+    return summary
+
+
 def _calculate_deltas(metrics: dict[str, Any], baseline_metrics: dict[str, Any]) -> dict[str, float]:
     deltas: dict[str, float] = {}
     for series in LATENCY_SERIES:
@@ -277,6 +319,13 @@ def _collect_signals(metrics: dict[str, Any], deltas: dict[str, float], compatib
         )
     _append_rate_signal(signals, "failure_rate", failure_rate, thresholds["warn_failure_rate"], thresholds["fail_failure_rate"])
     _append_rate_signal(signals, "timeout_rate", timeout_rate, thresholds["warn_timeout_rate"], thresholds["fail_timeout_rate"])
+    for check in _client_compatibility_checks(metrics):
+        profile = _reason_token(str(check.get("profile") or "unknown"))
+        status = _normalize_result_status(check.get("status"), default="ERROR")
+        if status in {"FAIL", "ERROR"}:
+            signals.append({"level": "FAIL", "reason": f"client_{profile}_compatibility_failed"})
+        elif status == "WARN":
+            signals.append({"level": "WARN", "reason": f"client_{profile}_compatibility_warning"})
 
     for key, delta in deltas.items():
         if key in THROUGHPUT_DELTA_KEYS:
@@ -328,6 +377,62 @@ def _normalize_text_metric(metrics: dict[str, Any], key: str) -> None:
         metrics[key] = normalized
     else:
         metrics.pop(key, None)
+
+
+def _normalize_client_compatibility(value: Any) -> list[dict[str, Any]]:
+    if isinstance(value, dict):
+        raw_checks = [
+            {**raw, "profile": raw.get("profile") or profile} if isinstance(raw, dict) else {"profile": profile, "status": raw}
+            for profile, raw in value.items()
+        ]
+    elif isinstance(value, list):
+        raw_checks = value
+    else:
+        return []
+
+    checks = []
+    for raw in raw_checks:
+        if not isinstance(raw, dict):
+            continue
+        profile = str(raw.get("profile") or raw.get("client_profile") or raw.get("name") or "").strip()
+        if not profile:
+            continue
+        status = _normalize_result_status(raw.get("status") or raw.get("compatibility_status"), default="PASS")
+        if (raw.get("status") is None and raw.get("compatibility_status") is None) and isinstance(raw.get("success"), bool):
+            status = "PASS" if raw["success"] else "FAIL"
+        check = {**raw, "profile": profile, "status": status}
+        _normalize_text_metric(check, "response_code")
+        _normalize_text_metric(check, "failure_reason")
+        checks.append(check)
+    return checks
+
+
+def _client_compatibility_checks(metrics: dict[str, Any]) -> list[dict[str, Any]]:
+    value = metrics.get("client_compatibility")
+    return value if isinstance(value, list) else []
+
+
+def _normalize_result_status(value: Any, *, default: str) -> str:
+    status = str(value or default).strip().upper()
+    aliases = {
+        "OK": "PASS",
+        "SUCCESS": "PASS",
+        "PASSED": "PASS",
+        "PARTIAL": "WARN",
+        "FAILED": "FAIL",
+        "UNREACHABLE": "FAIL",
+    }
+    status = aliases.get(status, status)
+    return status if status in RESULT_STATUSES else default
+
+
+def _status_counts() -> dict[str, int]:
+    return {status: 0 for status in RESULT_STATUSES}
+
+
+def _reason_token(value: str) -> str:
+    token = "".join(char.lower() if char.isalnum() else "_" for char in value).strip("_")
+    return token or "unknown"
 
 
 def _increment_count(counts: dict[str, int], value: Any) -> None:

@@ -438,6 +438,15 @@ class Command(BaseCommand):
             "ttfb_ms": {"p50": base_ttfb * 0.66, "p95": base_ttfb, "samples": 30},
             "total_request_ms": {"p50": (base_ttfb + 50) * 0.68, "p95": base_ttfb + 50, "samples": 30},
             "throughput_rps": throughput_rps,
+            "client_compatibility": [
+                {"profile": "modern_tls13", "status": "PASS", "response_code": "tls_ok"},
+                {
+                    "profile": "legacy_tls12",
+                    "status": "WARN" if migrated else "PASS",
+                    "response_code": "requires_classical_fallback" if migrated else "tls_ok",
+                    "failure_reason": "legacy_client_requires_classical_fallback" if migrated else "",
+                },
+            ],
             "failure_rate": 0.0 if asset.algorithm_family != "UNKNOWN" else 0.015,
             "timeout_rate": 0.0,
             "session_resumption_rate": 0.72,

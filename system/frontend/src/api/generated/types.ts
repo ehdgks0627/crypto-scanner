@@ -1293,6 +1293,16 @@ export interface components {
         PerformanceRunStatus: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
         /** @enum {string} */
         PerformanceResultStatus: "PASS" | "WARN" | "FAIL" | "ERROR";
+        ClientCompatibilityCheck: {
+            profile: string;
+            status: components["schemas"]["PerformanceResultStatus"];
+            response_code?: string;
+            failure_reason?: string;
+            negotiated_algorithm?: string;
+            latency_ms?: number;
+        } & {
+            [key: string]: unknown;
+        };
         PerformanceRunSummary: {
             total_results: number;
             by_status: {
@@ -1320,6 +1330,36 @@ export interface components {
                     candidate_value: number;
                     delta_percent: number;
                 };
+            };
+            client_compatibility?: {
+                total_checks: number;
+                by_status: {
+                    PASS: number;
+                    WARN: number;
+                    FAIL: number;
+                    ERROR: number;
+                };
+                by_profile: {
+                    [key: string]: {
+                        total_checks: number;
+                        by_status: {
+                            PASS: number;
+                            WARN: number;
+                            FAIL: number;
+                            ERROR: number;
+                        };
+                        response_codes?: {
+                            [key: string]: number;
+                        };
+                        failure_reasons?: {
+                            [key: string]: number;
+                        };
+                        /** @enum {string} */
+                        overall_status: "PENDING" | "PASS" | "WARN" | "FAIL" | "ERROR";
+                    };
+                };
+                /** @enum {string} */
+                overall_status: "PENDING" | "PASS" | "WARN" | "FAIL" | "ERROR";
             };
             by_protocol?: {
                 [key: string]: {
@@ -1367,6 +1407,7 @@ export interface components {
             throughput_rps?: number;
             requests_per_second?: number;
             connections_per_second?: number;
+            client_compatibility?: components["schemas"]["ClientCompatibilityCheck"][];
             successful_handshakes?: number;
             failed_handshakes?: number;
             total_handshakes?: number;

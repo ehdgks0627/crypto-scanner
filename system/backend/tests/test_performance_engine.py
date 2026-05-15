@@ -156,3 +156,31 @@ def test_performance_engine_summarizes_protocol_response_codes_and_failure_reaso
     assert metrics["failure_reason"] == "certificate_verify_failed"
     assert summary["by_protocol"]["TLS"]["response_codes"] == {"tls_alert_bad_certificate": 1}
     assert summary["by_protocol"]["TLS"]["failure_reasons"] == {"certificate_verify_failed": 1}
+
+
+def test_performance_engine_flags_legacy_client_compatibility_failure():
+    metrics = normalize_availability_metrics(
+        {
+            "protocol": "TLS",
+            "client_compatibility": [
+                {"profile": "modern_tls13", "status": "PASS", "response_code": "tls_ok"},
+                {
+                    "profile": "legacy_tls12",
+                    "status": "FAIL",
+                    "response_code": "handshake_failure",
+                    "failure_reason": "unsupported_signature_algorithm",
+                },
+            ],
+        }
+    )
+
+    result = evaluate_asset_performance(metrics=metrics, compatibility_status="PASS")
+    summary = summarize_results([{"status": result["status"], "deltas": result["deltas"], "metrics": metrics}])
+
+    assert result["status"] == "FAIL"
+    assert any(signal["reason"] == "client_legacy_tls12_compatibility_failed" for signal in result["signals"])
+    assert metrics["client_compatibility"][1]["failure_reason"] == "unsupported_signature_algorithm"
+    assert summary["client_compatibility"]["total_checks"] == 2
+    assert summary["client_compatibility"]["by_status"] == {"PASS": 1, "WARN": 0, "FAIL": 1, "ERROR": 0}
+    assert summary["client_compatibility"]["by_profile"]["legacy_tls12"]["overall_status"] == "FAIL"
+    assert summary["client_compatibility"]["by_profile"]["legacy_tls12"]["failure_reasons"] == {"unsupported_signature_algorithm": 1}

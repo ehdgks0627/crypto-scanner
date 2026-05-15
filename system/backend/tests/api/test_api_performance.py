@@ -289,3 +289,41 @@ def test_api_perf_008_records_protocol_response_code_and_failure_reason(client):
     protocol_summary = detail["summary"]["by_protocol"]["TLS"]
     assert protocol_summary["response_codes"] == {"tls_alert_bad_certificate": 1}
     assert protocol_summary["failure_reasons"] == {"certificate_verify_failed": 1}
+
+
+def test_api_perf_009_records_client_compatibility_matrix(client):
+    snapshot = create_snapshot()
+    asset = create_asset(snapshot=snapshot, bom_ref="tls:web:legacy-client")
+    run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
+
+    response = client.post(
+        f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}/results",
+        data={
+            "asset_id": asset.id,
+            "metrics": {
+                "client_compatibility": [
+                    {"profile": "modern_tls13", "status": "PASS", "response_code": "tls_ok"},
+                    {
+                        "profile": "legacy_tls12",
+                        "status": "FAIL",
+                        "response_code": "handshake_failure",
+                        "failure_reason": "unsupported_signature_algorithm",
+                    },
+                ]
+            },
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "FAIL"
+    assert body["metrics"]["client_compatibility"][1]["profile"] == "legacy_tls12"
+    assert body["metrics"]["client_compatibility"][1]["status"] == "FAIL"
+    assert any(signal["reason"] == "client_legacy_tls12_compatibility_failed" for signal in body["signals"])
+
+    detail = client.get(f"/api/snapshots/{snapshot.id}/performance-runs/{run['id']}").json()
+    client_summary = detail["summary"]["client_compatibility"]
+    assert client_summary["total_checks"] == 2
+    assert client_summary["by_status"] == {"PASS": 1, "WARN": 0, "FAIL": 1, "ERROR": 0}
+    assert client_summary["by_profile"]["legacy_tls12"]["failure_reasons"] == {"unsupported_signature_algorithm": 1}

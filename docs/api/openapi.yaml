@@ -3127,6 +3127,25 @@ components:
       type: string
       enum: [PASS, WARN, FAIL, ERROR]
 
+    ClientCompatibilityCheck:
+      type: object
+      required: [profile, status]
+      properties:
+        profile:
+          type: string
+        status:
+          $ref: '#/components/schemas/PerformanceResultStatus'
+        response_code:
+          type: string
+        failure_reason:
+          type: string
+        negotiated_algorithm:
+          type: string
+        latency_ms:
+          type: number
+          minimum: 0
+      additionalProperties: true
+
     PerformanceRunSummary:
       type: object
       required: [total_results, by_status, average_deltas, overall_status]
@@ -3182,6 +3201,70 @@ components:
                 type: number
               delta_percent:
                 type: number
+        client_compatibility:
+          type: object
+          required: [total_checks, by_status, by_profile, overall_status]
+          properties:
+            total_checks:
+              type: integer
+              minimum: 0
+            by_status:
+              type: object
+              required: [PASS, WARN, FAIL, ERROR]
+              properties:
+                PASS:
+                  type: integer
+                  minimum: 0
+                WARN:
+                  type: integer
+                  minimum: 0
+                FAIL:
+                  type: integer
+                  minimum: 0
+                ERROR:
+                  type: integer
+                  minimum: 0
+            by_profile:
+              type: object
+              additionalProperties:
+                type: object
+                required: [total_checks, by_status, overall_status]
+                properties:
+                  total_checks:
+                    type: integer
+                    minimum: 0
+                  by_status:
+                    type: object
+                    required: [PASS, WARN, FAIL, ERROR]
+                    properties:
+                      PASS:
+                        type: integer
+                        minimum: 0
+                      WARN:
+                        type: integer
+                        minimum: 0
+                      FAIL:
+                        type: integer
+                        minimum: 0
+                      ERROR:
+                        type: integer
+                        minimum: 0
+                  response_codes:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                      minimum: 0
+                  failure_reasons:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                      minimum: 0
+                  overall_status:
+                    type: string
+                    enum: [PENDING, PASS, WARN, FAIL, ERROR]
+            overall_status:
+              type: string
+              enum: [PENDING, PASS, WARN, FAIL, ERROR]
         by_protocol:
           type: object
           additionalProperties:
@@ -3273,6 +3356,10 @@ components:
         connections_per_second:
           type: number
           minimum: 0
+        client_compatibility:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientCompatibilityCheck'
         successful_handshakes:
           type: integer
           minimum: 0

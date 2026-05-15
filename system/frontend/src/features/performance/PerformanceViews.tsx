@@ -110,6 +110,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
   const summary = run.summary;
   const warnFailCount = (summary.by_status.WARN ?? 0) + (summary.by_status.FAIL ?? 0) + (summary.by_status.ERROR ?? 0);
   const successRate = averageNumber(run.results.map((result) => successRateMetric(result)));
+  const clientCompatibilityRate = compatibilitySuccessRate(summary.client_compatibility);
   const handshakeComparison = summary.latency_comparison?.handshake_ms;
   const throughputComparison = primaryThroughputComparison(summary.throughput_comparison);
   const throughputChartData = run.results
@@ -127,6 +128,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
         <MetricCard label="결과 수" value={formatNumber(summary.total_results)} />
         <MetricCard label="경고/실패" value={formatNumber(warnFailCount)} />
         <MetricCard label="성공률" value={formatPercent(successRate)} />
+        <MetricCard label="클라이언트 호환성" value={formatPercent(clientCompatibilityRate)} />
         <MetricCard label="핸드셰이크 전/후" value={formatLatencyComparison(handshakeComparison)} />
         <MetricCard label="처리량 전/후" value={formatThroughputComparison(throughputComparison)} />
         <MetricCard label="프로토콜" value={formatNumber(protocolCount)} />
@@ -179,6 +181,7 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
               { key: "response", header: "응답 코드", render: (item) => item.response_code || metricText(item, "response_code") || "-" },
               { key: "failureReason", header: "실패 사유", render: (item) => item.failure_reason || metricText(item, "failure_reason") || "-" },
               { key: "success", header: "성공률", align: "right", render: (item) => formatPercent(successRateMetric(item)) },
+              { key: "clientCompatibility", header: "클라이언트 호환성", render: (item) => formatClientCompatibility(item) },
               { key: "baselineHandshake", header: "기준 p95", align: "right", render: (item) => formatMs(baselineMetricP95(item, "handshake_ms")) },
               { key: "handshake", header: "핸드셰이크/협상 p95", align: "right", render: (item) => formatMs(metricP95(item, "handshake_ms")) },
               { key: "ttfb", header: "TTFB p95", align: "right", render: (item) => formatMs(metricP95(item, "ttfb_ms")) },
@@ -250,6 +253,26 @@ function numberMetric(
 
 function successRateMetric(result: PerformanceResult) {
   return numberMetric(result, "availability_success_rate") ?? numberMetric(result, "handshake_success_rate") ?? numberMetric(result, "negotiation_success_rate");
+}
+
+function compatibilitySuccessRate(summary?: Schema<"PerformanceRunSummary">["client_compatibility"]) {
+  const total = summary?.total_checks;
+  if (!total) {
+    return undefined;
+  }
+  return (summary.by_status.PASS ?? 0) / total;
+}
+
+function clientCompatibilityChecks(result: PerformanceResult) {
+  return Array.isArray(result.metrics.client_compatibility) ? result.metrics.client_compatibility : [];
+}
+
+function formatClientCompatibility(result: PerformanceResult) {
+  const checks = clientCompatibilityChecks(result);
+  if (checks.length === 0) {
+    return "-";
+  }
+  return checks.map((check) => `${check.profile}: ${performanceStatusLabel(check.status)}`).join(", ");
 }
 
 function throughputMetric(result: PerformanceResult) {

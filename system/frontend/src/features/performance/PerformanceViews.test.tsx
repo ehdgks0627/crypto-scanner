@@ -17,7 +17,7 @@ const run = {
   environment: { scenario: "testbed" },
   summary: {
     total_results: 1,
-    by_status: { PASS: 0, WARN: 1, FAIL: 0, ERROR: 0 },
+    by_status: { PASS: 0, WARN: 0, FAIL: 1, ERROR: 0 },
     average_deltas: { handshake_p95_percent: 18.2 },
     average_metrics: { handshake_success_rate: 0.965 },
     by_protocol: {
@@ -43,7 +43,28 @@ const run = {
     throughput_comparison: {
       throughput_rps: { baseline_value: 1000, candidate_value: 820, delta_percent: -18 }
     },
-    overall_status: "WARN"
+    client_compatibility: {
+      total_checks: 2,
+      by_status: { PASS: 1, WARN: 0, FAIL: 1, ERROR: 0 },
+      by_profile: {
+        modern_tls13: {
+          total_checks: 1,
+          by_status: { PASS: 1, WARN: 0, FAIL: 0, ERROR: 0 },
+          response_codes: { tls_ok: 1 },
+          failure_reasons: {},
+          overall_status: "PASS"
+        },
+        legacy_tls12: {
+          total_checks: 1,
+          by_status: { PASS: 0, WARN: 0, FAIL: 1, ERROR: 0 },
+          response_codes: { handshake_failure: 1 },
+          failure_reasons: { unsupported_signature_algorithm: 1 },
+          overall_status: "FAIL"
+        }
+      },
+      overall_status: "FAIL"
+    },
+    overall_status: "FAIL"
   },
   started_at: "2026-05-01T00:00:00Z",
   completed_at: "2026-05-01T00:02:00Z",
@@ -63,7 +84,7 @@ const detail = {
       protocol: "TLS",
       response_code: "tls_alert_bad_certificate",
       failure_reason: "handshake_p95_percent_above_warn_threshold",
-      status: "WARN",
+      status: "FAIL",
       compatibility_status: "PASS",
       negotiated_algorithm: "ML-KEM-768+ECDHE",
       metrics: {
@@ -77,6 +98,15 @@ const detail = {
         },
         response_code: "tls_alert_bad_certificate",
         failure_reason: "handshake_p95_percent_above_warn_threshold",
+        client_compatibility: [
+          { profile: "modern_tls13", status: "PASS", response_code: "tls_ok" },
+          {
+            profile: "legacy_tls12",
+            status: "FAIL",
+            response_code: "handshake_failure",
+            failure_reason: "unsupported_signature_algorithm"
+          }
+        ],
         handshake_success_rate: 0.98,
         failure_rate: 0,
         timeout_rate: 0,
@@ -84,8 +114,11 @@ const detail = {
         handshake_bytes_received: 5200
       },
       deltas: { handshake_p95_percent: 18.2, throughput_rps_percent: -18 },
-      signals: [{ level: "WARN", reason: "handshake_p95_percent_above_warn_threshold", value: 18.2 }],
-      recommendation: "canary_more",
+      signals: [
+        { level: "WARN", reason: "handshake_p95_percent_above_warn_threshold", value: 18.2 },
+        { level: "FAIL", reason: "client_legacy_tls12_compatibility_failed" }
+      ],
+      recommendation: "rollback_or_manual_review",
       error_message: "",
       measured_at: "2026-05-01T00:01:00Z"
     },
@@ -167,12 +200,14 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("100.0 -> 118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("1000.0 -> 820.0 req/s")).toBeInTheDocument();
     expect(screen.getByText("자산별 처리량 비교")).toBeInTheDocument();
+    expect(screen.getByText("modern_tls13: 정상, legacy_tls12: 실패")).toBeInTheDocument();
     expect(screen.getByText("98.0%")).toBeInTheDocument();
     expect(screen.getByText("95.0%")).toBeInTheDocument();
     expect(screen.getByText("100.0%")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "프로토콜" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "응답 코드" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "실패 사유" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "클라이언트 호환성" })).toBeInTheDocument();
     expect(screen.getByText("SSH")).toBeInTheDocument();
     expect(screen.getByText("IKE")).toBeInTheDocument();
     expect(screen.getByText("tls_alert_bad_certificate")).toBeInTheDocument();
@@ -189,6 +224,6 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("820.0 req/s")).toBeInTheDocument();
     expect(screen.getByText("+18.2%")).toBeInTheDocument();
     expect(screen.getByText("-18.0%")).toBeInTheDocument();
-    expect(screen.getByText("canary_more")).toBeInTheDocument();
+    expect(screen.getByText("rollback_or_manual_review")).toBeInTheDocument();
   });
 });
