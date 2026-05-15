@@ -112,7 +112,7 @@ function SnapshotAssetsView({ id, snapshotHint }: { id: number; snapshotHint?: S
             </Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/diff`)}>비교</Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/risk`)}>위험평가</Button>
-            <Button type="button" onClick={() => navigate(`/snapshots/${id}/migration`)}>마이그레이션</Button>
+            <Button type="button" onClick={() => navigate(`/snapshots/${id}/migration`)}>Review Targets</Button>
             <Button type="button" onClick={() => navigate(`/snapshots/${id}/performance`)}>가용성 검사</Button>
           </>
         }

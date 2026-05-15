@@ -100,8 +100,8 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
   return (
     <Section>
       <PageHeader
-        title={`스냅샷 #${snapshotId} 마이그레이션`}
-        description="위험 자산의 PQC 전환 우선순위와 영향도를 확인합니다."
+        title={`스냅샷 #${snapshotId} Review Targets`}
+        description="위험 자산의 PQC 전환 우선순위와 영향도를 검토합니다."
         actions={
           <Button type="button" disabled={!reportSelectionAvailable || impact.isFetching} onClick={downloadReport}>
             <Download size={15} />보고서 다운로드
@@ -111,7 +111,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
       <div className="split-pane">
         <Card>
           <CardHeader>
-            <CardTitle>마이그레이션 계획</CardTitle>
+            <CardTitle>전환 대상 계획</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="toolbar">

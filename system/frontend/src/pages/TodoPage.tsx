@@ -4,7 +4,7 @@ import { PageHeader } from "../components/common/PageHeader";
 import { EmptyState, Section } from "../components/common/StateViews";
 
 const todoTitles: Record<string, string> = {
-  "/migration": "마이그레이션",
+  "/migration": "Review Targets",
   "/risk": "위험평가"
 };
 

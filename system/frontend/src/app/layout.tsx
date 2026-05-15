@@ -25,7 +25,7 @@ const reportNavItems: NavItem[] = [
   { key: "dashboard", to: "/", label: "대시보드", icon: Gauge, end: true },
   { key: "assets", to: "/snapshots", label: "식별 자산", icon: Database },
   { key: "risk", to: "/risk", label: "위험평가", icon: Workflow },
-  { key: "migration", to: "/migration", label: "마이그레이션", icon: ListChecks },
+  { key: "migration", to: "/migration", label: "Review Targets", icon: ListChecks },
   { key: "performance", to: "/performance", label: "가용성 검사", icon: Timer }
 ];
 

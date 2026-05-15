@@ -80,6 +80,7 @@ describe("SnapshotsView", () => {
     expect(assetsSpy).toHaveBeenCalledWith(2, expect.objectContaining({ sort: "-risk_score" }));
     expect(screen.getByRole("columnheader", { name: "DHS 점수" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "우선순위" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review Targets" })).toBeInTheDocument();
     expect(screen.getByText("8.2")).toBeInTheDocument();
     expect(screen.getByText("P1")).toBeInTheDocument();
     expect(screen.queryByText("Serial")).not.toBeInTheDocument();

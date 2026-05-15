@@ -65,6 +65,8 @@ describe("MigrationPlanView", () => {
 
     renderWithApp(<MigrationPlanView snapshotId={3} />);
 
+    expect(await screen.findByRole("heading", { name: "스냅샷 #3 Review Targets" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "전환 대상 계획" })).toBeInTheDocument();
     expect(await screen.findByText("cert-leaf-web-rsa2048")).toBeInTheDocument();
     expect(screen.getByText("디지털 서명")).toBeInTheDocument();
     expect(screen.getByText("hybrid_first")).toBeInTheDocument();
