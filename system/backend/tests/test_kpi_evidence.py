@@ -29,6 +29,7 @@ OPEN_DEMO_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "open-demo-evidence.json"
 RUNTIME_MINUTES_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "runtime-minutes-evidence.json"
 STATIC_ANALYSIS_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "static-analysis-evidence.json"
 MIGRATION_SCOPE_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "migration-scope-evidence.json"
+CRYPTOSCAN_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "cryptoscan-evidence.json"
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -169,3 +170,22 @@ def test_migration_scope_evidence_is_recommendation_only():
     assert endpoint_methods == {"GET"}
     assert "actual key replacement automation" in evidence["unsupported_execution"]
     assert "service configuration file mutation" in evidence["unsupported_execution"]
+
+
+def test_cryptoscan_evidence_classifies_tool_as_codebase_static_scanner():
+    evidence = json.loads(CRYPTOSCAN_EVIDENCE_PATH.read_text())
+    supported_scope = set(evidence["supported_scope"])
+    unsupported_scope = set(evidence["not_evidenced_as"])
+    source_urls = [item["url"] for item in evidence["official_evidence"]]
+
+    assert evidence["claim_level"] == "fact_checked"
+    assert evidence["repository"] == "https://github.com/csnp/cryptoscan"
+    assert evidence["observed_commit"]
+    assert evidence["scope_label"] == "codebase_configuration_dependency_static_scanning"
+    assert "remote Git repository scanning by cloning to a temporary directory" in supported_scope
+    assert "dependency manifest scanning" in supported_scope
+    assert "SARIF output" in supported_scope
+    assert "CBOM output" in supported_scope
+    assert "active network endpoint discovery" in unsupported_scope
+    assert "TLS handshake scanner" in unsupported_scope
+    assert all(evidence["observed_commit"] in url for url in source_urls)

@@ -117,3 +117,24 @@
 > PQC 전환은 자동 실행이 아니라 매핑 추천과 검토 단계까지 구현했습니다. 시스템은 어떤 자산을 어떤 PQC 후보로 전환해야 하는지와 예상 영향도를 보여주지만, 인증서 재발급, 키 교체, 서비스 설정 변경은 수행하지 않습니다.
 
 주의할 점은 이 기능을 운영 서버의 OpenSSL 설정 변경, oqs-provider 배포, 인증서 자동 재발급, 서비스 재시작, 롤백 자동화로 설명하면 안 된다는 것이다.
+
+## 16.7 CryptoScan 비교 사실 확인
+
+`CryptoScan (csnp/cryptoscan)`은 코드베이스, 설정 파일, 의존성 매니페스트를 정적으로 스캔해 암호 사용과 양자 위험을 찾는 도구로 확인했다. 비교표에서는 `코드 정적 분석` 계열 도구로 분류하고, 네트워크 엔드포인트 Discovery나 가용성 검사 도구로 설명하지 않는다. 구조화된 근거는 `docs/kpi/cryptoscan-evidence.json`에 둔다.
+
+확인한 범위는 다음과 같다.
+
+| 항목 | 확인 내용 |
+| --- | --- |
+| 공식 설명 | README가 “codebase” 안의 cryptographic algorithm 발견을 전면 설명 |
+| 툴킷 내 역할 | QRAMM Toolkit 표에서 CryptoScan은 source code discovery, TLS-Analyzer는 TLS/SSL configuration analysis로 분리 |
+| 입력 대상 | 로컬 디렉터리, 단일 파일, 원격 Git 저장소 |
+| 분석 방식 | Git URL은 임시 디렉터리로 clone한 뒤 디렉터리/파일을 스캔 |
+| 출력 | JSON, SARIF, CBOM 등 |
+| 추가 범위 | 설정 파일, 의존성 매니페스트, source code context, quantum risk classification |
+
+발표에서는 다음 수준으로 제한한다.
+
+> CryptoScan은 코드베이스와 설정, 의존성에서 암호 사용을 찾는 정적 분석 도구입니다. 반면 우리 시스템은 운영 서비스의 네트워크 탐색, Host Agent 기반 런타임 자산 수집, CBOM 스냅샷, 가용성 검사까지 하나의 흐름으로 묶은 점을 차별점으로 둡니다.
+
+주의할 점은 CryptoScan을 TLS/SSH/IKE 네트워크 탐색, 핸드셰이크 측정, 전환 후 가용성 검사 도구로 설명하면 안 된다는 것이다. 같은 QRAMM Toolkit 안에서도 TLS/SSL 설정 분석은 별도 TLS-Analyzer로 분리되어 있다.

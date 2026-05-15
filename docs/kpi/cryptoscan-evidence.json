@@ -1,0 +1,68 @@
+{
+  "id": "cryptoscan_scope_evidence_v1",
+  "tool": "CryptoScan",
+  "vendor_or_project": "CSNP / QRAMM Toolkit",
+  "repository": "https://github.com/csnp/cryptoscan",
+  "observed_at": "2026-05-16",
+  "observed_commit": "3af1302cfa897eafce6c8992f888313bbf25ada0",
+  "claim_level": "fact_checked",
+  "scope_label": "codebase_configuration_dependency_static_scanning",
+  "claim_ko": "CryptoScan은 코드베이스, 설정 파일, 의존성 매니페스트를 정적으로 스캔해 암호 사용과 양자 위험을 찾는 도구로 확인했다. 네트워크 엔드포인트에 직접 접속해 TLS/SSH/IKE 서비스를 탐색하는 도구로 설명하지 않는다.",
+  "supported_scope": [
+    "local directory scanning",
+    "single file scanning",
+    "remote Git repository scanning by cloning to a temporary directory",
+    "source code context around findings",
+    "cryptographic pattern detection in code and configuration",
+    "dependency manifest scanning",
+    "quantum risk classification",
+    "migration readiness score",
+    "SARIF output",
+    "CBOM output"
+  ],
+  "not_evidenced_as": [
+    "active network endpoint discovery",
+    "TLS handshake scanner",
+    "SSH scanner",
+    "IKE/IPsec scanner",
+    "runtime host agent inventory",
+    "availability checker"
+  ],
+  "official_evidence": [
+    {
+      "source": "README.md",
+      "url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/README.md#L5-L7",
+      "finding": "Project headline describes finding cryptographic algorithms in a codebase."
+    },
+    {
+      "source": "README.md",
+      "url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/README.md#L26-L32",
+      "finding": "QRAMM toolkit table separates CryptoScan for source-code discovery from TLS-Analyzer for TLS/SSL configuration analysis."
+    },
+    {
+      "source": "README.md",
+      "url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/README.md#L50-L69",
+      "finding": "Capability table lists remote Git URL scanning, source code context, SARIF, CBOM, dependency scanning, and configuration file support."
+    },
+    {
+      "source": "README.md",
+      "url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/README.md#L135-L148",
+      "finding": "Basic usage examples scan a local directory or remote Git repository and emit JSON/SARIF."
+    },
+    {
+      "source": "internal/cli/scan.go",
+      "url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/internal/cli/scan.go#L48-L90",
+      "finding": "CLI command is `scan [path or URL]` and is described as scanning a local directory or Git repository for cryptographic patterns."
+    },
+    {
+      "source": "pkg/scanner/scanner.go",
+      "url": "https://github.com/csnp/cryptoscan/blob/3af1302cfa897eafce6c8992f888313bbf25ada0/pkg/scanner/scanner.go#L165-L190",
+      "finding": "Scanner handles Git URLs by cloning, then scans a directory or file."
+    }
+  ],
+  "comparison_guidance": {
+    "cryptoscan_column": "코드베이스/설정/의존성 정적 분석은 강점으로 표시한다.",
+    "our_system_column": "네트워크 Discovery Agent, Host Agent 기반 런타임 자산 수집, 대시보드 검토 흐름을 차별점으로 둔다.",
+    "do_not_claim": "CryptoScan을 TLS/SSH/IKE 네트워크 탐색 도구 또는 가용성 검사 도구로 설명하지 않는다."
+  }
+}
