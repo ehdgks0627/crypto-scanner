@@ -1,13 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
 import type { Schema } from "../../api/types";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
+import { ChartCard } from "../../components/charts/ChartCards";
 import { MetricCard } from "../../components/charts/MetricCard";
+import { chartPalette, chartTheme } from "../../components/charts/chartTheme";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Field, FieldLabel, Select } from "../../components/ui/form";
@@ -109,6 +112,13 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
   const successRate = averageNumber(run.results.map((result) => successRateMetric(result)));
   const handshakeComparison = summary.latency_comparison?.handshake_ms;
   const throughputComparison = primaryThroughputComparison(summary.throughput_comparison);
+  const throughputChartData = run.results
+    .map((result) => ({
+      name: shortAssetLabel(result.bom_ref),
+      baseline: baselineThroughputMetric(result),
+      current: throughputMetric(result)
+    }))
+    .filter((item) => typeof item.baseline === "number" || typeof item.current === "number");
   const protocolCount = new Set(run.results.map((result) => result.protocol || metricProtocol(result))).size;
   return (
     <div className="section-stack">
@@ -136,6 +146,20 @@ function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDe
           </dl>
         </CardContent>
       </Card>
+      {throughputChartData.length > 0 ? (
+        <ChartCard title="자산별 처리량 비교">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={throughputChartData} margin={{ left: 10, right: 16, bottom: 8 }}>
+              <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" tickMargin={8} />
+              <YAxis unit=" req/s" width={82} />
+              <Tooltip formatter={(value) => formatRps(typeof value === "number" ? value : undefined)} />
+              <Bar dataKey="baseline" name="기준" fill={chartPalette[5]} radius={[chartTheme.radius, chartTheme.radius, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="current" name="현재" fill={chartPalette[3]} radius={[chartTheme.radius, chartTheme.radius, 0, 0]} isAnimationActive={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>자산별 결과</CardTitle>
@@ -284,6 +308,13 @@ function formatThroughputComparison(comparison?: { baseline_value?: number; cand
 
 function formatRps(value?: number) {
   return typeof value === "number" ? `${value.toFixed(1)} req/s` : "-";
+}
+
+function shortAssetLabel(value: string) {
+  if (value.length <= 18) {
+    return value;
+  }
+  return `${value.slice(0, 8)}...${value.slice(-7)}`;
 }
 
 function averageNumber(values: Array<number | undefined>) {

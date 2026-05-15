@@ -166,6 +166,7 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("97.7%")).toBeInTheDocument();
     expect(screen.getByText("100.0 -> 118.2 ms")).toBeInTheDocument();
     expect(screen.getByText("1000.0 -> 820.0 req/s")).toBeInTheDocument();
+    expect(screen.getByText("자산별 처리량 비교")).toBeInTheDocument();
     expect(screen.getByText("98.0%")).toBeInTheDocument();
     expect(screen.getByText("95.0%")).toBeInTheDocument();
     expect(screen.getByText("100.0%")).toBeInTheDocument();
