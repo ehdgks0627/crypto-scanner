@@ -31,6 +31,7 @@ STATIC_ANALYSIS_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "static-analysis-ev
 MIGRATION_SCOPE_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "migration-scope-evidence.json"
 CRYPTOSCAN_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "cryptoscan-evidence.json"
 CBOMKIT_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "cbomkit-evidence.json"
+AQTIVE_GUARD_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "aqtive-guard-evidence.json"
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -212,3 +213,26 @@ def test_cbomkit_evidence_does_not_claim_network_traffic_analysis():
     assert "live TLS handshake scanner" in unsupported_scope
     assert {"pcap", "tcpdump", "packet", "traffic", "tls handshake"} <= checked_terms
     assert related_repositories["cbomkit/cbomkit-theia"]["observed_commit"]
+
+
+def test_aqtive_guard_evidence_marks_commercial_ai_platform_scope():
+    evidence = json.loads(AQTIVE_GUARD_EVIDENCE_PATH.read_text())
+    marks = evidence["comparison_marks"]
+    supported_scope = set(evidence["supported_scope"])
+    official_sources = {item["source"] for item in evidence["official_evidence"]}
+
+    assert evidence["claim_level"] == "fact_checked"
+    assert evidence["vendor_or_project"] == "SandboxAQ"
+    assert evidence["access_model"] == "commercial_demo_or_trial"
+    assert evidence["public_source_repository"] is None
+    assert marks["commercial_private_platform"] == "○"
+    assert marks["ai_risk_assessment"] == "○"
+    assert marks["open_source_or_public_poc"] == "×"
+    assert "AI-powered insights and risk analysis" in supported_scope
+    assert "context-aware risk analysis" in supported_scope
+    assert "live network traffic analysis" in supported_scope
+    assert "TLS handshake visibility" in supported_scope
+    assert "PQC impact simulation" in supported_scope
+    assert "CBOM/compliance evidence reporting" in supported_scope
+    assert "AQtive Guard user guide" in official_sources
+    assert "AQtive Guard cryptography/PQC page" in official_sources

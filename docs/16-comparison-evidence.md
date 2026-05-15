@@ -159,3 +159,24 @@
 > IBM CBOMkit은 CBOM을 만들고 보고 정책 검증까지 이어주는 도구 모음입니다. 소스코드, Git 저장소, 파일시스템, 컨테이너 이미지에서 암호자산을 찾는 기능은 확인되지만, 패킷 캡처 기반 네트워크 트래픽 분석이나 live handshake 검사는 확인되지 않았습니다.
 
 주의할 점은 CBOMkit을 네트워크 Discovery, TLS/SSH/IKE probe, 가용성 검사 도구로 설명하면 안 된다는 것이다. 우리 시스템과 비교할 때는 “운영 네트워크에서 실제 서비스 엔드포인트를 탐색하고 연결 가능성을 검사하는 흐름”을 차별점으로 둔다.
+
+## 16.9 SandboxAQ AQtive Guard 비교 사실 확인
+
+`SandboxAQ AQtive Guard`는 상용 플랫폼으로 분류한다. 공식 자료에서는 데모/무료체험 기반 접근, AI 기반 분석, 위험 우선순위화, cryptographic posture management, live network traffic/TLS handshake/runtime tracing, PQC impact simulation을 명시한다. 따라서 비교표에서는 `AI 평가`, `상용 플랫폼`, `cryptographic inventory`, `runtime/network visibility` 항목을 `○`로 인정하고, 오픈소스 또는 공개 시연형 PoC로 설명하지 않는다. 구조화된 근거는 `docs/kpi/aqtive-guard-evidence.json`에 둔다.
+
+확인한 범위는 다음과 같다.
+
+| 항목 | 확인 내용 |
+| --- | --- |
+| 접근 방식 | Book a Demo, Get a Demo, Free Trial 중심의 상용 제품 접근 |
+| 공개 소스 여부 | 공식 자료와 GitHub 검색 기준 공개 제품 소스 리포지토리는 확인하지 못함 |
+| AI 평가 | AI-powered insights, risk analysis, context-aware risk, security knowledge graph correlation 명시 |
+| 암호자산 관리 | cryptographic inventory, keys/certificates/operations, CBOM/compliance reporting, PQC migration planning |
+| 네트워크/runtime | live network traffic, TLS handshakes, runtime cryptographic operations, network cipher suites 명시 |
+| remediation | impact simulation, key rotation, algorithm replacement, automated remediation/lifecycle management 명시 |
+
+발표에서는 다음 수준으로 제한한다.
+
+> AQtive Guard는 SandboxAQ의 상용 보안 플랫폼으로, AI 기반 위험 분석과 암호자산 관리, 네트워크/runtime 가시성까지 공식적으로 제공한다고 설명되어 있습니다. 우리 프로젝트는 이 상용 제품을 대체한다고 주장하지 않고, NIST SP 1800-38 절차를 공개 리포지토리와 재현 가능한 테스트베드에서 직접 실험해볼 수 있게 만든 시연형 구현이라는 점을 차별점으로 둡니다.
+
+주의할 점은 AQtive Guard를 단순 정적 스캐너로 낮춰 설명하면 안 된다는 것이다. 반대로 우리 시스템이 상용 제품의 네트워크/runtime 분석, 자동 remediation, 운영 규모를 능가한다고 말해서도 안 된다.

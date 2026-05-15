@@ -1,0 +1,92 @@
+{
+  "id": "aqtive_guard_scope_evidence_v1",
+  "tool": "AQtive Guard",
+  "vendor_or_project": "SandboxAQ",
+  "product_urls": [
+    "https://www.aqtiveguard.com/",
+    "https://www.aqtiveguard.com/platform",
+    "https://www.aqtiveguard.com/cryptography-pqc",
+    "https://docs.aqtiveguard.com/"
+  ],
+  "observed_at": "2026-05-16",
+  "claim_level": "fact_checked",
+  "access_model": "commercial_demo_or_trial",
+  "public_source_repository": null,
+  "public_source_repository_searches": [
+    "site:github.com SandboxAQ \"AQtive Guard\"",
+    "site:github.com \"aqtiveguard\" SandboxAQ"
+  ],
+  "comparison_marks": {
+    "commercial_private_platform": "○",
+    "ai_risk_assessment": "○",
+    "cryptographic_inventory": "○",
+    "network_runtime_visibility": "○",
+    "open_source_or_public_poc": "×"
+  },
+  "claim_ko": "SandboxAQ AQtive Guard는 데모/무료체험 기반으로 접근하는 상용 플랫폼이며, 공식 자료에서 AI 기반 분석, 위험 우선순위화, cryptographic posture management, live network traffic/TLS handshake/runtime tracing, PQC impact simulation을 명시한다. 공개 소스 리포지토리 형태의 제품으로는 확인하지 않았다.",
+  "supported_scope": [
+    "AI security posture management",
+    "cryptographic posture management",
+    "AI-powered insights and risk analysis",
+    "context-aware risk analysis",
+    "security knowledge graph correlation",
+    "cryptographic inventory",
+    "PQC migration planning",
+    "PQC impact simulation",
+    "CBOM/compliance evidence reporting",
+    "live network traffic analysis",
+    "TLS handshake visibility",
+    "runtime cryptographic operation tracing",
+    "filesystem and endpoint scanning",
+    "cloud and code scanning",
+    "automated remediation and lifecycle management"
+  ],
+  "presentation_limits": [
+    "Treat AQtive Guard as a commercial, closed platform rather than an open-source comparator.",
+    "Mark AI-powered risk analysis and prioritization as supported based on official documentation.",
+    "Do not claim our PoC exceeds AQtive Guard's commercial runtime/network coverage.",
+    "Use our open repository, reproducible testbed, and NIST SP 1800-38 learning workflow as the contrast."
+  ],
+  "official_evidence": [
+    {
+      "source": "AQtive Guard homepage",
+      "url": "https://www.aqtiveguard.com/",
+      "finding": "The homepage offers Book a Demo / Free Trial access and describes AI security plus cryptographic posture management."
+    },
+    {
+      "source": "AQtive Guard homepage",
+      "url": "https://www.aqtiveguard.com/#:~:text=Discover%2C%20evaluate%2C%20and%20govern%20AI%20models",
+      "finding": "The product page describes discovering, evaluating, and governing AI models, agents, and MCP servers."
+    },
+    {
+      "source": "AQtive Guard user guide",
+      "url": "https://docs.aqtiveguard.com/",
+      "finding": "The user guide describes AQG as a unified, AI-driven platform and lists AI-powered insights and risk analysis."
+    },
+    {
+      "source": "AQtive Guard getting started guide",
+      "url": "https://docs.aqtiveguard.com/getting-started/",
+      "finding": "The guide describes Cryptographic Posture Management, AI-SPM, native sensors, live network traffic processing, and analysis against active rules."
+    },
+    {
+      "source": "AQtive Guard cryptography/PQC page",
+      "url": "https://www.aqtiveguard.com/cryptography-pqc",
+      "finding": "The cryptography page describes discovering keys, certificates, cryptographic operations, context-aware risk, risk scoring, impact simulation, CBOM reporting, network analysis, runtime tracing, live TLS handshakes, and PQC migration planning."
+    },
+    {
+      "source": "SandboxAQ GA announcement",
+      "url": "https://www.sandboxaq.com/post/sandboxaq-redefines-cybersecurity-with-unified-cryptography-management",
+      "finding": "SandboxAQ announced AQtive Guard as generally available for all market segments and described enterprise cryptography management from inventory to remediation."
+    },
+    {
+      "source": "AQtive Guard free trial page",
+      "url": "https://go.sandboxaq.com/AQtiveGuard-Free-Trial-Request.html",
+      "finding": "The trial page describes a 30-day trial and AI-powered discovery and analysis for cryptographic asset inventory."
+    }
+  ],
+  "comparison_guidance": {
+    "aqtive_guard_column": "AI 평가, 상용 플랫폼, cryptographic inventory, runtime/network visibility는 공식 자료 기준으로 ○ 처리한다.",
+    "our_system_column": "오픈 리포지토리, 재현 가능한 테스트베드, NIST SP 1800-38 절차를 직접 실험하는 교육/시연형 PoC를 차별점으로 둔다.",
+    "do_not_claim": "AQtive Guard를 단순 정적 스캐너로 낮춰 설명하거나, 우리 PoC가 상용 제품의 네트워크/runtime/자동 remediation 범위를 능가한다고 말하지 않는다."
+  }
+}
