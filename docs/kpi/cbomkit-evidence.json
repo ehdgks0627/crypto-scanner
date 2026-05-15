@@ -1,0 +1,115 @@
+{
+  "id": "cbomkit_scope_evidence_v1",
+  "tool": "CBOMkit",
+  "vendor_or_project": "IBM Research / PQCA / cbomkit",
+  "repository": "https://github.com/cbomkit/cbomkit",
+  "observed_at": "2026-05-16",
+  "observed_commit": "a0cf1673556d2f1a0631540e58400f6831625608",
+  "related_repositories": [
+    {
+      "name": "IBM/CBOM",
+      "url": "https://github.com/IBM/CBOM",
+      "role": "Original IBM Research CBOM specification and tooling overview."
+    },
+    {
+      "name": "cbomkit/sonar-cryptography",
+      "url": "https://github.com/cbomkit/sonar-cryptography",
+      "role": "SonarQube source-code detection engine used by CBOMkit."
+    },
+    {
+      "name": "cbomkit/cbomkit-theia",
+      "url": "https://github.com/cbomkit/cbomkit-theia",
+      "observed_commit": "dcd95ac86d1cbe6e867ff3ee059b9ef77bac6a59",
+      "role": "Filesystem and container image scanner for certificates, keys, secrets, OpenSSL configuration, and related artifacts."
+    }
+  ],
+  "claim_level": "fact_checked",
+  "scope_label": "cbom_generation_source_filesystem_container_scanning",
+  "claim_ko": "CBOMkit은 CBOM 생성, 조회, 저장, 정책 검증을 위한 도구 모음이며, 암호자산 탐지는 소스코드, Git 저장소, 파일시스템, 컨테이너 이미지 분석에 기반한다. 패킷 캡처나 네트워크 트래픽 분석 도구로 설명하지 않는다.",
+  "supported_scope": [
+    "CBOM generation",
+    "CBOM visualization",
+    "CBOM database and REST API",
+    "CBOM compliance checks",
+    "Git repository scanning for source-code cryptographic usage",
+    "source-code scanning through Sonar Cryptography Plugin",
+    "package URL scanning",
+    "container image scanning through CBOMkit-theia",
+    "directory/filesystem scanning through CBOMkit-theia",
+    "certificate file detection",
+    "key and secret file detection",
+    "OpenSSL configuration file inspection"
+  ],
+  "not_evidenced_as": [
+    "network traffic analysis",
+    "packet capture analysis",
+    "pcap ingestion",
+    "live TLS handshake scanner",
+    "SSH handshake scanner",
+    "IKE/IPsec negotiation scanner",
+    "active network endpoint discovery",
+    "availability checker"
+  ],
+  "code_search_terms_checked": [
+    "pcap",
+    "tcpdump",
+    "packet",
+    "traffic",
+    "network traffic",
+    "capture",
+    "libpcap",
+    "wireshark",
+    "netflow",
+    "zeek",
+    "suricata",
+    "tshark",
+    "tls handshake"
+  ],
+  "official_evidence": [
+    {
+      "source": "IBM/CBOM README",
+      "url": "https://github.com/IBM/CBOM/blob/main/README.md#L244-L249",
+      "finding": "IBM Research lists CBOMkit, Sonar Cryptography Plugin, CBOM Viewer, CBOMkit-theia, and CBOMkit-action as CBOM-related open-source tooling."
+    },
+    {
+      "source": "cbomkit README",
+      "url": "https://github.com/cbomkit/cbomkit/blob/a0cf1673556d2f1a0631540e58400f6831625608/README.md#L6-L10",
+      "finding": "CBOMkit describes CBOM generation, viewer, compliance check, and database functions."
+    },
+    {
+      "source": "cbomkit README",
+      "url": "https://github.com/cbomkit/cbomkit/blob/a0cf1673556d2f1a0631540e58400f6831625608/README.md#L36-L39",
+      "finding": "Quickstart asks users to enter a Git URL or PURL to generate a CBOM, or upload an existing CBOM."
+    },
+    {
+      "source": "cbomkit README",
+      "url": "https://github.com/cbomkit/cbomkit/blob/a0cf1673556d2f1a0631540e58400f6831625608/README.md#L97-L99",
+      "finding": "WebSocket integration initiates CBOM generation through Git repository scanning and reports progress."
+    },
+    {
+      "source": "cbomkit README",
+      "url": "https://github.com/cbomkit/cbomkit/blob/a0cf1673556d2f1a0631540e58400f6831625608/README.md#L189-L203",
+      "finding": "Repository scans create a temporary local clone and use CBOMkit-hyperion/Sonar Cryptography Plugin to identify cryptographic usage in source code."
+    },
+    {
+      "source": "cbomkit-theia README",
+      "url": "https://github.com/cbomkit/cbomkit-theia/blob/dcd95ac86d1cbe6e867ff3ee059b9ef77bac6a59/README.md#L1-L42",
+      "finding": "CBOMkit-theia detects cryptographic assets in container images and directories, with commands for `dir` and `image`."
+    },
+    {
+      "source": "cbomkit-theia README",
+      "url": "https://github.com/cbomkit/cbomkit-theia/blob/dcd95ac86d1cbe6e867ff3ee059b9ef77bac6a59/README.md#L136-L156",
+      "finding": "CBOMkit-theia plugins search filesystems for java.security, OpenSSL configuration, X.509 certificates, secrets, and keys."
+    },
+    {
+      "source": "PQCA CBOMkit Architecture",
+      "url": "https://pqca.org/blog/2026/pqca-cbomkit-architecture/",
+      "finding": "PQCA describes CBOMkit components as source-code, GitHub Action, web/API/database, and filesystem/container-image tooling."
+    }
+  ],
+  "comparison_guidance": {
+    "cbomkit_column": "CBOM 생성, 시각화, 정책 검증, 소스코드/파일시스템/컨테이너 이미지 기반 자산 탐지는 강점으로 표시한다.",
+    "our_system_column": "운영 네트워크 Discovery Agent, TLS/SSH/IKE/STARTTLS probe, Host Agent 런타임 수집, 가용성 검사 흐름을 차별점으로 둔다.",
+    "do_not_claim": "CBOMkit을 패킷 캡처, 네트워크 트래픽 분석, live handshake 측정, 가용성 검사 도구로 설명하지 않는다."
+  }
+}

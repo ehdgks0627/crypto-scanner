@@ -138,3 +138,24 @@
 > CryptoScan은 코드베이스와 설정, 의존성에서 암호 사용을 찾는 정적 분석 도구입니다. 반면 우리 시스템은 운영 서비스의 네트워크 탐색, Host Agent 기반 런타임 자산 수집, CBOM 스냅샷, 가용성 검사까지 하나의 흐름으로 묶은 점을 차별점으로 둡니다.
 
 주의할 점은 CryptoScan을 TLS/SSH/IKE 네트워크 탐색, 핸드셰이크 측정, 전환 후 가용성 검사 도구로 설명하면 안 된다는 것이다. 같은 QRAMM Toolkit 안에서도 TLS/SSL 설정 분석은 별도 TLS-Analyzer로 분리되어 있다.
+
+## 16.8 IBM CBOMkit 비교 사실 확인
+
+`IBM CBOMkit`은 CBOM 생성, 조회, 저장, 정책 검증을 위한 도구 모음이며, 암호자산 탐지는 소스코드, Git 저장소, 파일시스템, 컨테이너 이미지 분석에 기반하는 것으로 확인했다. 비교표에서는 CBOM 생성/관리와 정적 자산 탐지 계열로 분류하고, 네트워크 트래픽 분석 도구로 설명하지 않는다. 구조화된 근거는 `docs/kpi/cbomkit-evidence.json`에 둔다.
+
+확인한 범위는 다음과 같다.
+
+| 항목 | 확인 내용 |
+| --- | --- |
+| IBM 원 출처 | IBM/CBOM README가 CBOMkit, Sonar Cryptography Plugin, CBOM Viewer, CBOMkit-theia, CBOMkit-action을 CBOM 관련 도구로 열거 |
+| CBOMkit 본체 | CBOM 생성, Viewer, Compliance Check, Database/REST API 제공 |
+| 입력 대상 | Git URL, PURL, 업로드된 CBOM |
+| 소스코드 분석 | CBOMkit-hyperion/Sonar Cryptography Plugin이 소스코드 내 cryptographic usage를 식별 |
+| 파일/이미지 분석 | CBOMkit-theia가 directory와 container image에서 인증서, 키, secret, OpenSSL 설정 등을 탐지 |
+| 미확인 범위 | pcap 수집, packet capture, live TLS/SSH/IKE handshake 측정, 네트워크 트래픽 분석 |
+
+발표에서는 다음 수준으로 제한한다.
+
+> IBM CBOMkit은 CBOM을 만들고 보고 정책 검증까지 이어주는 도구 모음입니다. 소스코드, Git 저장소, 파일시스템, 컨테이너 이미지에서 암호자산을 찾는 기능은 확인되지만, 패킷 캡처 기반 네트워크 트래픽 분석이나 live handshake 검사는 확인되지 않았습니다.
+
+주의할 점은 CBOMkit을 네트워크 Discovery, TLS/SSH/IKE probe, 가용성 검사 도구로 설명하면 안 된다는 것이다. 우리 시스템과 비교할 때는 “운영 네트워크에서 실제 서비스 엔드포인트를 탐색하고 연결 가능성을 검사하는 흐름”을 차별점으로 둔다.

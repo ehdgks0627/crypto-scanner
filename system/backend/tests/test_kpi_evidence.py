@@ -30,6 +30,7 @@ RUNTIME_MINUTES_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "runtime-minutes-ev
 STATIC_ANALYSIS_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "static-analysis-evidence.json"
 MIGRATION_SCOPE_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "migration-scope-evidence.json"
 CRYPTOSCAN_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "cryptoscan-evidence.json"
+CBOMKIT_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "cbomkit-evidence.json"
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -189,3 +190,25 @@ def test_cryptoscan_evidence_classifies_tool_as_codebase_static_scanner():
     assert "active network endpoint discovery" in unsupported_scope
     assert "TLS handshake scanner" in unsupported_scope
     assert all(evidence["observed_commit"] in url for url in source_urls)
+
+
+def test_cbomkit_evidence_does_not_claim_network_traffic_analysis():
+    evidence = json.loads(CBOMKIT_EVIDENCE_PATH.read_text())
+    supported_scope = set(evidence["supported_scope"])
+    unsupported_scope = set(evidence["not_evidenced_as"])
+    checked_terms = {term.lower() for term in evidence["code_search_terms_checked"]}
+    related_repositories = {repo["name"]: repo for repo in evidence["related_repositories"]}
+
+    assert evidence["claim_level"] == "fact_checked"
+    assert evidence["repository"] == "https://github.com/cbomkit/cbomkit"
+    assert evidence["observed_commit"]
+    assert evidence["scope_label"] == "cbom_generation_source_filesystem_container_scanning"
+    assert "Git repository scanning for source-code cryptographic usage" in supported_scope
+    assert "source-code scanning through Sonar Cryptography Plugin" in supported_scope
+    assert "container image scanning through CBOMkit-theia" in supported_scope
+    assert "directory/filesystem scanning through CBOMkit-theia" in supported_scope
+    assert "packet capture analysis" in unsupported_scope
+    assert "network traffic analysis" in unsupported_scope
+    assert "live TLS handshake scanner" in unsupported_scope
+    assert {"pcap", "tcpdump", "packet", "traffic", "tls handshake"} <= checked_terms
+    assert related_repositories["cbomkit/cbomkit-theia"]["observed_commit"]
