@@ -25,17 +25,19 @@ def build_qualitative_risk_prompt(
     asset: Mapping[str, Any],
     context: Mapping[str, Any],
     context_sources: Mapping[str, str],
+    operational_context: Mapping[str, Any] | None = None,
     risk: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload = {
         "asset": _json_safe(asset),
         "context": _json_safe(context),
         "context_sources": _json_safe(context_sources),
+        "operational_context": _json_safe(operational_context or {}),
         "risk": _json_safe(risk or {}),
     }
     user_prompt = (
         "Evaluate this cryptographic asset for PQC migration priority.\n"
-        "Focus on HNDL exposure, service criticality, communication exposure, and migration urgency.\n"
+        "Focus on HNDL exposure, service criticality, communication exposure, file/config evidence, and migration urgency.\n"
         "Do not invent facts not present in the payload.\n\n"
         f"Payload:\n{json.dumps(payload, sort_keys=True, indent=2)}\n\n"
         f"Required JSON schema:\n{json.dumps(QUALITATIVE_RISK_RESPONSE_SCHEMA, sort_keys=True, indent=2)}"

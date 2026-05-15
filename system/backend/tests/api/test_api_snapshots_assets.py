@@ -393,6 +393,12 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
         algorithm="RSA-2048",
         algorithm_family="RSA",
         bom_ref="qualitative:worker:rsa",
+        metadata={
+            "scanner": "agent.app_config",
+            "path": "/etc/nginx/nginx.conf",
+            "certificate_paths": ["/etc/nginx/ssl/server.crt"],
+            "private_key_paths": ["/etc/nginx/ssl/server.key"],
+        },
     )
     task = services.enqueue_qualitative_assessment(asset.id)
 
@@ -412,3 +418,10 @@ def test_api_ast_007_qualitative_worker_processes_asset_task():
     assert assessment.prompt_version == "qualitative-risk-v1"
     assert assessment.prompt_payload["asset"]["name"] == "worker API certificate"
     assert assessment.prompt_payload["context"]["exposure"] == "public_internet"
+    assert assessment.prompt_payload["operational_context"]["connected_service"]["label"] == "worker-api.testbed.local:443"
+    assert assessment.prompt_payload["operational_context"]["data_classification"] == {"level": "critical", "source": "target"}
+    assert assessment.prompt_payload["operational_context"]["file_paths"] == [
+        "/etc/nginx/nginx.conf",
+        "/etc/nginx/ssl/server.crt",
+        "/etc/nginx/ssl/server.key",
+    ]

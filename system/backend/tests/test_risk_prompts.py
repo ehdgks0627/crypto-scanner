@@ -20,6 +20,11 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
             "service_role": "customer-api",
         },
         context_sources={"sensitivity": "target", "lifespan_years": "target"},
+        operational_context={
+            "connected_service": {"label": "api.testbed.local:443", "protocol_hint": "TLS"},
+            "file_paths": ["/etc/nginx/server.crt"],
+            "data_classification": {"level": "critical", "source": "target"},
+        },
         risk={"score": 95, "tier": "CRITICAL", "source": "risk_score"},
     )
 
@@ -28,7 +33,10 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
     assert "RSA-2048" in prompt["user"]
     assert "/etc/nginx/server.crt" in prompt["user"]
     assert "public_internet" in prompt["user"]
+    assert "operational_context" in prompt["user"]
     assert "Required JSON schema" in prompt["user"]
     assert prompt["payload"]["asset"]["metadata"]["fingerprint_sha256"] == "a" * 64
     assert prompt["payload"]["context"]["lifespan_years"] == 15
+    assert prompt["payload"]["operational_context"]["connected_service"]["protocol_hint"] == "TLS"
+    assert prompt["payload"]["operational_context"]["data_classification"]["level"] == "critical"
     assert prompt["payload"]["risk"]["tier"] == "CRITICAL"

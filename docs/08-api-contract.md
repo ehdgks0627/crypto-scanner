@@ -752,6 +752,8 @@ LLM 정성 분석 요청 (6.6, Mock 응답).
 
 백그라운드 실행이 필요한 경우 동일 생성 로직을 `qualitative_assessment` 큐 작업으로 실행할 수 있다. `process_queued_jobs` worker는 `scan_job`, `discovery`, `recompute`와 함께 `qualitative_assessment` 작업을 폴링한다.
 
+정성 분석 prompt payload는 `asset`, `context`, `context_sources`, `risk` 외에 `operational_context`를 포함한다. `operational_context`에는 연결 서비스(`host:port`, protocol), 파일/설정 경로, 데이터 분류 수준, 통신 노출 범위, 서비스 역할이 정규화되어 들어간다.
+
 ## 8.9 Risk
 
 ### 8.9.1 `GET /api/snapshots/{sid}/risks`

@@ -141,6 +141,7 @@ def generate_qualitative_assessment(asset):
         asset=_qualitative_asset_payload(asset),
         context=context,
         context_sources=sources,
+        operational_context=_qualitative_operational_context(asset, context, sources),
         risk=_qualitative_risk_payload(risk_score, score),
     )
     return {
@@ -183,6 +184,63 @@ def _qualitative_risk_payload(risk_score, fallback_score):
         "factors": {},
         "source": "heuristic",
     }
+
+
+def _qualitative_operational_context(asset, context, sources):
+    metadata = asset.metadata or {}
+    target = asset.target
+    return {
+        "connected_service": None if not target else {
+            "label": target_label(asset),
+            "display_name": target.display_name,
+            "host": target.host,
+            "ip": target.ip,
+            "port": target.port,
+            "transport": target.transport,
+            "protocol_hint": target.protocol_hint,
+            "sni": target.sni,
+        },
+        "file_paths": _metadata_paths(metadata),
+        "source_scanners": _metadata_list(metadata.get("source_scanners") or metadata.get("scanner")),
+        "data_classification": {
+            "level": context.get("sensitivity") or "unknown",
+            "source": sources.get("sensitivity", "heuristic"),
+        },
+        "communication_scope": {
+            "exposure": context.get("exposure") or "unknown",
+            "source": sources.get("exposure", "heuristic"),
+        },
+        "service_role": {
+            "value": context.get("service_role") or (target.protocol_hint if target else None) or asset.asset_type,
+            "source": sources.get("service_role", "heuristic"),
+        },
+    }
+
+
+def _metadata_paths(metadata):
+    values = []
+    for key in ["path", "source_paths", "certificate_paths", "private_key_paths", "referenced_by"]:
+        values.extend(_metadata_list(metadata.get(key)))
+    return _dedupe_values([value for value in values if isinstance(value, str) and value.startswith("/")])
+
+
+def _metadata_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list | tuple | set):
+        return list(value)
+    return [value]
+
+
+def _dedupe_values(values):
+    result = []
+    seen = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
 
 
 def _family_key(asset):
