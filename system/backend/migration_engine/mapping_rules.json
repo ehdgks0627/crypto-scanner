@@ -1,7 +1,7 @@
 {
   "version": "migration-mapping-v1",
   "pqc_markers": ["ML-KEM", "ML-DSA", "SLH-DSA", "FALCON", "FN-DSA"],
-  "quantum_vulnerable_markers": ["RSA", "DSA", "ECDSA", "ECDH", "DH", "ED25519", "ED448", "X25519", "X448", "P-256", "P256", "PRIME256V1", "SECP256R1", "NISTP256"],
+  "quantum_vulnerable_markers": ["RSA", "DSA", "ECDSA", "ECDH", "DH", "ED25519", "ED448", "X25519", "X448", "CURVE25519", "CURVE448", "MODP", "DIFFIE-HELLMAN", "GROUP14", "P-256", "P256", "PRIME256V1", "SECP256R1", "NISTP256", "ECP-256", "ECP256"],
   "rules": [
     {
       "id": "pqc-ready",
@@ -9,6 +9,26 @@
       "kind": "pqc",
       "preserve_current": true,
       "classically_weak": false
+    },
+    {
+      "id": "ecdh-x25519-p256-kex",
+      "match_regex": "(X25519|CURVE25519|ECDH-SHA2-NISTP256|ECP-?256|NISTP256)",
+      "asset_types": ["protocol", "key_agreement"],
+      "kind": "kem",
+      "purpose": "key_agreement",
+      "hybrid_set": ["X25519", "ML-KEM-768"],
+      "replace_set": ["ML-KEM-768"],
+      "classically_weak": false
+    },
+    {
+      "id": "dh-kex-aliases",
+      "match_regex": "(\\bDH\\b|MODP|DIFFIE-HELLMAN|GROUP)",
+      "asset_types": ["protocol", "key_agreement"],
+      "kind": "kem",
+      "purpose": "key_agreement",
+      "hybrid_set": ["X25519", "ML-KEM-768"],
+      "replace_set": ["ML-KEM-768"],
+      "classically_weak_if_contains": ["1024"]
     },
     {
       "id": "sha1-signing",
@@ -83,7 +103,7 @@
     },
     {
       "id": "ecdh-high-security",
-      "match_regex": "ECDH.*(384|521)|X448",
+      "match_regex": "ECDH.*(384|521)|X448|CURVE448",
       "kind": "kem",
       "purpose": "key_agreement",
       "hybrid_set": ["X448", "ML-KEM-1024"],
@@ -92,7 +112,7 @@
     },
     {
       "id": "ecdh-default",
-      "match_regex": "(ECDH|X25519)",
+      "match_regex": "(ECDH|X25519|CURVE25519|ECP-?256|NISTP256|SECP256R1)",
       "kind": "kem",
       "purpose": "key_agreement",
       "hybrid_set": ["X25519", "ML-KEM-768"],
@@ -101,7 +121,7 @@
     },
     {
       "id": "dh-default",
-      "match_regex": "(\\bDH\\b|MODP|GROUP)",
+      "match_regex": "(\\bDH\\b|MODP|DIFFIE-HELLMAN|GROUP)",
       "kind": "kem",
       "purpose": "key_agreement",
       "hybrid_set": ["X25519", "ML-KEM-768"],

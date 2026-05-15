@@ -377,6 +377,41 @@ def test_api_mig_006c_migration_plan_maps_ecdsa_p256_alias_to_ml_dsa(client):
     assert item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
 
 
+def test_api_mig_006d_migration_plan_maps_x25519_and_dh_aliases_to_ml_kem(client):
+    snapshot = create_snapshot()
+    x25519_asset = create_asset(
+        snapshot=snapshot,
+        name="ssh curve25519 kex",
+        asset_type="protocol",
+        algorithm="curve25519-sha256",
+        algorithm_family="",
+        bom_ref="mig:kex:curve25519",
+    )
+    dh_asset = create_asset(
+        snapshot=snapshot,
+        name="ike dh group14",
+        asset_type="key_agreement",
+        algorithm="diffie-hellman-group14-sha256",
+        algorithm_family="",
+        bom_ref="mig:kex:group14",
+    )
+    create_risk_score(x25519_asset, score=83.0, tier="HIGH")
+    create_risk_score(dh_asset, score=84.0, tier="HIGH")
+
+    response = client.get(f"/api/snapshots/{snapshot.id}/migration-plan?asset_ids={x25519_asset.id},{dh_asset.id}")
+
+    assert response.status_code == 200
+    by_asset = {item["asset_id"]: item for item in response.json()["items"]}
+    assert by_asset[x25519_asset.id]["asset_purpose"] == "key_agreement"
+    assert by_asset[x25519_asset.id]["current"]["quantum_vulnerable"] is True
+    assert by_asset[x25519_asset.id]["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert by_asset[x25519_asset.id]["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
+    assert by_asset[dh_asset.id]["asset_purpose"] == "key_agreement"
+    assert by_asset[dh_asset.id]["current"]["quantum_vulnerable"] is True
+    assert by_asset[dh_asset.id]["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert by_asset[dh_asset.id]["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
+
+
 def test_api_mig_007_migration_plan_rejects_non_integer_asset_ids(client):
     snapshot = create_snapshot()
 

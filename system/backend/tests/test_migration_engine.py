@@ -7,7 +7,15 @@ def test_migration_mapping_rules_are_loaded_from_external_config():
     assert MAPPING_RULES_PATH.name == "mapping_rules.json"
     assert MAPPING_RULES_PATH.exists()
     assert config["version"] == "migration-mapping-v1"
-    assert {rule["id"] for rule in config["rules"]} >= {"rsa-signature", "rsa-kem-like", "ecdsa-p256-aliases", "ecdsa-default", "dh-default"}
+    assert {rule["id"] for rule in config["rules"]} >= {
+        "rsa-signature",
+        "rsa-kem-like",
+        "ecdsa-p256-aliases",
+        "ecdsa-default",
+        "ecdh-x25519-p256-kex",
+        "dh-kex-aliases",
+        "dh-default",
+    }
     assert candidate_for_algorithm("RSA-2048", "RSA", "certificate") == {
         "kind": "signature",
         "purpose": "digital_signature",
@@ -29,6 +37,11 @@ def test_migration_mapping_rules_classify_kem_and_signature_paths_separately():
     assert candidate_for_algorithm("secp256r1", None, "ssh_host_key")["purpose"] == "digital_signature"
     assert candidate_for_algorithm("ECDH-P384", "ECDH", "protocol")["replace_set"] == ["ML-KEM-1024"]
     assert candidate_for_algorithm("ECDH-P384", "ECDH", "protocol")["purpose"] == "key_agreement"
+    assert candidate_for_algorithm("X25519", None, "key_agreement")["replace_set"] == ["ML-KEM-768"]
+    assert candidate_for_algorithm("curve25519-sha256", None, "protocol")["purpose"] == "key_agreement"
+    assert candidate_for_algorithm("ECP-256", None, "key_agreement")["replace_set"] == ["ML-KEM-768"]
+    assert candidate_for_algorithm("diffie-hellman-group14-sha256", None, "protocol")["replace_set"] == ["ML-KEM-768"]
+    assert candidate_for_algorithm("MODP-2048", "DH", "key_agreement")["purpose"] == "key_agreement"
     assert candidate_for_algorithm("SHA-256", "SHA", "algorithm")["kind"] == "safe_classical"
     assert candidate_for_algorithm("SHA-256", "SHA", "algorithm")["purpose"] == "hash_integrity"
 
@@ -117,6 +130,40 @@ def test_migration_engine_maps_ecdsa_p256_aliases_to_ml_dsa_65():
     assert item["current"]["quantum_vulnerable"] is True
     assert item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "ML-DSA-65"]
     assert item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
+
+
+def test_migration_engine_maps_x25519_and_dh_aliases_to_ml_kem_768():
+    x25519_item = recommend_migration(
+        asset_id=13,
+        asset_name="ssh curve25519 kex",
+        asset_type="protocol",
+        algorithm="curve25519-sha256",
+        algorithm_family=None,
+        risk_score=82,
+        tier="HIGH",
+        context={"lifespan_years": 10, "criticality": "high", "exposure": "internal_network"},
+        capabilities=["runtime_pqc_supported", "config_policy", "rescan_validation", "rollback_supported"],
+    )
+    dh_item = recommend_migration(
+        asset_id=14,
+        asset_name="ike modp group",
+        asset_type="key_agreement",
+        algorithm="diffie-hellman-group14-sha256",
+        algorithm_family=None,
+        risk_score=82,
+        tier="HIGH",
+        context={"lifespan_years": 10, "criticality": "high", "exposure": "internal_network"},
+        capabilities=["runtime_pqc_supported", "config_policy", "rescan_validation", "rollback_supported"],
+    )
+
+    assert x25519_item["asset_purpose"] == "key_agreement"
+    assert x25519_item["current"]["quantum_vulnerable"] is True
+    assert x25519_item["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert x25519_item["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
+    assert dh_item["asset_purpose"] == "key_agreement"
+    assert dh_item["current"]["quantum_vulnerable"] is True
+    assert dh_item["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert dh_item["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
 
 
 def test_migration_engine_marks_pqc_assets_as_no_change_with_high_agility():
