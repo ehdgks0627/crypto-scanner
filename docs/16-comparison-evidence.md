@@ -41,3 +41,22 @@
 > 위험평가는 단순 점수 계산에 그치지 않고, 자산 메타데이터와 운영 맥락을 LLM prompt로 구성해 DHS 6기준 형태의 정성 분석 결과로 저장합니다. 외부 LLM이 설정되어 있으면 OpenAI 호환 API 응답을 사용하고, 미설정 또는 실패 시에는 동일한 저장 경로로 rulebook fallback을 사용해 파이프라인이 멈추지 않게 했습니다.
 
 주의할 점은 라이브 발표에서 실제 외부 LLM 호출을 보여주지 않는다면 “실제 상용 LLM이 시연 중 호출되었다”고 말하면 안 된다는 것이다. 정확한 표현은 “외부 LLM provider 연동 경로가 구현되어 있고, 테스트에서 provider 응답이 구조화 저장되는 것을 검증했다”이다.
+
+## 16.3 오픈 및 시연 가능성
+
+`오픈 · 시연 가능` 주장은 공개 리포지토리 접근성과 라이브 대시보드 접근성이 확인되었다는 의미로 제한한다. 구조화된 근거는 `docs/kpi/open-demo-evidence.json`에 둔다.
+
+확인한 항목은 다음과 같다.
+
+| 항목 | URL | 결과 |
+| --- | --- | --- |
+| GitHub 리포지토리 | `https://github.com/ehdgks0627/crypto-scanner` | HTTP 200, public metadata 확인 |
+| Raw README | `https://raw.githubusercontent.com/ehdgks0627/crypto-scanner/main/README.md` | HTTP 200 |
+| Live health API | `https://pqc.sprout.kr/api/health` | HTTP 200, api/database/redis/worker `ok` |
+| Live dashboard | `https://pqc.sprout.kr/dashboard` | HTTP 200, `PQC Risk Assessment` title 확인 |
+
+발표에서는 다음 수준으로 제한한다.
+
+> 리포지토리는 공개 접근 가능하고, 발표용 대시보드는 `pqc.sprout.kr/dashboard`에서 열 수 있습니다. 발표 직전에는 health check를 다시 실행해 API, DB, Redis, worker 상태를 확인합니다.
+
+주의할 점은 이 근거가 영구적인 가동률을 보장하지 않는다는 것이다. 또한 로컬 브랜치가 `origin/main`보다 앞선 상태라면 새 커밋이 아직 배포되지 않았을 수 있으므로, 발표 직전에는 push 이후 health/dashboard 확인을 다시 수행해야 한다.

@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MANUAL_BASELINE_PATH = REPO_ROOT / "docs" / "kpi" / "manual-grep-baseline.json"
 HOST_AGENT_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "host-agent-evidence.json"
 LLM_RISK_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "llm-risk-evidence.json"
+OPEN_DEMO_EVIDENCE_PATH = REPO_ROOT / "docs" / "kpi" / "open-demo-evidence.json"
 
 
 def test_manual_grep_baseline_scope_matches_demo_seed():
@@ -83,3 +84,26 @@ def test_llm_risk_evidence_matches_provider_and_prompt_contract():
     assert evidence["safety"]["fallback_on_provider_error"] is True
     assert evidence["safety"]["fallback_on_parse_error"] is True
     assert evidence["safety"]["prompt_cache_enabled"] is True
+
+
+def test_open_demo_evidence_records_public_repo_and_live_dashboard_checks():
+    evidence = json.loads(OPEN_DEMO_EVIDENCE_PATH.read_text())
+    checks = evidence["checks"]
+
+    assert checks["github_repository"]["url"] == "https://github.com/ehdgks0627/crypto-scanner"
+    assert checks["github_repository"]["http_status"] == 200
+    assert checks["github_repository"]["repository_public"] is True
+    assert checks["github_raw_readme"]["http_status"] == 200
+    assert checks["live_health"]["url"] == "https://pqc.sprout.kr/api/health"
+    assert checks["live_health"]["http_status"] == 200
+    assert checks["live_health"]["response"] == {
+        "status": "ok",
+        "api": "ok",
+        "database": "ok",
+        "redis": "ok",
+        "worker": "ok",
+    }
+    assert checks["live_dashboard"]["url"] == "https://pqc.sprout.kr/dashboard"
+    assert checks["live_dashboard"]["http_status"] == 200
+    assert checks["live_dashboard"]["page_title"] == "PQC Risk Assessment"
+    assert any("deployment freshness" in limitation for limitation in evidence["limitations"])

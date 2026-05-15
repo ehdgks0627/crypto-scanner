@@ -1,0 +1,52 @@
+{
+  "id": "open_demo_evidence_v1",
+  "title": "Open repository and live demo accessibility evidence",
+  "claim": "The project has a publicly reachable GitHub repository and a live demo endpoint that can be opened for presentation.",
+  "claim_ko": "프로젝트는 공개 접근 가능한 GitHub 리포지토리와 발표용 라이브 데모 엔드포인트를 가진다.",
+  "verified_at": "2026-05-16T01:48:38+09:00",
+  "checks": {
+    "github_repository": {
+      "url": "https://github.com/ehdgks0627/crypto-scanner",
+      "http_status": 200,
+      "repository_public": true,
+      "evidence": "GitHub page exposes repository_public=true metadata and renders the README."
+    },
+    "github_raw_readme": {
+      "url": "https://raw.githubusercontent.com/ehdgks0627/crypto-scanner/main/README.md",
+      "http_status": 200,
+      "evidence": "Raw README is accessible without authentication."
+    },
+    "live_health": {
+      "url": "https://pqc.sprout.kr/api/health",
+      "http_status": 200,
+      "response": {
+        "status": "ok",
+        "api": "ok",
+        "database": "ok",
+        "redis": "ok",
+        "worker": "ok"
+      }
+    },
+    "live_dashboard": {
+      "url": "https://pqc.sprout.kr/dashboard",
+      "http_status": 200,
+      "page_title": "PQC Risk Assessment"
+    }
+  },
+  "verification_commands": [
+    "curl -L --max-time 15 https://github.com/ehdgks0627/crypto-scanner",
+    "curl -L --max-time 15 https://raw.githubusercontent.com/ehdgks0627/crypto-scanner/main/README.md",
+    "curl -L --max-time 15 https://pqc.sprout.kr/api/health",
+    "curl -L --max-time 15 https://pqc.sprout.kr/dashboard"
+  ],
+  "limitations": [
+    "This proves public accessibility at the verification time, not permanent uptime.",
+    "The local branch was ahead of origin/main at verification time, so deployment freshness must be rechecked after pushing new commits.",
+    "Live presentation should still have a local or recorded fallback in case of network failure."
+  ],
+  "presentation_guidance": [
+    "Say that the repository and live dashboard were reachable during the pre-presentation check.",
+    "Do not imply an uptime SLA.",
+    "If new commits are made after this check, push and re-run the health/dashboard checks before presenting."
+  ]
+}
