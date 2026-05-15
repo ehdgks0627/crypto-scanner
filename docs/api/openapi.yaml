@@ -3446,6 +3446,7 @@ components:
         baseline_snapshot_id:
           type: integer
           nullable: true
+          description: Pre-migration CBOM snapshot. For post_migration runs, the API auto-selects the latest previous snapshot when omitted.
         trigger:
           $ref: '#/components/schemas/PerformanceRunTrigger'
         profile:

@@ -17,25 +17,45 @@ class InvalidPerformanceResult(Exception):
 
 
 def create_run(snapshot: CbomSnapshot, payload: dict) -> PerformanceEvaluationRun:
-    baseline_snapshot_id = payload.get("baseline_snapshot_id")
-    baseline_snapshot = None
-    if baseline_snapshot_id is not None:
-        baseline_snapshot = CbomSnapshot.objects.filter(id=baseline_snapshot_id).first()
-        if baseline_snapshot is None:
-            raise InvalidPerformanceResult("baseline_snapshot_id does not exist.", {"baseline_snapshot_id": baseline_snapshot_id})
-        if baseline_snapshot.id == snapshot.id:
-            raise InvalidPerformanceResult("baseline_snapshot_id must be different from snapshot_id.", {"baseline_snapshot_id": baseline_snapshot_id})
+    trigger = payload.get("trigger", "manual")
+    baseline_snapshot = _resolve_baseline_snapshot(snapshot, payload.get("baseline_snapshot_id"), trigger)
 
     return PerformanceEvaluationRun.objects.create(
         snapshot=snapshot,
         baseline_snapshot=baseline_snapshot,
-        trigger=payload.get("trigger", "manual"),
+        trigger=trigger,
         profile=payload.get("profile", "smoke"),
         status=PerformanceEvaluationRun.PENDING,
         thresholds={**DEFAULT_THRESHOLDS, **(payload.get("thresholds") or {})},
         environment=payload.get("environment") or {},
         summary=summarize_results([]),
     )
+
+
+def _resolve_baseline_snapshot(snapshot: CbomSnapshot, baseline_snapshot_id: int | None, trigger: str) -> CbomSnapshot | None:
+    if baseline_snapshot_id is not None:
+        baseline_snapshot = CbomSnapshot.objects.filter(id=baseline_snapshot_id).first()
+        if baseline_snapshot is None:
+            raise InvalidPerformanceResult("baseline_snapshot_id does not exist.", {"baseline_snapshot_id": baseline_snapshot_id})
+        if baseline_snapshot.id == snapshot.id:
+            raise InvalidPerformanceResult("baseline_snapshot_id must be different from snapshot_id.", {"baseline_snapshot_id": baseline_snapshot_id})
+        if trigger == "post_migration" and baseline_snapshot.id > snapshot.id:
+            raise InvalidPerformanceResult(
+                "baseline_snapshot_id must reference a pre-migration snapshot.",
+                {"baseline_snapshot_id": baseline_snapshot_id, "snapshot_id": snapshot.id},
+            )
+        return baseline_snapshot
+
+    if trigger != "post_migration":
+        return None
+
+    baseline_snapshot = CbomSnapshot.objects.filter(id__lt=snapshot.id).order_by("-id").first()
+    if baseline_snapshot is None:
+        raise InvalidPerformanceResult(
+            "post_migration performance runs require a pre-migration snapshot.",
+            {"snapshot_id": snapshot.id},
+        )
+    return baseline_snapshot
 
 
 def upsert_result(run: PerformanceEvaluationRun, payload: dict) -> AssetPerformanceResult:

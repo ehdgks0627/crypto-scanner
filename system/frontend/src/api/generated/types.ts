@@ -1438,6 +1438,7 @@ export interface components {
             [key: string]: unknown;
         };
         PerformanceRunCreate: {
+            /** @description Pre-migration CBOM snapshot. For post_migration runs, the API auto-selects the latest previous snapshot when omitted. */
             baseline_snapshot_id?: number | null;
             trigger?: components["schemas"]["PerformanceRunTrigger"];
             profile?: components["schemas"]["PerformanceRunProfile"];

@@ -120,7 +120,37 @@ def test_api_perf_002_candidate_result_compares_to_baseline_by_bom_ref(client):
     }
 
 
-def test_api_perf_003_rejects_foreign_asset_for_run(client):
+def test_api_perf_003_post_migration_run_auto_links_previous_snapshot_as_baseline(client):
+    baseline_snapshot = create_snapshot(serial_number="pre-migration")
+    candidate_snapshot = create_snapshot(serial_number="post-migration")
+
+    response = client.post(
+        f"/api/snapshots/{candidate_snapshot.id}/performance-runs",
+        data={"trigger": "post_migration", "profile": "smoke"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["snapshot_id"] == candidate_snapshot.id
+    assert body["baseline_snapshot_id"] == baseline_snapshot.id
+
+
+def test_api_perf_004_post_migration_run_requires_pre_migration_snapshot(client):
+    snapshot = create_snapshot(serial_number="first-snapshot")
+
+    response = client.post(
+        f"/api/snapshots/{snapshot.id}/performance-runs",
+        data={"trigger": "post_migration", "profile": "smoke"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"] == "unprocessable"
+    assert response.json()["details"]["snapshot_id"] == snapshot.id
+
+
+def test_api_perf_005_rejects_foreign_asset_for_run(client):
     snapshot = create_snapshot()
     foreign_asset = create_asset()
     run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
@@ -135,7 +165,7 @@ def test_api_perf_003_rejects_foreign_asset_for_run(client):
     assert response.json()["details"]["asset_snapshot_id"] == foreign_asset.snapshot_id
 
 
-def test_api_perf_004_lists_asset_performance_history(client):
+def test_api_perf_006_lists_asset_performance_history(client):
     snapshot = create_snapshot()
     asset = create_asset(snapshot=snapshot, bom_ref="tls:web:history")
     run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
@@ -152,7 +182,7 @@ def test_api_perf_004_lists_asset_performance_history(client):
     assert response.json()["items"][0]["run_id"] == run["id"]
 
 
-def test_api_perf_005_records_tls_handshake_success_rate_from_counts(client):
+def test_api_perf_007_records_tls_handshake_success_rate_from_counts(client):
     snapshot = create_snapshot()
     asset = create_asset(snapshot=snapshot, bom_ref="tls:web:success-rate")
     run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
@@ -179,7 +209,7 @@ def test_api_perf_005_records_tls_handshake_success_rate_from_counts(client):
     assert any(signal["reason"] == "handshake_success_rate_below_fail_threshold" for signal in body["signals"])
 
 
-def test_api_perf_006_records_ssh_handshake_success_rate_by_protocol(client):
+def test_api_perf_008_records_ssh_handshake_success_rate_by_protocol(client):
     snapshot = create_snapshot()
     ssh_target = create_target(host="ssh.testbed.local", port=22, protocol_hint="SSH")
     asset = create_asset(
@@ -218,7 +248,7 @@ def test_api_perf_006_records_ssh_handshake_success_rate_by_protocol(client):
     assert detail["summary"]["by_protocol"]["SSH"]["average_metrics"]["handshake_success_rate"] == 1.0
 
 
-def test_api_perf_007_records_ike_negotiation_success_rate_by_protocol(client):
+def test_api_perf_009_records_ike_negotiation_success_rate_by_protocol(client):
     snapshot = create_snapshot()
     ike_target = create_target(host="ipsec.testbed.local", port=500, protocol_hint="IKE", transport="UDP")
     asset = create_asset(
@@ -258,7 +288,7 @@ def test_api_perf_007_records_ike_negotiation_success_rate_by_protocol(client):
     assert detail["summary"]["by_protocol"]["IKE"]["average_metrics"]["negotiation_success_rate"] == 1.0
 
 
-def test_api_perf_008_records_protocol_response_code_and_failure_reason(client):
+def test_api_perf_010_records_protocol_response_code_and_failure_reason(client):
     snapshot = create_snapshot()
     asset = create_asset(snapshot=snapshot, bom_ref="tls:web:alert")
     run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
@@ -291,7 +321,7 @@ def test_api_perf_008_records_protocol_response_code_and_failure_reason(client):
     assert protocol_summary["failure_reasons"] == {"certificate_verify_failed": 1}
 
 
-def test_api_perf_009_records_client_compatibility_matrix(client):
+def test_api_perf_011_records_client_compatibility_matrix(client):
     snapshot = create_snapshot()
     asset = create_asset(snapshot=snapshot, bom_ref="tls:web:legacy-client")
     run = client.post(f"/api/snapshots/{snapshot.id}/performance-runs", data={}, content_type="application/json").json()
