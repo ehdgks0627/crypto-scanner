@@ -43,6 +43,13 @@ describe("DashboardView", () => {
           source: "asset_metadata_dormant_private_key",
           snapshot_id: null,
           scan_job_id: null
+        },
+        automated_inventory_runtime_minutes_per_scan: {
+          value: 0,
+          unit: "minutes",
+          source: "scan_job_timestamps",
+          snapshot_id: null,
+          scan_job_id: null
         }
       },
       recent_jobs: [],
@@ -88,6 +95,13 @@ describe("DashboardView", () => {
           value: 0,
           unit: "keys",
           source: "asset_metadata_dormant_private_key",
+          snapshot_id: null,
+          scan_job_id: null
+        },
+        automated_inventory_runtime_minutes_per_scan: {
+          value: 0,
+          unit: "minutes",
+          source: "scan_job_timestamps",
           snapshot_id: null,
           scan_job_id: null
         }
@@ -160,6 +174,13 @@ describe("DashboardView", () => {
           source: "asset_metadata_dormant_private_key",
           snapshot_id: snapshotId ?? 1,
           scan_job_id: 44
+        },
+        automated_inventory_runtime_minutes_per_scan: {
+          value: snapshotId === 2 ? 6 : 0,
+          unit: "minutes",
+          source: "scan_job_timestamps",
+          snapshot_id: snapshotId ?? 1,
+          scan_job_id: 44
         }
       },
       recent_jobs: [],
@@ -227,7 +248,7 @@ describe("DashboardView", () => {
 
     await waitFor(() => expect(summarySpy).toHaveBeenCalledWith(2));
     expect(await screen.findByText("스캔당 발견 자산")).toBeInTheDocument();
-    expect(screen.getByText("스캔 #44")).toBeInTheDocument();
+    expect(screen.getAllByText("스캔 #44").length).toBeGreaterThanOrEqual(2);
     expect((await screen.findAllByText("12")).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("5")).toBeInTheDocument();
@@ -235,6 +256,8 @@ describe("DashboardView", () => {
     expect(screen.getByText("90일 이내")).toBeInTheDocument();
     expect(screen.getByText("잠든 개인키")).toBeInTheDocument();
     expect(screen.getByText("미사용 파일")).toBeInTheDocument();
+    expect(screen.getByText("자동화 실행 시간")).toBeInTheDocument();
+    expect(screen.getByText("6분")).toBeInTheDocument();
     expect(await screen.findByText("네트워크 암호 노출 현황")).toBeInTheDocument();
   });
 });

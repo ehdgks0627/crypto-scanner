@@ -83,6 +83,13 @@ def test_api_dsh_001_dashboard_summary_uses_latest_snapshot(client):
         "snapshot_id": latest.id,
         "scan_job_id": None,
     }
+    assert body["kpis"]["automated_inventory_runtime_minutes_per_scan"] == {
+        "value": 0,
+        "unit": "minutes",
+        "source": "scan_job_timestamps",
+        "snapshot_id": latest.id,
+        "scan_job_id": None,
+    }
     assert body["by_tier"]["CRITICAL"] == 1
     assert body["by_asset_type"]["certificate"] == 1
     assert body["by_algorithm_family"]["RSA"] == 2
@@ -108,6 +115,7 @@ def test_api_dsh_002_dashboard_empty_state_without_snapshots(client):
     assert body["kpis"]["quantum_vulnerable_assets_per_scan"]["value"] == 0
     assert body["kpis"]["expiring_certificates_90d_per_scan"]["value"] == 0
     assert body["kpis"]["dormant_private_keys_per_scan"]["value"] == 0
+    assert body["kpis"]["automated_inventory_runtime_minutes_per_scan"]["value"] == 0
     assert body["recent_jobs"] == []
     assert body["trend"] == []
 

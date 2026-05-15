@@ -302,7 +302,7 @@ class Command(BaseCommand):
             },
             progress={"completed": total_scan_runs, "total": total_scan_runs},
             started_at=now - timedelta(minutes=55),
-            finished_at=now - timedelta(minutes=38),
+            finished_at=now - timedelta(minutes=49),
             result={"snapshot_serial": f"{SERIAL_PREFIX}-latest", "findings_count": len(LATEST_ASSETS)},
         )
         scan_job = ScanJob.objects.create(
@@ -312,8 +312,8 @@ class Command(BaseCommand):
         )
         async_job.resource_id = scan_job.id
         async_job.save(update_fields=["resource_id"])
-        self._timestamp(async_job, created_at=now - timedelta(minutes=56), updated_at=now - timedelta(minutes=38))
-        self._timestamp(scan_job, created_at=now - timedelta(minutes=56), updated_at=now - timedelta(minutes=38))
+        self._timestamp(async_job, created_at=now - timedelta(minutes=56), updated_at=now - timedelta(minutes=49))
+        self._timestamp(scan_job, created_at=now - timedelta(minutes=56), updated_at=now - timedelta(minutes=49))
         self._seed_scan_logs(async_job, targets, now)
         return scan_job
 
@@ -324,7 +324,7 @@ class Command(BaseCommand):
             for scanner_index, scanner_kind in enumerate(scanner_kinds):
                 if scanner_kind.startswith("agent.") and not target.agent_enabled:
                     continue
-                started_at = now - timedelta(minutes=54) + timedelta(seconds=(index * 35) + scanner_index * 5)
+                started_at = now - timedelta(minutes=54) + timedelta(seconds=(index * 10) + scanner_index)
                 finished_at = started_at + timedelta(seconds=3)
                 ScanRunLog.objects.create(
                     async_job=async_job,

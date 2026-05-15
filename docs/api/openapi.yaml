@@ -3943,7 +3943,7 @@ components:
 
     DashboardKpis:
       type: object
-      required: [discovered_crypto_assets_per_scan, quantum_vulnerable_assets_per_scan, expiring_certificates_90d_per_scan, dormant_private_keys_per_scan]
+      required: [discovered_crypto_assets_per_scan, quantum_vulnerable_assets_per_scan, expiring_certificates_90d_per_scan, dormant_private_keys_per_scan, automated_inventory_runtime_minutes_per_scan]
       properties:
         discovered_crypto_assets_per_scan:
           $ref: '#/components/schemas/DashboardKpiMetric'
@@ -3952,6 +3952,8 @@ components:
         expiring_certificates_90d_per_scan:
           $ref: '#/components/schemas/DashboardKpiMetric'
         dormant_private_keys_per_scan:
+          $ref: '#/components/schemas/DashboardKpiMetric'
+        automated_inventory_runtime_minutes_per_scan:
           $ref: '#/components/schemas/DashboardKpiMetric'
 
     DashboardKpiMetric:

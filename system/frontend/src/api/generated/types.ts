@@ -1664,6 +1664,7 @@ export interface components {
             quantum_vulnerable_assets_per_scan: components["schemas"]["DashboardKpiMetric"];
             expiring_certificates_90d_per_scan: components["schemas"]["DashboardKpiMetric"];
             dormant_private_keys_per_scan: components["schemas"]["DashboardKpiMetric"];
+            automated_inventory_runtime_minutes_per_scan: components["schemas"]["DashboardKpiMetric"];
         };
         DashboardKpiMetric: {
             value: number;

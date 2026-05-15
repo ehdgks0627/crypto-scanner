@@ -49,7 +49,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             "by_asset_type": {},
             "by_algorithm_family": {},
             "quantum_vulnerable_ratio": {"vulnerable": 0, "safe": 0, "unknown": 0},
-            "kpis": _dashboard_kpis(None, [], 0, 0, 0),
+            "kpis": _dashboard_kpis(None, [], 0, 0, 0, 0),
             "recent_jobs": recent_jobs,
             "agents_status": agent_status,
             "trend": [],
@@ -104,6 +104,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             vulnerable_count,
             _expiring_certificate_count(assets),
             _dormant_private_key_count(assets),
+            _snapshot_scan_duration_minutes(latest),
         ),
         "recent_jobs": recent_jobs,
         "agents_status": agent_status,
@@ -139,6 +140,7 @@ def _dashboard_kpis(
     vulnerable_count: int,
     expiring_certificate_count: int,
     dormant_private_key_count: int,
+    automated_runtime_minutes: int,
 ) -> dict:
     return {
         "discovered_crypto_assets_per_scan": {
@@ -166,6 +168,13 @@ def _dashboard_kpis(
             "value": dormant_private_key_count,
             "unit": "keys",
             "source": "asset_metadata_dormant_private_key",
+            "snapshot_id": snapshot.id if snapshot else None,
+            "scan_job_id": snapshot.scan_job_id if snapshot else None,
+        },
+        "automated_inventory_runtime_minutes_per_scan": {
+            "value": automated_runtime_minutes,
+            "unit": "minutes",
+            "source": "scan_job_timestamps",
             "snapshot_id": snapshot.id if snapshot else None,
             "scan_job_id": snapshot.scan_job_id if snapshot else None,
         }
@@ -267,3 +276,20 @@ def _metadata_bool(value) -> bool | None:
     if normalized in {"false", "0", "no"}:
         return False
     return None
+
+
+def _snapshot_scan_duration_minutes(snapshot: CbomSnapshot | None) -> int:
+    if snapshot is None or snapshot.scan_job_id is None:
+        return 0
+    async_job = snapshot.scan_job.async_job
+    return _duration_minutes(async_job.started_at, async_job.finished_at)
+
+
+def _duration_minutes(started_at, finished_at) -> int:
+    if not started_at or not finished_at or finished_at < started_at:
+        return 0
+    seconds = (finished_at - started_at).total_seconds()
+    minutes = int(round(seconds / 60))
+    if seconds > 0 and minutes == 0:
+        return 1
+    return minutes

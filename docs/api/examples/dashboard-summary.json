@@ -64,6 +64,13 @@
       "source": "asset_metadata_dormant_private_key",
       "snapshot_id": 56,
       "scan_job_id": 123
+    },
+    "automated_inventory_runtime_minutes_per_scan": {
+      "value": 6,
+      "unit": "minutes",
+      "source": "scan_job_timestamps",
+      "snapshot_id": 56,
+      "scan_job_id": 123
     }
   },
   "recent_jobs": [
