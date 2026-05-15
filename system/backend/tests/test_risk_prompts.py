@@ -37,12 +37,13 @@ def test_qualitative_risk_prompt_injects_asset_metadata_context_and_schema():
 
     assert prompt["version"] == QUALITATIVE_RISK_PROMPT_VERSION
     assert "PQC migration risk analyst" in prompt["system"]
-    assert prompt["version"] == "qualitative-risk-v3"
+    assert prompt["version"] == "qualitative-risk-v4"
     assert "RSA-2048" in prompt["user"]
     assert "/etc/nginx/server.crt" in prompt["user"]
     assert "public_internet" in prompt["user"]
     assert "DHS Q1 asset_value" in prompt["user"]
     assert "DHS Q2 protected_information" in prompt["user"]
+    assert "DHS Q3 communication_scope" in prompt["user"]
     assert "operational_context" in prompt["user"]
     assert "Required JSON schema" in prompt["user"]
     assert "dhs_criteria" in prompt["user"]
@@ -77,6 +78,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
               "data_classification": "CRITICAL",
               "rationale": "The certificate protects regulated customer records.",
               "signals": ["sensitivity:critical", "lifespan_years:15"]
+            },
+            "communication_scope": {
+              "question": "Q3: communication scope based on internal-only versus external bidirectional exposure.",
+              "rating": "CRITICAL",
+              "score": 97,
+              "exposure": "PUBLIC_INTERNET",
+              "direction": "EXTERNAL_BIDIRECTIONAL",
+              "rationale": "The service is reachable from the public internet.",
+              "signals": ["exposure:public_internet", "direction:external_bidirectional"]
             }
           },
           "confidence": 86
@@ -104,6 +114,15 @@ def test_parse_qualitative_risk_response_extracts_json_from_free_text():
                 "data_classification": "critical",
                 "rationale": "The certificate protects regulated customer records.",
                 "signals": ["sensitivity:critical", "lifespan_years:15"],
+            },
+            "communication_scope": {
+                "question": "Q3: communication scope based on internal-only versus external bidirectional exposure.",
+                "rating": "critical",
+                "score": 0.97,
+                "exposure": "public_internet",
+                "direction": "external_bidirectional",
+                "rationale": "The service is reachable from the public internet.",
+                "signals": ["exposure:public_internet", "direction:external_bidirectional"],
             }
         },
         "confidence": 0.86,

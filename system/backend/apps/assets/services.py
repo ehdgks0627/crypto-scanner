@@ -380,6 +380,7 @@ def _qualitative_dhs_criteria(asset, context, score):
     return {
         "asset_value": _qualitative_asset_value_criterion(asset, context, score),
         "protected_information": _qualitative_protected_information_criterion(asset, context, score),
+        "communication_scope": _qualitative_communication_scope_criterion(asset, context, score),
     }
 
 
@@ -500,6 +501,64 @@ def _qualitative_protected_information_rationale(asset, sensitivity, lifespan, s
         f"{name} protects {sensitivity or 'unknown'} classified information for "
         f"service_role={service_role or 'unknown'} with lifespan_years="
         f"{lifespan if lifespan is not None else 'unknown'}; baseline migration score is {round(score)}."
+    )
+
+
+def _qualitative_communication_scope_criterion(asset, context, score):
+    exposure = context.get("exposure")
+    direction = _qualitative_communication_direction(exposure)
+    target = asset.target
+    protocol = target.protocol_hint if target else None
+    transport = target.transport if target else None
+    value_score = 0.12
+    value_score += EXPOSURE_LEVELS.get(exposure, 0) * 0.22
+    if direction == "external_bidirectional":
+        value_score += 0.1
+    elif direction == "external_inbound":
+        value_score += 0.05
+    if asset.target_id:
+        value_score += 0.05
+    if protocol:
+        value_score += 0.03
+    value_score = round(max(0.0, min(1.0, value_score)), 2)
+    signals = _dedupe_values(
+        [
+            f"exposure:{exposure or 'unknown'}",
+            f"direction:{direction}",
+            f"target:{target_label(asset)}" if asset.target_id else "target:unmapped",
+            f"transport:{transport or 'unknown'}",
+            f"protocol:{protocol or 'unknown'}",
+        ]
+    )
+    return {
+        "question": "Q3: communication scope based on internal-only versus external bidirectional exposure.",
+        "rating": _qualitative_rating(value_score),
+        "score": value_score,
+        "exposure": exposure or "unknown",
+        "direction": direction,
+        "rationale": _qualitative_communication_scope_rationale(asset, exposure, direction, protocol, score),
+        "signals": signals,
+    }
+
+
+def _qualitative_communication_direction(exposure):
+    if exposure == "air_gapped":
+        return "none"
+    if exposure == "internal_network":
+        return "internal_only"
+    if exposure == "dmz":
+        return "external_inbound"
+    if exposure == "public_internet":
+        return "external_bidirectional"
+    return "unknown"
+
+
+def _qualitative_communication_scope_rationale(asset, exposure, direction, protocol, score):
+    name = asset.name or asset.bom_ref or f"asset {asset.id}"
+    target = target_label(asset) or "no mapped network target"
+    return (
+        f"{name} has exposure={exposure or 'unknown'}, direction={direction}, "
+        f"protocol={protocol or 'unknown'}, and target={target}; baseline migration score is {round(score)}."
     )
 
 

@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v3"
+QUALITATIVE_RISK_PROMPT_VERSION = "qualitative-risk-v4"
 
 QUALITATIVE_RISK_SYSTEM_PROMPT = """You are a PQC migration risk analyst.
 Assess one cryptographic asset for quantum-era migration planning.
@@ -31,6 +31,15 @@ QUALITATIVE_RISK_RESPONSE_SCHEMA = {
             "data_classification": "low|medium|high|critical|unknown",
             "rationale": "One-sentence evidence-based explanation.",
             "signals": ["sensitivity:critical", "lifespan_years:10"],
+        },
+        "communication_scope": {
+            "question": "Q3: communication scope based on internal-only versus external bidirectional exposure.",
+            "rating": "low|medium|high|critical",
+            "score": 0.0,
+            "exposure": "air_gapped|internal_network|dmz|public_internet|unknown",
+            "direction": "none|internal_only|external_inbound|external_bidirectional|unknown",
+            "rationale": "One-sentence evidence-based explanation.",
+            "signals": ["exposure:public_internet", "direction:external_bidirectional"],
         }
     },
     "confidence": 0.0,
@@ -61,6 +70,7 @@ def build_qualitative_risk_prompt(
         "Focus on HNDL exposure, service criticality, communication exposure, file/config evidence, and migration urgency.\n"
         "For DHS Q1 asset_value, rate the asset by external exposure and business importance only.\n"
         "For DHS Q2 protected_information, rate the information protected by the asset using data classification and confidentiality needs.\n"
+        "For DHS Q3 communication_scope, rate internal-only versus external bidirectional communication exposure.\n"
         "Do not invent facts not present in the payload.\n\n"
         f"Payload:\n{json.dumps(payload, sort_keys=True, indent=2)}\n\n"
         f"Required JSON schema:\n{json.dumps(QUALITATIVE_RISK_RESPONSE_SCHEMA, sort_keys=True, indent=2)}"
@@ -135,6 +145,7 @@ def _dhs_criteria(value: Any) -> dict[str, Any]:
     return {
         "asset_value": _dhs_asset_value(value.get("asset_value")),
         "protected_information": _dhs_protected_information(value.get("protected_information")),
+        "communication_scope": _dhs_communication_scope(value.get("communication_scope")),
     }
 
 
@@ -170,6 +181,30 @@ def _dhs_protected_information(value: Any) -> dict[str, Any]:
         "rating": rating,
         "score": _confidence(value.get("score")),
         "data_classification": classification,
+        "rationale": _required_string(value, "rationale"),
+        "signals": _string_list(value.get("signals")),
+    }
+
+
+def _dhs_communication_scope(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise QualitativeRiskResponseParseError("LLM response field 'dhs_criteria.communication_scope' must be an object")
+    rating = _rating(value, "dhs_criteria.communication_scope.rating")
+    exposure = _required_string(value, "exposure").lower()
+    if exposure not in {"air_gapped", "internal_network", "dmz", "public_internet", "unknown"}:
+        raise QualitativeRiskResponseParseError("LLM response field 'dhs_criteria.communication_scope.exposure' has an invalid value")
+    direction = _required_string(value, "direction").lower()
+    if direction not in {"none", "internal_only", "external_inbound", "external_bidirectional", "unknown"}:
+        raise QualitativeRiskResponseParseError("LLM response field 'dhs_criteria.communication_scope.direction' has an invalid value")
+    return {
+        "question": str(
+            value.get("question")
+            or "Q3: communication scope based on internal-only versus external bidirectional exposure."
+        ),
+        "rating": rating,
+        "score": _confidence(value.get("score")),
+        "exposure": exposure,
+        "direction": direction,
         "rationale": _required_string(value, "rationale"),
         "signals": _string_list(value.get("signals")),
     }

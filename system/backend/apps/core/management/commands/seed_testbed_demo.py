@@ -469,6 +469,15 @@ class Command(BaseCommand):
                     "data_classification": "high",
                     "rationale": "Demo assets model sensitive service identity, application traffic, and stored operational data.",
                     "signals": ["sensitivity:high", "lifespan_years:demo", "service_role"],
+                },
+                "communication_scope": {
+                    "question": "Q3: communication scope based on internal-only versus external bidirectional exposure.",
+                    "rating": "high",
+                    "score": 0.78,
+                    "exposure": "dmz",
+                    "direction": "external_inbound",
+                    "rationale": "Demo assets include internal services, DMZ services, and public-facing endpoints.",
+                    "signals": ["exposure:demo", "direction:demo", "managed_target"],
                 }
             },
             confidence=0.78,
