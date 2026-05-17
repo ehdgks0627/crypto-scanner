@@ -144,8 +144,8 @@ describe("DashboardView", () => {
     expect(useSnapshotSelectionStore.getState().selectedSnapshotId).toBe(22);
   });
 
-  it("requests summary for the globally selected snapshot", async () => {
-    useSnapshotSelectionStore.setState({ selectedSnapshotId: 2 });
+  it("moves the dashboard to the latest snapshot when a stale selection is stored", async () => {
+    useSnapshotSelectionStore.setState({ selectedSnapshotId: 1 });
     const summarySpy = vi.spyOn(services.dashboard, "summary").mockImplementation(async (snapshotId) => ({
       snapshot: {
         id: snapshotId ?? 1,
@@ -268,6 +268,7 @@ describe("DashboardView", () => {
     renderWithApp(<DashboardView />);
 
     await waitFor(() => expect(summarySpy).toHaveBeenCalledWith(2));
+    expect(useSnapshotSelectionStore.getState().selectedSnapshotId).toBe(2);
     expect(await screen.findByText("스캔당 발견 자산")).toBeInTheDocument();
     expect(screen.getAllByText("스캔 #44").length).toBeGreaterThanOrEqual(2);
     expect((await screen.findAllByText("12")).length).toBeGreaterThanOrEqual(2);

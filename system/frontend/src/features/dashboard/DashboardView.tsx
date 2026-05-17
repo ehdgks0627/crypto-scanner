@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, Plus } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -20,6 +20,7 @@ import type { NetworkExposureNode } from "../../domain/networkExposureGraph";
 import { buildNetworkExposureGraph } from "../../domain/networkExposureGraph";
 import { formatDateTime, formatNumber } from "../../lib/format";
 import { useSnapshotSelectionStore } from "../../stores/snapshotSelectionStore";
+import { getLatestSnapshotId } from "../snapshots/GlobalSnapshotSelector";
 import { useSelectedSnapshot } from "../snapshots/useSelectedSnapshot";
 
 function objectToChartData(value: Record<string, number> | undefined, labeler: (name: string) => string = (name) => name) {
@@ -34,10 +35,19 @@ export function DashboardView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const setSelectedSnapshotId = useSnapshotSelectionStore((state) => state.setSelectedSnapshotId);
-  const { selectedSnapshotId } = useSelectedSnapshot();
+  const { snapshotItems, selectedSnapshotId } = useSelectedSnapshot();
+  const latestSnapshotId = useMemo(() => getLatestSnapshotId(snapshotItems), [snapshotItems]);
+  const dashboardSnapshotId = latestSnapshotId ?? undefined;
+
+  useEffect(() => {
+    if (latestSnapshotId && selectedSnapshotId !== latestSnapshotId) {
+      setSelectedSnapshotId(latestSnapshotId);
+    }
+  }, [latestSnapshotId, selectedSnapshotId, setSelectedSnapshotId]);
+
   const summary = useQuery({
-    queryKey: queryKeys.dashboard.summary(selectedSnapshotId ?? undefined),
-    queryFn: () => services.dashboard.summary(selectedSnapshotId ?? undefined),
+    queryKey: queryKeys.dashboard.summary(dashboardSnapshotId),
+    queryFn: () => services.dashboard.summary(dashboardSnapshotId),
     refetchInterval: GRAPH_REFRESH_MS
   });
   const graphSnapshotId = summary.data?.snapshot?.id;
