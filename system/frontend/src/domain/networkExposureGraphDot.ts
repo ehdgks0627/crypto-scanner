@@ -43,11 +43,11 @@ export function buildNetworkExposureDot(graph: NetworkExposureGraph) {
   const visibleLinks = graph.links.filter((link) => link.kind !== "contains" && !clusteredGroupIds.has(link.source) && !clusteredGroupIds.has(link.target));
   const lines = [
     "digraph NetworkExposure {",
-    '  graph [layout=dot, bgcolor="transparent", pad="0.18", rankdir=LR, compound=true, newrank=true, nodesep="0.3", ranksep="0.56", splines=ortho, outputorder=edgesfirst];',
+    '  graph [layout=dot, bgcolor="transparent", pad="0.12", rankdir=LR, compound=true, newrank=true, nodesep="0.22", ranksep="0.48", splines=ortho, outputorder=edgesfirst];',
     '  node [fontname="Inter", fontsize=10, margin="0.1,0.06"];',
-    '  edge [fontname="JetBrains Mono", fontsize=9, penwidth=1.55, arrowsize=0.65];',
+    '  edge [fontname="JetBrains Mono", fontsize=8, penwidth=1.4, arrowsize=0.6];',
     ...clusters.map(clusterStatement),
-    ...standaloneNodes.map(nodeStatement),
+    ...standaloneNodes.map((node) => nodeStatement(node)),
     ...visibleLinks.map(edgeStatement),
     "}"
   ];
@@ -70,19 +70,22 @@ export function parseGraphNodeAppUrl(href: string | null | undefined) {
   }
 }
 
-function nodeStatement(node: NetworkExposureNode) {
+function nodeStatement(node: NetworkExposureNode, options: { compact?: boolean } = {}) {
+  const compact = options.compact ?? false;
   const risk = riskStyles[node.riskTier ?? "UNKNOWN"];
-  const label = dotEscape(nodeLabel(node));
+  const label = dotEscape(compact ? compactNodeLabel(node) : nodeLabel(node));
   const tooltip = dotEscape([kindLabels[node.kind], node.label, node.subtitle].filter(Boolean).join(" | "));
   return [
     `  ${quoteId(node.id)} [`,
     `    label="${label}",`,
-    `    shape=${kindShapes[node.kind]},`,
+    `    shape=${compact && node.kind === "target" ? "box" : kindShapes[node.kind]},`,
     '    style="filled",',
     `    color="${risk.border}",`,
     `    fillcolor="${risk.fill}",`,
     `    fontcolor="${risk.text}",`,
-    '    penwidth=1.8,',
+    `    fontsize=${compact ? 9 : 10},`,
+    `    margin="${compact ? "0.06,0.035" : "0.1,0.06"}",`,
+    `    penwidth=${compact ? 1.25 : 1.8},`,
     `    tooltip="${tooltip}",`,
     `    URL="${graphNodeAppUrl(node.id)}",`,
     '    target="_self"',
@@ -113,14 +116,6 @@ type GraphCluster = {
 
 function buildGroupClusters(graph: NetworkExposureGraph) {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const descendantLinks = graph.links.filter((link) => link.kind !== "contains" && link.kind !== "has_finding");
-  const descendantsBySource = new Map<string, string[]>();
-  for (const link of descendantLinks) {
-    const targets = descendantsBySource.get(link.source) ?? [];
-    targets.push(link.target);
-    descendantsBySource.set(link.source, targets);
-  }
-
   const clusteredNodeIds = new Set<string>();
   const clusters: GraphCluster[] = [];
 
@@ -134,7 +129,12 @@ function buildGroupClusters(graph: NetworkExposureGraph) {
       continue;
     }
 
-    const memberIds = collectClusterMembers(link.target, descendantsBySource, nodesById, clusteredNodeIds);
+    const target = nodesById.get(link.target);
+    if (target?.kind !== "target" || clusteredNodeIds.has(target.id)) {
+      continue;
+    }
+
+    const memberIds = new Set([target.id]);
     if (memberIds.size === 0) {
       continue;
     }
@@ -154,38 +154,6 @@ function buildGroupClusters(graph: NetworkExposureGraph) {
   return clusters;
 }
 
-function collectClusterMembers(
-  rootId: string,
-  descendantsBySource: Map<string, string[]>,
-  nodesById: Map<string, NetworkExposureNode>,
-  alreadyClustered: Set<string>
-) {
-  const memberIds = new Set<string>();
-  const queue = [rootId];
-
-  while (queue.length > 0) {
-    const nodeId = queue.shift();
-    if (!nodeId || memberIds.has(nodeId) || alreadyClustered.has(nodeId)) {
-      continue;
-    }
-
-    const node = nodesById.get(nodeId);
-    if (!node || node.kind === "group" || node.kind === "finding") {
-      continue;
-    }
-
-    memberIds.add(nodeId);
-    if (node.kind === "endpoint") {
-      continue;
-    }
-    for (const descendantId of descendantsBySource.get(nodeId) ?? []) {
-      queue.push(descendantId);
-    }
-  }
-
-  return memberIds;
-}
-
 function clusterStatement(cluster: GraphCluster) {
   const risk = riskStyles[cluster.group.riskTier ?? "UNKNOWN"];
   const label = clusterLabel(cluster.group);
@@ -202,21 +170,16 @@ function clusterStatement(cluster: GraphCluster) {
     `    color="${risk.border}";`,
     `    fillcolor="${clusterFillColor(risk.fill)}";`,
     `    fontcolor="${risk.text}";`,
-    '    fontsize=10;',
-    '    penwidth=1.45;',
-    '    margin=8;',
-    ...cluster.members.map((node) => indent(nodeStatement(node), 4)),
+    '    fontsize=9;',
+    '    penwidth=1.2;',
+    '    margin=3;',
+    ...cluster.members.map((node) => indent(nodeStatement(node, { compact: true }), 4)),
     "  }"
   ].join("\n");
 }
 
 function clusterLabel(group: NetworkExposureNode) {
-  return [
-    ...wrapText(group.label, 30, 1),
-    ...wrapText(group.subtitle ?? kindLabels.group, 30, 1)
-  ]
-    .filter(Boolean)
-    .join("\n");
+  return truncate(group.label, 26);
 }
 
 function clusterIdSuffix(value: string) {
@@ -245,6 +208,10 @@ function nodeLabel(node: NetworkExposureNode) {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function compactNodeLabel(node: NetworkExposureNode) {
+  return truncate(node.label, 18);
 }
 
 function wrapText(value: string, lineLength: number, maxLines: number) {

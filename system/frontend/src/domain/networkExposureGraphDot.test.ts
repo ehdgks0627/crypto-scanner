@@ -76,9 +76,9 @@ describe("buildNetworkExposureDot", () => {
     expect(dot).toContain("layout=dot");
     expect(dot).toContain("rankdir=LR");
     expect(dot).toContain('subgraph "cluster_group_target_scope_10_10_10_0_24"');
-    expect(dot).toContain('label="10.10.10.0/24\\nDiscovery Agent"');
+    expect(dot).toContain('label="10.10.10.0/24"');
     expect(dot).not.toContain("shape=folder");
-    expect(dot).toContain("shape=box3d");
+    expect(dot).toContain("shape=box");
     expect(dot).toContain("shape=component");
     expect(dot).toContain("shape=note");
     expect(dot).toContain("shape=octagon");
