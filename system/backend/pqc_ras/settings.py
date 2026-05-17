@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "apps.assets",
     "apps.core",
     "apps.dashboard",
+    "apps.demo",
     "apps.discoveries",
     "apps.health",
     "apps.jobs",
