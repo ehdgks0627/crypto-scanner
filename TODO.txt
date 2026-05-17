@@ -1,466 +1,465 @@
-════════════════════════════════════════════════════════════════════════════════
-PQC 전환 자동화 시스템 · 구현 체크리스트
-프로젝트: 양자택일 (Quantum-Either)
-근거: 최종 발표 자료 (MainDeck.html)
-체크 기준: [ ] 미구현 / [~] 부분 구현 / [x] 구현 완료 / [-] 향후 확장 (의도적 미포함)
-최근 점검: 2026-05-17, 현재 main 코드 기준
-점검 메모:
-  · Host Agent 최소 구현을 반영했다. 시스템 CA, 인증서 파일, 개인키 파일, SSH 설정, 애플리케이션 TLS 설정을 수집한다.
-  · 개인키는 원문을 저장하지 않고 path/algorithm/key_size/fingerprint/in_use/dormant 메타데이터만 저장한다.
-  · Discovery Agent TLS probe가 서버에서 수락되는 TLS 1.2/1.3 cipher suite 후보를 열거해 자산화한다.
-  · Host Agent는 SSH 기반 원격 배포 스크립트로 systemd 서비스 설치까지 자동화한다.
-  · LLM 정성 분석은 mock-rulebook 기반 자산별 큐 작업으로 실행 가능하다.
-  · LLM 호출 모듈은 OpenAI 호환 Chat Completions provider를 환경변수 기반으로 호출하고, 미구성 시 mock-rulebook을 유지한다.
-  · LLM 정성 분석 prompt는 자산 메타데이터, 컨텍스트, risk score를 구조화해 주입한다.
-  · LLM operational context는 파일 경로, 연결 서비스, 데이터 분류, 통신 노출 범위를 정규화한다.
-  · LLM 자유 텍스트 응답은 JSON 객체를 추출해 QualitativeAssessment 필드로 검증/정규화한다.
-  · LLM 정성 분석 응답 실패/타임아웃은 휴리스틱 결과로 폴백하고 실패 사유를 prompt_payload에 기록한다.
-  · LLM 정성 분석은 prompt 입력 해시를 저장해 동일 입력 재실행 시 기존 결과를 캐시로 재사용한다.
-  · LLM 정성 분석은 DHS Q1 자산 가치(asset_value)를 외부 노출과 비즈니스 중요도 기준으로 구조화한다.
-  · LLM 정성 분석은 DHS Q2 보호 정보(protected_information)를 데이터 분류와 기밀성 기준으로 구조화한다.
-  · LLM 정성 분석은 DHS Q3 통신 범위(communication_scope)를 내부 전용/외부 양방향 기준으로 구조화한다.
-  · LLM 정성 분석은 DHS Q4 공유 수준(sharing_level)을 3rd-party/파트너/공개 연동 기준으로 구조화한다.
-  · LLM 정성 분석은 DHS Q5 핵심 인프라(critical_infrastructure)를 DB/인증/결제/KMS/게이트웨이 의존도 기준으로 구조화한다.
-  · LLM 정성 분석은 DHS Q6 보호 기간(protection_duration)을 보존 기간과 HNDL 노출 기준으로 구조화한다.
-  · DHS 6기준은 HNDL 보호 기간에 가장 큰 가중치를 두고 0~10 score_10 및 P1/P2/P3로 합산한다.
-  · 자산 목록과 위험평가 표는 DHS 점수(score_10)와 우선순위(P1/P2/P3)를 컬럼으로 표시한다.
-  · 마이그레이션 알고리즘 매핑은 migration_engine/mapping_rules.json 설정 파일로 외부화했다.
-  · 마이그레이션 계획은 asset_purpose로 키 교환/디지털 서명/키 합의/장기 서명 용도를 API와 대시보드에 표시한다.
-  · RSA 자산은 용도별로 분기해 key/key_agreement/protocol은 ML-KEM-768, certificate는 ML-DSA-65 경로를 권고한다.
-  · ECDSA P-256 계열은 ECDSA-P-256/prime256v1/secp256r1 표기를 ML-DSA-65 경로로 정규 매핑한다.
-  · X25519/Curve25519, ECP-256, DH group14/MODP-2048 표기는 ML-KEM-768 키 합의 전환 경로로 정규 매핑한다.
-  · archive/audit/timestamp 등 장기 보존용 서명 컨텍스트는 SLH-DSA-SHA2 계열로 분기한다.
-  · CBOM export는 마이그레이션 계획 annotation과 자산별 migration.* 속성을 함께 첨부한다.
-  · 대시보드 전환 계획 화면은 발표 흐름에 맞춰 Review Targets 명칭으로 노출한다.
-  · 가용성 검사는 TLS 핸드셰이크 성공 횟수에서 success rate를 정규화하고 대시보드에 표시한다.
-  · 가용성 검사는 SSH 대상의 프로토콜을 보존하고 SSH 핸드셰이크 성공률을 프로토콜별 summary로 집계한다.
-  · 가용성 검사는 IKE/IPsec 협상 성공 횟수에서 negotiation success rate를 산출하고 프로토콜별 summary로 집계한다.
-  · 가용성 검사는 프로토콜별 response code와 failure reason을 보존하고 summary에 집계한다.
-  · baseline 스냅샷이 있는 가용성 검사는 latency 전/후 p95와 delta를 summary와 대시보드에 표시한다.
-  · baseline 스냅샷이 있는 가용성 검사는 throughput_rps 전/후 처리량과 delta를 summary와 대시보드에 표시한다.
-  · 가용성 검사 대시보드는 자산별 baseline/current 처리량 비교 그래프를 표시한다.
-  · 가용성 검사는 legacy_tls12 등 클라이언트 프로파일별 상호운용성 결과를 보존하고 대시보드에 표시한다.
-  · 가용성 검사는 프로토콜/클라이언트/응답 코드/실패 사유 단위 failure path를 요약하고 대시보드에 보고한다.
-  · post_migration 가용성 검사 실행은 전환 전 CBOM 스냅샷을 baseline_snapshot_id로 자동 연결한다.
-  · post_migration 가용성 검사 실행은 전환 후 CBOM 스냅샷을 post_migration_snapshot_id와 snapshot summary migration 메타데이터로 연결한다.
-  · CBOM diff는 자산 누락과 알고리즘 다운그레이드를 regressions로 감지하고 스냅샷 비교 화면에 표시한다.
-  · 대시보드는 POST /dashboard/demo-seed를 통해 데모용 테스트베드 시드 데이터를 즉시 로드할 수 있다.
-  · 대시보드는 최신 CBOM 스냅샷 기준 스캔당 발견 암호자산 KPI를 계산해 표시한다.
-  · 대시보드는 최신 CBOM 스냅샷 기준 양자 취약 암호자산 KPI를 계산해 표시한다.
-  · 대시보드는 최신 CBOM 스냅샷 기준 90일 이내 만료 예정 인증서 KPI를 계산해 표시한다.
-  · 대시보드는 최신 CBOM 스냅샷 기준 미사용 파일 기반 개인키 KPI를 계산해 표시한다.
-  · Before 수동 grep 기준선은 docs/kpi/manual-grep-baseline.json 산정표와 테스트로 근거를 고정한다.
-  · 대시보드는 최신 CBOM 스냅샷과 연결된 Scan Job timestamp 기준 자동화 실행 시간 KPI를 표시한다.
-  · 대시보드는 Discovery/Scan/Recompute timestamp 합산 기준 전체 파이프라인 실행 시간 KPI를 표시한다.
-  · Host Agent 내부 점검 클레임은 docs/kpi/host-agent-evidence.json 근거와 데모 시드 테스트로 고정한다.
-  · AI 자동 위험 평가 클레임은 docs/kpi/llm-risk-evidence.json 근거와 OpenAI 호환 provider 응답 저장 테스트로 고정한다.
-  · GitHub 공개 리포지토리와 라이브 대시보드 접근성은 docs/kpi/open-demo-evidence.json 확인 결과로 고정한다.
-  · 소요 시간 "분" 단위 클레임은 docs/kpi/runtime-minutes-evidence.json 근거와 데모 시드 timestamp 테스트로 고정한다.
-  · 코드 정적 분석은 일반 SAST가 아니라 파일/설정 정적 점검 수준이므로 △ 근거로 고정한다.
-  · PQC 전환은 실제 키/인증서/설정 변경이 아니라 매핑 추천과 영향도 산정 수준이므로 △ 근거로 고정한다.
-  · CryptoScan은 코드베이스/설정/의존성 정적 스캔 도구로 확인하고 네트워크 탐색 도구로 설명하지 않는다.
-  · IBM CBOMkit은 CBOM 생성/조회/정책검증과 소스코드/파일시스템/컨테이너 스캔 도구로 확인하고 네트워크 트래픽 분석 도구로 설명하지 않는다.
-  · SandboxAQ AQtive Guard는 상용 비공개 플랫폼이며 AI 기반 위험 분석과 네트워크/runtime 가시성을 공식 지원하는 것으로 확인한다.
-  · CSNP/QRAMM 인용은 CSNP CryptoScan README(QRAMM Toolkit) 원문으로 고정하고 NIST/표준 문구처럼 설명하지 않는다.
-  · CISA 2024 전략 문서는 평균 5~10년 수치의 직접 출처로 쓰지 않고 장기 전환/ACDI 필요성 근거로만 사용한다.
-  · 백악관 NSM-10은 FCEB 기관의 CRQC 취약 IT 시스템 인벤토리 제출 의무로 설명하고 전체 민간/공공 자산 제출 의무처럼 확대하지 않는다.
-  · 국내 PQC 마스터플랜은 KISA 공식 페이지로 존재와 후속 사업을 확인하되, 2023년 발표 주체는 국정원·과기정통부로 분리해 설명한다.
-  · DHS 2021 PQC 로드맵은 중요 데이터/암호 시스템 인벤토리, 공개키 사용 위치 식별, 위험 기반 우선순위화, 전환 계획 수립 근거로 사용한다.
-  · 대시보드 2D 네트워크 노출 그래프는 Discovery Agent scope(CIDR/IP/Domain)와 Host Agent host 기준의 작은 수집 영역(cluster) 안에 스캔 대상만 묶어 표시한다.
-  · 대시보드 2D 네트워크 노출 그래프는 Graphviz SVG를 화면 폭으로 강제 확대하지 않고 자연 크기로 표시한다.
-  · pqc-tls 테스트베드는 ML-KEM/ML-DSA readiness endpoint를 노출하고 Discovery/Scanner가 이를 PQC 자산으로 수집한다.
-  · 네트워크 스캔과 Host Agent가 같은 인증서를 발견하면 fingerprint 기반으로 단일 자산으로 병합한다.
-  · Discovery Agent, 대시보드, CBOM 스냅샷, 마이그레이션 추천, 가용성 검사 UI는 코드 기준으로 반영한다.
-  · KPI 숫자, 외부 도구 비교, 인용 자료는 별도 실측/사실 확인 전까지 완료로 처리하지 않는다.
-════════════════════════════════════════════════════════════════════════════════
+PQC 전환 자동화 시스템 - 최종 시연 구현 TODO
+기준 문서: 작업지시서.txt
+최근 갱신: 2026-05-17
+
+상태 표기:
+  [ ] 미구현
+  [~] 일부 구현됨, 시연 요구사항에 맞게 보완 필요
+  [x] 완료
+
+원칙:
+  - 발표자는 웹 대시보드만 조작한다.
+  - 각 단계는 "다음" 버튼으로 진행된다.
+  - 백엔드는 다음 단계에 필요한 작업을 자동으로 실행한다.
+  - 시연 결과는 매번 같은 숫자로 재현되어야 한다.
+  - 작업을 끝낼 때마다 이 파일을 갱신하고 커밋한다.
 
 
-────────────────────────────────────────────────────────────────────────────────
-0. 시스템 전경 · 컴포넌트
-────────────────────────────────────────────────────────────────────────────────
+===============================================================================
+0. 시연 전체 목표
+===============================================================================
 
-0.1 사용자 인터페이스 (Frontend)
-    [x] 0.1.1  React 기반 웹 대시보드
-    [x] 0.1.2  대상(IP/Domain/CIDR) 등록 화면
-    [x] 0.1.3  발견된 서비스 목록 + 승인(Approve to Scan) 화면
-    [x] 0.1.4  자산 목록(CBOM) 조회 화면
-    [x] 0.1.5  마이그레이션 계획 조회 화면
-    [x] 0.1.6  가용성 검사 결과 화면
-    [x] 0.1.7  사용자가 대시보드만 조작해도 전체 파이프라인이 트리거됨
-              (= Agent를 사용자가 직접 호출하지 않음)
+[ ] 0.1 대시보드에서 6단계 시연 흐름을 한 번에 진행할 수 있게 만든다.
+        단계:
+        1) 대상 등록
+        2) Discovery Agent + Host Agent 실행
+        3) Enriched CBOM 확인
+        4) AI 위험도 평가
+        5) PQC 매핑 추천
+        6) 가용성 검증
 
-0.2 에이전트 (Agents)
-    [x] 0.2.1  Discovery Agent — 외부 네트워크 능동 스캔
-    [x] 0.2.2  Host Agent      — 호스트 내부 점검
-              (테스트베드 기준 최소 구현: 인증서/개인키/SSH 설정/앱 설정)
-    [x] 0.2.3  두 Agent의 결과가 백엔드로 모임 → 단일 자산 목록 생성
+[ ] 0.2 한 번의 시연 사이클이 5분 이내에 끝나게 만든다.
 
-0.3 백엔드 (Backend Core)
-    [x] 0.3.1  Django 기반 API 서버
-    [x] 0.3.2  PostgreSQL — 자산/스캔/CBOM/계획/검증 결과 영속화
-    [x] 0.3.3  Redis — 작업 큐 / 캐시
-    [x] 0.3.4  스캔 작업 큐 처리 (Agent 비동기 실행)
-    [x] 0.3.5  REST API 또는 동등한 API 표면이 프론트엔드에 노출됨
+[ ] 0.3 동일 입력에서 동일 결과가 나오도록 시연 데이터를 결정론적으로 고정한다.
 
-0.4 AI / LLM Engine
-    [x] 0.4.1  LLM 호출 모듈 (위험도 평가용)
-              (risk_engine.llm: QUALITATIVE_LLM_PROVIDER=openai-compatible 설정 시 실제 provider 호출, 실패 시 휴리스틱 폴백)
-    [x] 0.4.2  자산 메타데이터 + 컨텍스트를 LLM 프롬프트로 조립
-              (qualitative-risk-v7 prompt payload에 asset/context/operational_context/risk 주입)
-    [x] 0.4.3  DHS 6가지 기준 응답 파싱 → 구조화된 결과로 저장
-              (Q1~Q6 전체 기준을 dhs_criteria.*로 구조화 저장)
-    [x] 0.4.4  가중치 합산 → 0~10 Risk Score → P1/P2/P3 분류
-              (dhs_risk.score_10과 dhs_risk.priority를 QualitativeAssessment/RiskScore에 노출)
-
-0.5 출력 (Output)
-    [x] 0.5.1  CBOM 스냅샷 생성
-    [x] 0.5.2  자산 한 줄당 — 위치 · 알고리즘 · 키 길이 · 만료일 포함
-              (Host Agent 자산은 metadata에 path/key_size/fingerprint를 보존)
-    [x] 0.5.3  자산 한 줄당 — 위험도 점수 · 우선순위 포함
-              (0~100 위험도와 DHS score_10/P1~P3 우선순위를 자산 한 줄에 포함)
-    [x] 0.5.4  표준 형식(JSON/CycloneDX-CBOM 등)으로 내보내기 가능
-
-0.6 테스트 환경 (Testbed)
-    [x] 0.6.1  Docker Compose / 동등한 오케스트레이션으로 13개 서비스 클러스터 구성
-              (현재 테스트베드는 25개 서비스로 확장됨)
-    [x] 0.6.2  의도적으로 RSA · ECDSA · Ed25519 키 혼재
-    [x] 0.6.3  의도적으로 "잠든 키 파일" 포함 (사용되지 않지만 파일로 남아 있음)
-              (Host Agent가 private key reference를 기준으로 dormant 여부 수집)
-    13개 서비스 (체크리스트, 현재 구성은 25개 서비스로 확장):
-    [x] 0.6.4   web         (HTTPS · TLS)
-    [x] 0.6.5   pqc-tls     (PQC 적용된 TLS 서비스)
-              (TLS 1.3 reference endpoint + /.well-known/pqc-readiness.json에서 ML-KEM-768/ML-DSA-65 수집)
-    [x] 0.6.6   ssh         (SSH 서버)
-    [x] 0.6.7   mqtt        (IoT 브로커)
-    [x] 0.6.8   ipsec       (VPN)
-    [x] 0.6.9   mail        (STARTTLS)
-    [x] 0.6.10  db          (DB 연결 암호화)
-    [x] 0.6.11  api         (내부 API)
-    [x] 0.6.12  인증저장소
-    [x] 0.6.13  비밀관리
-    [x] 0.6.14  모니터링
-    [x] 0.6.15  로그
+[ ] 0.4 시연 중 네트워크나 LLM 장애가 있어도 발표 흐름이 깨지지 않도록 fallback 결과를 제공한다.
 
 
-════════════════════════════════════════════════════════════════════════════════
-1. NIST STEP 01 · 자산 식별 (Discovery)
-   "밖에서, 그리고 안에서 — 두 시선의 합집합"
-════════════════════════════════════════════════════════════════════════════════
+===============================================================================
+1. 시연 데이터 및 리셋 스크립트
+===============================================================================
 
-1.1 외부 능동 스캔 (Discovery Agent · Active scan)
-    [x] 1.1.1  TLS 핸드셰이크 시도 → cipher suite, 인증서 수집
-    [x] 1.1.2  STARTTLS 핸드셰이크 (SMTP/IMAP/POP3 등)
-    [x] 1.1.3  SSH 호스트 키 수집 (algo + fingerprint)
-    [x] 1.1.4  IKE / IPsec 협상 (Phase 1 algo 확인)
-    [x] 1.1.5  인증서 체인 전체 수집 (leaf → intermediate → root)
-    [x] 1.1.6  cipher suite 리스트 → 자산화
-              (TLS 1.2/1.3 cipher 후보별 handshake로 서버 수락 목록을 protocol 자산으로 저장)
-    [x] 1.1.7  대상 범위 입력 지원 — IP 단일 / Domain / CIDR 블록
-    [x] 1.1.8  스캔 진행 상태(진행중/완료/실패)가 대시보드에 표시됨
+[ ] 1.1 `./demo-reset.sh`를 추가한다.
+        완료 기준:
+        - 기존 DB 시연 데이터를 삭제한다.
+        - migration을 적용한다.
+        - 시연용 target, label, asset, snapshot, job 데이터를 다시 주입한다.
+        - 실행 후 대시보드가 STEP 01 초기 상태로 열린다.
 
-1.2 내부 호스트 점검 (Host Agent · Host inspection)
-    [x] 1.2.1  시스템 신뢰 저장소(trust store) 스캔
-              (Linux: /etc/ssl/certs, Windows: cert store, macOS: keychain 등)
-    [x] 1.2.2  파일시스템에서 인증서 파일 탐지 (.pem .crt .cer .p12 .pfx 등)
-    [x] 1.2.3  파일시스템에서 개인키 파일 탐지 (.key .pem .pkcs8 등)
-    [x] 1.2.4  SSH 설정 파일 분석 (/etc/ssh/sshd_config, ~/.ssh)
-    [x] 1.2.5  애플리케이션 설정 파일 분석 (nginx, apache, postfix 등)
-              (TLS 버전, 비활성화 프로토콜, cipher suite, 인증서/키 참조 경로를 metadata로 저장)
-    [x] 1.2.6  "잠든 키 파일" 탐지 — 파일은 있으나 어떤 프로세스도 참조하지 않는 키
-    [x] 1.2.7  Host Agent가 원격 호스트에 배포 가능
-              (SSH push / 에이전트 바이너리 / 컨테이너 사이드카 등)
-              (scripts/deploy-host-agent.sh: SSH 전송, 환경 파일 생성, systemd 서비스 등록)
+[ ] 1.2 `./seed-labels.sh`를 추가한다.
+        완료 기준:
+        - 핵심 호스트 라벨이 DB에 들어간다.
+        - `srv-01` 라벨이 아래 값으로 고정된다.
+          role: edge-proxy
+          data_classes: PII, payment
+          partners: PG-A
+          retention: 7y
 
-1.3 결과 통합
-    [x] 1.3.1  Discovery + Host 결과를 자산 단위로 dedupe + merge
-              (동일 snapshot 내 bom_ref 기준 dedupe)
-    [x] 1.3.2  중복 자산 식별 규칙(서로 다른 시선에서 같은 자산을 본 경우)
-              (인증서는 fingerprint_sha256 기준으로 병합하고 출처 증거를 metadata에 보존)
-    [x] 1.3.3  최종 자산 목록이 단일 테이블/CBOM으로 저장됨
+[ ] 1.3 `./record-demo.sh`를 추가한다.
+        완료 기준:
+        - 발표용 백업 영상을 남길 수 있다.
+        - 로컬 또는 배포 URL을 대상으로 녹화할 수 있다.
 
+[ ] 1.4 시연 대상 13개를 seed로 고정한다.
+        완료 기준:
+        - 10.0.0.0/24
+        - payments.demo.local
+        - ssh.demo.local
+        - mail.demo.local
+        - 13개 서비스 클러스터 전체가 커버된다.
 
-════════════════════════════════════════════════════════════════════════════════
-2. NIST STEP 02 · 위험도 평가 (Analysis)
-   "DHS 6기준을 LLM이 응답 → 가중치 합산 → 우선순위"
-════════════════════════════════════════════════════════════════════════════════
+[ ] 1.5 시연 자산 수를 정확히 47개로 맞춘다.
+        현재 상태:
+        - 현재 `LATEST_ASSETS`는 67개로 작업지시서와 불일치한다.
+        완료 기준:
+        - 총 자산 47개
+        - Discovery Agent 발견 28개
+        - Host Agent 발견 24개
+        - 양쪽 모두에서 발견된 중복 5개
+        - 합집합 47개
 
-2.1 LLM Engine — 기본
-    [x] 2.1.1  자산별로 LLM을 호출하는 워커 구현
-              (qualitative_assessment 큐 작업이 자산별 mock-rulebook 분석을 생성/갱신)
-    [x] 2.1.2  프롬프트 템플릿 작성 — 자산 메타데이터 + 컨텍스트 주입
-              (qualitative-risk-v1 prompt payload에 asset metadata/context/source/risk를 주입)
-    [x] 2.1.3  컨텍스트 입력 — 파일 경로, 연결된 서비스명, 데이터 분류 등
-              (operational_context에 file_paths/connected_service/data_classification/exposure를 주입)
-    [x] 2.1.4  LLM 응답(자유 텍스트) → 구조화된 JSON 파싱
-              (텍스트/코드펜스 내 JSON을 summary/threat_scenarios/recommendation/confidence로 정규화)
-    [x] 2.1.5  실패/타임아웃 시 재시도 또는 폴백 (휴리스틱 점수)
-              (parse/provider 실패 시 mock-rulebook-fallback 휴리스틱 결과 저장 및 사유 기록)
-    [x] 2.1.6  LLM 호출 결과 영속화 (재실행 시 캐시)
-              (prompt 입력 해시 기반으로 같은 자산/컨텍스트/risk 요청은 기존 QualitativeAssessment 재사용)
+[ ] 1.6 알고리즘 분포를 발표 수치와 맞춘다.
+        완료 기준:
+        - RSA 14개
+        - ECDSA 6개
+        - Ed25519 5개
+        - DH/X25519 8개
+        - AES/ChaCha20 9개
+        - SHA256/SHA512 5개
 
-2.2 DHS 6가지 기준 응답
-    [x] 2.2.1  Q1 · 자산 가치  — 외부 노출, 비즈니스 중요도 평가
-              (dhs_criteria.asset_value에 rating/score/rationale/signals 저장)
-    [x] 2.2.2  Q2 · 보호 정보   — 데이터 분류 (개인정보/결제/의료/기밀)
-              (dhs_criteria.protected_information에 rating/score/data_classification/rationale/signals 저장)
-    [x] 2.2.3  Q3 · 통신 범위   — 내부전용 vs 외부 양방향
-              (dhs_criteria.communication_scope에 rating/score/exposure/direction/rationale/signals 저장)
-    [x] 2.2.4  Q4 · 공유 수준   — 3rd-party / 파트너 연동 여부
-              (dhs_criteria.sharing_level에 rating/score/sharing_scope/external_parties/rationale/signals 저장)
-    [x] 2.2.5  Q5 · 핵심 인프라 — DB/인증/결제 의존도
-              (dhs_criteria.critical_infrastructure에 rating/score/dependency_level/infrastructure_roles/rationale/signals 저장)
-    [x] 2.2.6  Q6 · 보호 기간   — 보존 기간 (HNDL 가중치 핵심 항목)
-              (dhs_criteria.protection_duration에 rating/score/lifespan_years/hndl_exposure/rationale/signals 저장)
+[ ] 1.7 잠든 키 파일 수를 3개로 고정한다.
+        완료 기준:
+        - 활성 자산 44개
+        - 사용되지 않는 키 파일 3개
+        - UI에서 별도 표시된다.
 
-2.3 점수화 · 우선순위
-    [x] 2.3.1  6개 답변 → 가중치 합산 알고리즘 구현
-              (risk_engine.dhs.compute_dhs_risk에서 Q1~Q6 weighted sum 계산)
-    [x] 2.3.2  HNDL(보호 기간)에 가장 큰 가중치 적용 (발표 명시 사항)
-              (protection_duration weight=1.6으로 6개 기준 중 최상위 가중치 적용)
-    [x] 2.3.3  최종 출력 — Risk Score (0~10)
-              (dhs_risk.score_10)
-    [x] 2.3.4  최종 출력 — 우선순위 분류 (P1 / P2 / P3)
-              (dhs_risk.priority)
-    [x] 2.3.5  결과가 대시보드 자산 목록에 컬럼으로 표시됨
-              (자산 목록/위험평가 표에 DHS 점수와 P1/P2/P3 우선순위 컬럼 표시)
+[ ] 1.8 위험도 분포를 발표 수치와 맞춘다.
+        현재 상태:
+        - 현재 seed는 CRITICAL/HIGH/MEDIUM/LOW 기반이라 P1/P2/P3 발표 수치와 다르다.
+        완료 기준:
+        - P1 12개
+        - P2 8개
+        - P3 27개
+
+[ ] 1.9 핵심 예시 자산 `srv-01:443/tls`를 고정한다.
+        완료 기준:
+        - algorithm: RSA-2048
+        - role: edge-proxy
+        - data_classes: PII, payment
+        - partners: PG-A
+        - retention: 7y
+        - AI 위험도 결과: 9.2점 / P1
 
 
-════════════════════════════════════════════════════════════════════════════════
-3. NIST STEP 03 · PQC 전환 (Migration)
-   "알고리즘 매핑 추천까지 — 실제 키 교체는 향후 확장"
-════════════════════════════════════════════════════════════════════════════════
+===============================================================================
+2. 백엔드 시연 오케스트레이션
+===============================================================================
 
-3.1 알고리즘 매핑 추천 (구현 범위)
-    [x] 3.1.1  자산 용도 분류 (키교환 / 디지털서명 / 키합의 / 장기서명)
-              (asset_purpose를 API/대시보드/보고서에 노출하고 mapping_rules.json의 purpose로 분류)
-    [x] 3.1.2  RSA-2048 → ML-KEM-768 (FIPS 203, 키 교환) 매핑
-              (key/key_agreement/protocol은 ML-KEM-768, certificate/서명 계열은 ML-DSA-65로 분리)
-    [x] 3.1.3  ECDSA P-256 → ML-DSA-65 (FIPS 204, 디지털 서명) 매핑
-              (ECDSA-P-256/prime256v1/secp256r1/nistp256 인증서·키 표기 지원)
-    [x] 3.1.4  X25519 / DH → ML-KEM-768 (키 합의) 매핑
-              (X25519/Curve25519, ECP-256, diffie-hellman-group14, MODP-2048 표기 지원)
-    [x] 3.1.5  장기 보존용 서명 → SLH-DSA (FIPS 205, 해시 기반) 매핑
-              (archive/audit/timestamp/signature_profile=long_term 컨텍스트에서 SLH-DSA-SHA2 추천)
-    [x] 3.1.6  매핑 추천이 자산별로 대시보드 화면에 표시됨
-    [x] 3.1.7  매핑 규칙이 설정 파일/DB로 외부화되어 있음 (코드에 하드코딩 X)
-              (migration_engine/mapping_rules.json에서 match_regex/asset_types/hybrid_set/replace_set 로드)
+[ ] 2.1 시연 흐름 상태를 저장하는 모델 또는 서비스 레이어를 추가한다.
+        완료 기준:
+        - 현재 단계
+        - 단계별 상태
+        - 연결된 target, discovery, scan, snapshot, assessment, migration, verification id
+        - 마지막 오류 메시지
+        - 재실행 가능 여부
 
-3.2 마이그레이션 계획서 생성
-    [x] 3.2.1  자산별 — 현재 알고리즘 / 추천 PQC / 영향도 / 우선순위 표 생성
-    [x] 3.2.2  계획서를 CBOM 첨부 형태로 내보내기
-              (CBOM export에 migration plan annotation과 자산별 migration.* properties 포함)
-    [x] 3.2.3  대시보드 "Review Targets" 화면에서 계획 확인 가능
-              (사이드바/스냅샷 액션/PageHeader를 Review Targets 명칭으로 정렬)
+[ ] 2.2 시연용 API를 추가한다.
+        권장 API:
+        - POST /api/demo/reset
+        - GET  /api/demo/session
+        - POST /api/demo/session/start
+        - POST /api/demo/session/next
+        - GET  /api/demo/session/events
 
-3.3 향후 확장 (의도적으로 이번 PoC에서는 미구현)
-    [-] 3.3.1  실제 키 교체 자동화 (OpenSSL/oqs-provider 기반)
-    [-] 3.3.2  하이브리드 운용 (Classical + PQC 동시) 자동 설정
-    [-] 3.3.3  롤백 자동화
+[ ] 2.3 기존 API와 작업지시서 API의 차이를 정리한다.
+        현재 상태:
+        - 실제 API는 `/discoveries`, `/snapshots`, `/performance-runs` 중심이다.
+        - 작업지시서는 `/api/scans`, `/api/cbom`, `/api/assessments`, `/api/verifications`를 기대한다.
+        완료 기준:
+        - 기존 API를 유지하면서 시연용 wrapper API를 제공하거나,
+        - 프론트가 현재 API에 맞춰 6단계 흐름을 구성한다.
 
+[ ] 2.4 각 단계의 비동기 작업을 자동 연결한다.
+        완료 기준:
+        - STEP 01 완료 후 STEP 02 실행 가능
+        - STEP 02 완료 후 snapshot 생성
+        - STEP 03 완료 후 assessment 실행
+        - STEP 04 완료 후 migration plan 생성
+        - STEP 05 완료 후 verification 실행
 
-════════════════════════════════════════════════════════════════════════════════
-4. NIST STEP 04 · 검증 (Verification)
-   "기능 · 성능 · 호환성 · 회귀 — 4차원 검사"
-════════════════════════════════════════════════════════════════════════════════
-
-4.1 기능 검증
-    [x] 4.1.1  전환 후 TLS 핸드셰이크 성공률 측정
-              (successful/failed handshakes 또는 failure_rate에서 handshake_success_rate 산출 및 표시)
-    [x] 4.1.2  전환 후 SSH 핸드셰이크 성공률 측정
-              (SSH target protocol을 metrics/result/summary에 보존하고 success rate 산출)
-    [x] 4.1.3  전환 후 IKE/IPsec 협상 성공률 측정
-              (successful/failed negotiations에서 negotiation_success_rate 산출 및 IKE summary 집계)
-    [x] 4.1.4  프로토콜별 응답 코드/실패 사유 기록
-              (metrics/result에 response_code/failure_reason 보존, by_protocol summary 집계 및 대시보드 표시)
-
-4.2 성능 검증
-    [x] 4.2.1  응답 지연(latency) 측정 — 전·후 비교
-              (baseline_metrics 보존, latency_comparison summary 산출, 대시보드 기준/현재 p95 표시)
-    [x] 4.2.2  처리량(throughput, req/s) 측정 — 전·후 비교
-              (throughput_rps/requests_per_second/connections_per_second baseline 비교 및 대시보드 표시)
-    [x] 4.2.3  결과를 그래프/표로 대시보드에 표시
-              (가용성 검사 결과 테이블/요약과 자산별 처리량 비교 그래프 표시)
-
-4.3 호환성
-    [x] 4.3.1  구버전 클라이언트와의 상호운용성 확인
-              (client_compatibility 프로파일별 PASS/WARN/FAIL 기록, summary/대시보드 표시)
-    [x] 4.3.2  깨지는 경로(failure path) 식별 + 보고
-              (failure_paths summary 산출 및 가용성 검사 대시보드 보고 테이블 표시)
-
-4.4 회귀 방지 (CBOM 전·후 비교)
-    [x] 4.4.1  전환 전 CBOM 스냅샷 저장
-              (post_migration 실행 생성 시 최신 이전 스냅샷을 pre-migration baseline으로 자동 연결)
-    [x] 4.4.2  전환 후 CBOM 스냅샷 저장
-              (post_migration 실행 생성 시 전환 후 스냅샷을 API와 snapshot summary migration 메타데이터로 자동 연결)
-    [x] 4.4.3  두 스냅샷을 diff하여 변경된 자산만 추적
-    [x] 4.4.4  의도치 않은 변경(자산 누락, 알고리즘 다운그레이드 등) 감지
-              (CBOM diff regressions로 자산 누락/알고리즘 삭제/알고리즘 다운그레이드 감지 및 대시보드 표시)
+[ ] 2.5 진행 상황 스트림을 제공한다.
+        완료 기준:
+        - WebSocket 또는 SSE
+        - 어려우면 짧은 주기 polling으로 대체
+        - UI에서 로그와 진행률이 자연스럽게 증가한다.
 
 
-════════════════════════════════════════════════════════════════════════════════
-5. 시연(Demo) 플로우 — 6단계
-   대시보드 위에서 NIST 절차 한 사이클이 끝까지 돌아야 함
-════════════════════════════════════════════════════════════════════════════════
+===============================================================================
+3. STEP 01 - 대상 등록
+===============================================================================
 
-    [x] 5.1  STEP 01 · 탐색 대상 추가 — IP / Domain / CIDR 입력
-    [x] 5.2  STEP 02 · Discovery Agent 실행 — "Find Endpoints" 버튼
-    [x] 5.3  STEP 03 · 발견된 서비스 승인 — "Approve to Scan"
-    [x] 5.4  STEP 04 · 자산 목록 확인 — CBOM Snapshot 화면
-    [x] 5.5  STEP 05 · 마이그레이션 계획 확인 — Review Targets 화면
-    [x] 5.6  STEP 06 · 가용성 검사 결과 — TLS Handshake Test 결과
-    [x] 5.7  여섯 단계가 한 사용자 세션 안에서 끊김 없이 진행됨
-    [x] 5.8  데모용 시드 데이터(13개 서비스 클러스터) 자동 로드 옵션
-             (대시보드의 데모 데이터 로드 버튼이 seed_testbed_demo --reset API를 호출해 25개 서비스 기준 데이터를 자동 로드)
+[ ] 3.1 시연 모드의 대상 등록 화면을 만든다.
+        완료 기준:
+        - IP / Domain / CIDR 입력
+        - 대상 추가 버튼
+        - 등록된 대상 테이블
+        - 13개 seed target이 보인다.
 
+[ ] 3.2 호스트 라벨링 UI를 만든다.
+        완료 기준:
+        - role 드롭다운
+        - data_classes 체크박스
+        - partners 태그 입력
+        - retention 드롭다운
+        - `srv-01` 라벨이 seed 값으로 표시된다.
 
-════════════════════════════════════════════════════════════════════════════════
-6. 핵심 성과 지표 (KPI) — 발표에서 약속한 숫자
-   현재 25개 서비스 테스트베드 기준 · 시연 결과
-════════════════════════════════════════════════════════════════════════════════
-
-    [x] 6.1  스캔 1회당 — 발견된 암호 자산 실측값
-             (대시보드 KPI로 최신 CBOM 스냅샷의 asset_count 표시, 현재 데모 시드 기준 67개)
-    [x] 6.2  스캔 1회당 — 양자 취약 자산 실측값
-             (RSA · ECDSA · DH 계열 분류 결과, 현재 데모 시드 기준 52개)
-    [x] 6.3  스캔 1회당 — 만료 임박 인증서: 8개
-             (인증서 metadata.expires_at/not_after 기준 90일 이내 만료)
-    [x] 6.4  스캔 1회당 — 잠든 개인키: 3개
-             (metadata.dormant/in_use와 private_key_paths 기준)
-    [x] 6.5  Before · 수동 grep 기준 — 수일 ~ 수주
-             (docs/kpi/manual-grep-baseline.json 산정표와 검증 테스트로 정성 비교 근거 확보)
-    [x] 6.6  After  · 우리 시스템 — 수 분
-             (최신 CBOM 스냅샷 scan_job started_at/finished_at 기준, 데모 시드 6분)
-    [x] 6.7  전체 파이프라인 실행 시간이 10분 이내 (시연 가능 시간)
-             (Discovery 2분 + Scan 6분 + Recompute 1분 = 데모 시드 기준 9분 KPI 표시)
+[ ] 3.3 STEP 01 완료 조건을 구현한다.
+        완료 기준:
+        - target 13개 이상 존재
+        - `srv-01` 필수 라벨 존재
+        - 조건 충족 시 "다음 단계" 버튼 활성화
 
 
-════════════════════════════════════════════════════════════════════════════════
-7. 다른 도구와의 비교 — 발표에서 주장한 포지션
-   각 항목이 사실로 입증 가능해야 발표 신뢰도가 유지됨
-════════════════════════════════════════════════════════════════════════════════
+===============================================================================
+4. STEP 02 - Discovery Agent + Host Agent 실행
+===============================================================================
 
-7.1 우리 시스템이 갖춰야 할 것 (○ 클레임)
-    [x] 7.1.1  외부 네트워크 발견 (TLS · SSH) — 실제 동작 입증
-    [x] 7.1.2  호스트 내부 점검 (잠든 키 포함) — 실제 동작 입증
-              (docs/kpi/host-agent-evidence.json + seed_testbed_demo 실행 로그/잠든 키 테스트로 근거 고정)
-    [x] 7.1.3  AI 자동 위험 평가 — 실제 LLM 응답 흐름 입증
-              (OpenAI 호환 provider 응답을 QualitativeAssessment로 저장하는 경로와 fallback/cache 근거 고정)
-    [x] 7.1.4  오픈 · 시연 가능 — GitHub 리포 + 라이브 시연 가능
-              (GitHub public, raw README, pqc.sprout.kr health/dashboard HTTP 200 확인. 단, push 후 배포 최신성 재확인 필요)
-    [x] 7.1.5  소요 시간 "분" 단위 — 측정값 확보
-              (데모 시드 timestamp 기준 자동 자산화 6분, 전체 파이프라인 9분 근거 고정)
+[~] 4.1 Discovery Agent 결과를 시연 수치에 맞게 정리한다.
+        완료 기준:
+        - Discovery Agent 발견 자산 28개
+        - TLS, STARTTLS, SSH, IKE 진행 로그 표시
+        - 인증서 체인 수집 로그 표시
 
-7.2 정직성 (△ 클레임)
-    [x] 7.2.1  코드 정적 분석 — △로 표시 (제한적 지원)
-              (docs/kpi/static-analysis-evidence.json 기준: 파일/설정 정적 점검은 지원, 일반 SAST/source dataflow는 미지원)
-    [x] 7.2.2  PQC 전환은 매핑 추천까지 — 발표 본문/노트에 명시 일관
-              (docs/kpi/migration-scope-evidence.json 기준: 추천/영향도/보고서만 지원, 실제 키·인증서·설정 변경은 미지원)
+[~] 4.2 Host Agent 결과를 시연 수치에 맞게 정리한다.
+        완료 기준:
+        - Host Agent 발견 자산 24개
+        - trust store, 인증서 파일, 키 파일, 설정 파일 수집 로그 표시
+        - 잠든 키 파일 3개 표시
 
-7.3 비교 대상 도구의 정확성 (사실 확인)
-    [x] 7.3.1  CryptoScan (csnp/cryptoscan) — 코드 정적 분석 한정 사실 확인
-              (docs/kpi/cryptoscan-evidence.json 기준: 코드베이스/설정/의존성 정적 스캔, 네트워크 탐색/가용성 검사는 미확인)
-    [x] 7.3.2  IBM CBOMkit — 네트워크 트래픽 분석 없음 사실 확인
-              (docs/kpi/cbomkit-evidence.json 기준: CBOM 생성/조회/정책검증, Git/source/filesystem/container 스캔은 확인; packet capture/network traffic 분석은 미확인)
-    [x] 7.3.3  SandboxAQ AQtive Guard — 상용 비공개 사실 확인 + AI 평가 ○ 사실 확인
-              (docs/kpi/aqtive-guard-evidence.json 기준: 상용 demo/trial 플랫폼, AI risk analysis/runtime-network visibility 공식 지원, 공개 소스 제품은 미확인)
+[ ] 4.3 Discovery Agent와 Host Agent 결과를 병합한다.
+        완료 기준:
+        - 양쪽 모두에서 발견된 중복 5개
+        - fingerprint 또는 stable id 기준 dedupe
+        - 최종 합집합 47개
 
-
-════════════════════════════════════════════════════════════════════════════════
-8. 인용 자료 · 사실 확인 (발표에서 주장한 출처)
-   slide 10 · slide 11 · slide 14 · slide 16의 인용이 정확해야 함
-════════════════════════════════════════════════════════════════════════════════
-
-    [x] 8.1  CSNP / QRAMM Toolkit — "You can't migrate what you can't find."
-             (docs/kpi/csnp-qramm-quote-evidence.json 기준: CSNP CryptoScan README(QRAMM Toolkit) 원문 확인, source-code cryptographic discovery 맥락으로 제한)
-    [x] 8.2  CISA (2024) — 평균 마이그레이션 5~10년 보고서 출처 명확화
-             (docs/kpi/cisa-migration-timeline-evidence.json 기준: CISA 2024는 장기 전환/ACDI 근거로 사용, 평균 5~10년 직접 출처로는 사용하지 않음)
-    [x] 8.3  백악관 NSM-10 (2022) — 연방기관 암호 자산 목록 제출 의무화
-             (docs/kpi/white-house-nsm10-inventory-evidence.json 기준: FCEB 기관의 CRQC 취약 IT 시스템 인벤토리 제출 및 현재 암호 방식 포함 요구로 범위 제한)
-    [x] 8.4  국정원 · KISA (2023) — 양자내성암호 마스터플랜
-             (docs/kpi/korea-pqc-master-plan-evidence.json 기준: KISA 공식 페이지는 2023년 7월 범국가 PQC 전환 마스터플랜과 2025년 시범전환 사업을 확인, 발표 주체는 국정원·과기정통부로 구분)
-    [x] 8.5  NIST SP 1800-38B — Quantum Readiness: Cryptographic Discovery
-    [x] 8.6  미국 국토안보부(DHS) — Preparing for Post-Quantum Cryptography (2021)
-             (docs/kpi/dhs-pqc-roadmap-evidence.json 기준: DHS/NIST 2021 로드맵은 데이터·암호 시스템 인벤토리, 공개키 취약 시스템 식별, 우선순위화, 전환 계획 근거로 사용)
-    [ ] 8.7  NIST FIPS 203 · 204 · 205 — ML-KEM · ML-DSA · SLH-DSA (2024 표준화)
+[ ] 4.4 STEP 02 화면을 만든다.
+        완료 기준:
+        - 좌측 Discovery Agent 로그
+        - 우측 Host Agent 로그
+        - 상단 진행률 0% -> 100%
+        - 발견 자산 수 0 -> 47 카운트업
+        - 완료 후 "다음 단계" 활성화
 
 
-════════════════════════════════════════════════════════════════════════════════
-9. 비기능 요구사항 (Non-functional)
-   발표에서 명시되지는 않았지만 시연 전 반드시 갖춰야 할 것
-════════════════════════════════════════════════════════════════════════════════
+===============================================================================
+5. STEP 03 - Enriched CBOM 확인
+===============================================================================
 
-9.1 신뢰성 / 안정성
-    [~] 9.1.1  Agent 크래시 시 백엔드가 graceful하게 처리
-    [x] 9.1.2  LLM 호출 실패 시 자산 평가가 전체 파이프라인을 막지 않음
-              (정성 분석 provider parse/timeout 실패 시 휴리스틱 폴백으로 task 완료)
-    [~] 9.1.3  부분 실패 시 재시도 + 진행 상태 사용자에게 보고
+[~] 5.1 CBOM 자산 테이블을 시연 요구 컬럼으로 정리한다.
+        완료 기준:
+        - ID
+        - 알고리즘
+        - 키 길이
+        - 만료일
+        - 도메인
+        - 역할
+        - 연결 대상
+        - 취급 정보
+        - 보존 기간
 
-9.2 보안 (자기 도구의 보안)
-    [x] 9.2.1  Host Agent가 수집한 개인키를 평문으로 저장하지 않음
-              (지문/해시/메타데이터만 저장)
-              (fingerprint_sha256, key_size_bits, path, dormant 여부만 저장)
-    [~] 9.2.2  대시보드 인증/인가 — 누구나 스캔 시작 불가능
-    [ ] 9.2.3  스캔 대상 화이트리스트 — 임의의 외부 IP 스캔 방지
+[ ] 5.2 표준 필드 / 확장 필드 토글을 추가한다.
+        완료 기준:
+        - 표준 모드에서는 표준 CBOM 필드 중심 표시
+        - 확장 모드에서는 role, neighbors, data_tags, retention 등 표시
+        - 토글 전환 시 테이블과 JSON 패널이 함께 바뀐다.
 
-9.3 시연 환경
-    [~] 9.3.1  pqc.sprout.kr/dashboard 접속 가능 (라이브 시연 시)
-              (배포 구성은 있으나 발표 직전 실접속 확인 필요)
-    [ ] 9.3.2  네트워크 끊김 시 — 로컬 백업 시연 영상 준비
-    [~] 9.3.3  데모 리셋 스크립트 — 시연 직전 초기 상태로 복구 가능
+[ ] 5.3 `srv-01:443/tls` 상세 JSON을 발표 예시와 맞춘다.
+        완료 기준:
+        - bom-ref: srv-01:443/tls
+        - algorithm: RSA
+        - key_size: 2048
+        - host_role: edge-proxy
+        - data_tags: PII, payment
+        - retention_policy: 7y
+        - discovered_by: discovery_agent, host_agent
 
-9.4 코드 / 리포지토리
-    [~] 9.4.1  github.com/ehdgks0627/crypto-scanner — 공개 + README 정비
-              (README는 존재. 공개 여부/최종 정비 상태 확인 필요)
-    [~] 9.4.2  설치/실행 절차 문서화 (docker compose up 한 줄로 시작 가능?)
-    [ ] 9.4.3  라이선스 명시
-
-
-════════════════════════════════════════════════════════════════════════════════
-10. 발표 산출물 · 발표 직전 점검
-════════════════════════════════════════════════════════════════════════════════
-
-    [ ] 10.1  MainDeck.html — 22장 + Appendix 정상 표시
-    [ ] 10.2  시연 영상 백업 (네트워크 장애 대비)
-    [ ] 10.3  스피커 노트 출력본 (인쇄 또는 별도 화면)
-    [ ] 10.4  Q&A용 Appendix A (CBOM) 슬라이드 인지
-    [ ] 10.5  ARCHIVE 슬라이드 — 발표 시 노출되지 않도록 (무지개 marker 이후)
+[ ] 5.4 CBOM export를 시연 흐름에서 제공한다.
+        완료 기준:
+        - JSON 다운로드 가능
+        - enriched mode 포함 가능
 
 
-════════════════════════════════════════════════════════════════════════════════
-요약 · 진행률 트래커
-════════════════════════════════════════════════════════════════════════════════
+===============================================================================
+6. STEP 04 - AI 위험도 평가
+===============================================================================
 
-  진행률은 [x] / ([x]+[~]+[ ]) 기준이며, [-] 향후 확장은 분모에서 제외한다.
+[~] 6.1 DHS 6기준 명칭과 출력 구조를 작업지시서에 맞춘다.
+        완료 기준:
+        - value
+        - data
+        - scope
+        - sharing
+        - critical
+        - lifetime
 
-  섹션                                    완료   부분   미완료   보류   전체   진행률
-  ─────────────────────────────────────  ────   ────   ──────   ────   ────   ──────
-  0. 시스템 전경 · 컴포넌트                38      0       0      0     38    100.0%
-  1. Step 01 자산 식별                    18      0       0      0     18    100.0%
-  2. Step 02 위험도 평가                  17      0       0      0     17    100.0%
-  3. Step 03 PQC 전환                     10      0       0      3     13    100.0%
-  4. Step 04 검증                         13      0       0      0     13    100.0%
-  5. 시연 플로우 6단계                     8      0       0      0      8    100.0%
-  6. KPI                                   7      0       0      0      7    100.0%
-  7. 비교 클레임                          10      0       0      0     10    100.0%
-  8. 인용 사실 확인                        6      0       1      0      7     85.7%
-  9. 비기능                                2      7       3      0     12     16.7%
-  10. 발표 직전 점검                       0      0       5      0      5      0.0%
-  ─────────────────────────────────────  ────   ────   ──────   ────   ────   ──────
-  TOTAL                                 129      7       9      3    148     89.0%
-  참고: 부분 구현([~])까지 포함하면 136 / 145 = 93.8%
+[ ] 6.2 LLM 출력 스키마를 고정한다.
+        완료 기준:
+        - 각 기준별 level: HIGH / MED / LOW
+        - 각 기준별 reason 1문장
+        - 최종 score
+        - priority P1/P2/P3
+        - JSON 형식 검증
+
+[ ] 6.3 점수 산술을 코드에서 결정론적으로 수행한다.
+        완료 기준:
+        - HIGH/MED/LOW 판단은 LLM 또는 fallback이 제공
+        - 점수 계산은 코드가 수행
+        - temperature=0
+        - 가능한 provider에서는 seed=42 사용
+        - provider 실패 시 seed fixture로 fallback
+
+[ ] 6.4 DHS 가중치를 작업지시서 의도에 맞게 정리한다.
+        완료 기준:
+        - lifetime이 가장 큰 가중치
+        - `srv-01:443/tls`가 9.2점/P1로 재현
+        - 전체 분포 P1 12 / P2 8 / P3 27 재현
+
+[ ] 6.5 STEP 04 화면을 만든다.
+        완료 기준:
+        - 0/47 -> 47/47 진행률
+        - 행별 spinner -> 점수 표시
+        - 상단 요약 P1 12 / P2 8 / P3 27
+        - 행 클릭 시 LLM 응답 JSON 표시
 
 
-════════════════════════════════════════════════════════════════════════════════
-체크 기준 범례 (재게시)
-════════════════════════════════════════════════════════════════════════════════
+===============================================================================
+7. STEP 05 - PQC 매핑 추천
+===============================================================================
 
-  [ ]   미구현
-  [~]   부분 구현 — 동작은 하나 미완성 / 케이스 누락 / 정성 수준
-  [x]   구현 완료 — 실제 동작 + 발표 클레임에 부합
-  [-]   향후 확장 — 의도적으로 이번 PoC 범위에서 제외
-        (3.3.x — 실제 키 교체 / 하이브리드 운용 / 롤백 자동화)
+[~] 7.1 기존 migration mapping rules를 시연 추천 결과에 맞게 정리한다.
+        완료 기준:
+        - RSA 키 교환 계열 -> ML-KEM-768
+        - RSA/ECDSA 서명 계열 -> ML-DSA-65
+        - 장기 보존 서명 -> SLH-DSA 계열
+        - 대칭키/해시는 전환 대상에서 제외 또는 감시 대상으로 표시
+
+[ ] 7.2 추천 항목 수를 20개로 고정한다.
+        완료 기준:
+        - P1 12개
+        - P2 8개
+        - P3는 자동 전환 추천에서 제외
+
+[ ] 7.3 추천 사유를 발표용 문장으로 정리한다.
+        완료 기준:
+        - 왜 전환 대상인지
+        - 어떤 PQC 알고리즘으로 매핑되는지
+        - 자동 변경이 아니라 추천/계획 단계임을 명확히 표시
+
+[ ] 7.4 STEP 05 화면을 만든다.
+        완료 기준:
+        - 추천 대상 20개 테이블
+        - 기존 알고리즘
+        - 추천 PQC 알고리즘
+        - 우선순위
+        - 사유
+        - export 가능
 
 
-════════════════════════════════════════════════════════════════════════════════
-END OF CHECKLIST
-════════════════════════════════════════════════════════════════════════════════
+===============================================================================
+8. STEP 06 - 가용성 검증
+===============================================================================
+
+[~] 8.1 기존 가용성 검사 기능을 시연 검증 단계에 맞게 정리한다.
+        완료 기준:
+        - 기능 검증
+        - 성능 검증
+        - 호환성 검증
+        - 회귀 검증
+
+[ ] 8.2 발표용 전후 검증 수치를 고정한다.
+        완료 기준:
+        - TLS handshake success: 100%
+        - latency: 42ms -> 54ms
+        - throughput: 2400 req/s -> 2380 req/s
+        - compatibility: 100% -> 98%
+        - failure count: 0
+        - CBOM 변경 12개
+
+[ ] 8.3 결과 문구를 "성능평가"가 아니라 "가용성 검증"으로 통일한다.
+        완료 기준:
+        - 화면
+        - API schema
+        - 문서
+        - 테스트명
+        - 버튼/카드/그래프 라벨
+
+[ ] 8.4 STEP 06 화면을 만든다.
+        완료 기준:
+        - 상단 종합 결과
+        - 4개 검증 카드
+        - 전후 비교 그래프
+        - 실패 경로 0건 표시
+        - 최종 리포트 export 가능
+
+
+===============================================================================
+9. 프론트엔드 시연 UI
+===============================================================================
+
+[ ] 9.1 `/demo` 또는 대시보드 내 시연 모드를 추가한다.
+        완료 기준:
+        - 기존 운영 화면과 충돌하지 않는다.
+        - 발표자는 한 화면에서 전체 흐름을 진행할 수 있다.
+
+[ ] 9.2 단계 진행 컴포넌트를 만든다.
+        완료 기준:
+        - 6단계 stepper
+        - 현재 단계 강조
+        - 완료/진행/실패 상태 표시
+        - "다음 단계" 버튼
+        - "처음으로 리셋" 버튼
+
+[ ] 9.3 단계별 데이터 로딩과 상태 갱신을 구현한다.
+        완료 기준:
+        - polling 또는 event stream
+        - 중복 클릭 방지
+        - 실패 시 재시도 버튼
+        - 단계별 완료 조건 충족 전에는 다음 단계 비활성화
+
+[ ] 9.4 발표용 텍스트를 정리한다.
+        완료 기준:
+        - 비전공자에게 보여줄 화면 문구는 짧고 명확해야 한다.
+        - 기술 설명은 화면에 길게 쓰지 않는다.
+        - 핵심 수치와 결과 중심으로 보여준다.
+
+
+===============================================================================
+10. 테스트 및 검증
+===============================================================================
+
+[ ] 10.1 seed 데이터 검증 테스트를 추가한다.
+        완료 기준:
+        - 총 자산 47개
+        - Discovery 28개
+        - Host 24개
+        - overlap 5개
+        - dormant key 3개
+        - P1/P2/P3 분포 일치
+
+[ ] 10.2 `srv-01:443/tls` 위험도 재현 테스트를 추가한다.
+        완료 기준:
+        - 9.2점
+        - P1
+        - DHS 6기준 JSON 포함
+
+[ ] 10.3 migration 추천 결과 테스트를 추가한다.
+        완료 기준:
+        - 추천 20개
+        - P1/P2만 추천
+        - RSA/ECDSA/DH 용도별 매핑 정확
+
+[ ] 10.4 가용성 검증 결과 테스트를 추가한다.
+        완료 기준:
+        - 발표 수치 고정
+        - 실패 0건
+        - CBOM 변경 12개
+
+[ ] 10.5 프론트 시연 흐름 테스트를 추가한다.
+        완료 기준:
+        - demo route 렌더링
+        - 다음 단계 버튼 동작
+        - 각 단계 완료 상태 표시
+
+[ ] 10.6 최종 빌드와 배포 확인을 수행한다.
+        완료 기준:
+        - backend test 통과
+        - frontend test 통과
+        - frontend build 통과
+        - 배포 URL에서 최신 번들 반영 확인
+
+
+===============================================================================
+11. 배포 및 발표 준비
+===============================================================================
+
+[ ] 11.1 배포 자동화 절차를 정리한다.
+        완료 기준:
+        - push 후 배포 명령 또는 자동 배포 흐름 명확화
+        - 배포 서버에서 migration 적용
+        - demo reset 실행 가능
+
+[ ] 11.2 발표 전 점검 명령을 문서화한다.
+        완료 기준:
+        - DB 리셋
+        - seed 주입
+        - 서비스 상태 확인
+        - 대시보드 접속 확인
+        - 녹화 백업 생성
+
+[ ] 11.3 최종 발표 시연 체크리스트를 추가한다.
+        완료 기준:
+        - 시연 시작 URL
+        - 로그인 또는 인증 필요 여부
+        - 첫 화면 상태
+        - 예상 소요 시간
+        - 장애 시 대체 영상 위치
