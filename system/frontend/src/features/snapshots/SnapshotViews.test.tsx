@@ -110,6 +110,19 @@ describe("SnapshotsView", () => {
     await waitFor(() => expect(assetsSpy).toHaveBeenCalledWith(2, expect.any(Object)));
     expect(await screen.findByText("web.testbed.local TLS leaf certificate")).toBeInTheDocument();
   });
+
+  it("renders an empty state instead of requesting a stale stored snapshot", async () => {
+    useSnapshotSelectionStore.setState({ selectedSnapshotId: 3 });
+    vi.spyOn(services.snapshots, "list").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+    const getSpy = vi.spyOn(services.snapshots, "get");
+    const assetsSpy = vi.spyOn(services.snapshots, "assets");
+
+    renderWithApp(<SnapshotsView />);
+
+    expect(await screen.findByText("식별 자산이 없습니다")).toBeInTheDocument();
+    expect(getSpy).not.toHaveBeenCalled();
+    expect(assetsSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe("AssetDetailView", () => {

@@ -12,24 +12,31 @@ export function useSelectedSnapshot() {
     queryKey: queryKeys.snapshots.all,
     queryFn: () => services.snapshots.list()
   });
+  const hasSnapshotList = Boolean(snapshots.data);
   const items = snapshots.data?.items ?? [];
   const selectedSnapshot = useMemo(
-    () => items.find((snapshot) => snapshot.id === selectedSnapshotId) ?? items[0] ?? null,
-    [items, selectedSnapshotId]
+    () => (hasSnapshotList && items.length ? items.find((snapshot) => snapshot.id === selectedSnapshotId) ?? items[0] : null),
+    [hasSnapshotList, items, selectedSnapshotId]
   );
 
   useEffect(() => {
-    if (!items.length || selectedSnapshot?.id === selectedSnapshotId) {
+    if (!hasSnapshotList) {
       return;
     }
-    setSelectedSnapshotId(items[0].id);
-  }, [items, selectedSnapshot?.id, selectedSnapshotId, setSelectedSnapshotId]);
+    if (!items.length) {
+      return;
+    }
+    if (selectedSnapshot?.id === selectedSnapshotId) {
+      return;
+    }
+    setSelectedSnapshotId(selectedSnapshot?.id ?? items[0].id);
+  }, [hasSnapshotList, items, selectedSnapshot?.id, selectedSnapshotId, setSelectedSnapshotId]);
 
   return {
     snapshots,
     snapshotItems: items,
     selectedSnapshot,
-    selectedSnapshotId: selectedSnapshot?.id ?? selectedSnapshotId ?? null,
+    selectedSnapshotId: hasSnapshotList ? selectedSnapshot?.id ?? null : selectedSnapshotId ?? null,
     setSelectedSnapshotId
   };
 }
