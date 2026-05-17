@@ -3,11 +3,6 @@ export const queryKeys = {
     all: ["dashboard"] as const,
     summary: (snapshotId?: number) => ["dashboard", "summary", snapshotId] as const
   },
-  demo: {
-    all: ["demo"] as const,
-    session: ["demo", "session"] as const,
-    events: ["demo", "events"] as const
-  },
   targets: {
     all: ["targets"] as const,
     list: (filters?: unknown) => ["targets", "list", filters] as const,

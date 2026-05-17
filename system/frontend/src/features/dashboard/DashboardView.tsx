@@ -90,10 +90,10 @@ export function DashboardView() {
         queryClient.invalidateQueries({ queryKey: queryKeys.risk.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.performance.all })
       ]);
-      toast.success(`데모 데이터 ${formatNumber(result.asset_count)}개 자산을 로드했습니다.`);
+      toast.success(`시연 데이터 ${formatNumber(result.asset_count)}개 자산을 로드했습니다.`);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "데모 데이터 로드에 실패했습니다.");
+      toast.error(error instanceof Error ? error.message : "시연 데이터 로드에 실패했습니다.");
     }
   });
 
@@ -269,7 +269,7 @@ function SeedDemoButton({ isPending, onClick }: { isPending: boolean; onClick: (
   return (
     <Button type="button" onClick={onClick} disabled={isPending}>
       <Database size={15} />
-      {isPending ? "로드 중" : "데모 데이터 로드"}
+      {isPending ? "로드 중" : "시연 데이터 로드"}
     </Button>
   );
 }

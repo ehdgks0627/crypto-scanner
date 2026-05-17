@@ -71,7 +71,7 @@ describe("DashboardView", () => {
 
     expect(await screen.findByText("아직 스냅샷이 없습니다")).toBeInTheDocument();
     expect(screen.getByText("탐색 대상 추가")).toBeInTheDocument();
-    expect(screen.getAllByText("데모 데이터 로드").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("시연 데이터 로드").length).toBeGreaterThanOrEqual(1);
   });
 
   it("loads demo seed data from the dashboard", async () => {
@@ -138,7 +138,7 @@ describe("DashboardView", () => {
     });
 
     renderWithApp(<DashboardView />);
-    await user.click((await screen.findAllByRole("button", { name: /데모 데이터 로드/ }))[0]!);
+    await user.click((await screen.findAllByRole("button", { name: /시연 데이터 로드/ }))[0]!);
 
     await waitFor(() => expect(seedSpy).toHaveBeenCalledWith({ reset: true }));
     expect(useSnapshotSelectionStore.getState().selectedSnapshotId).toBe(22);

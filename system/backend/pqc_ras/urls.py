@@ -5,7 +5,6 @@ from apps.agents.api import router as agents_router
 from apps.assets.api import router as assets_router
 from apps.core.errors import register_exception_handlers
 from apps.dashboard.api import router as dashboard_router
-from apps.demo.api import router as demo_router
 from apps.discoveries.api import router as discoveries_router
 from apps.health.api import router as health_router
 from apps.jobs.api import router as jobs_router
@@ -22,7 +21,6 @@ register_exception_handlers(api)
 api.add_router("", agents_router)
 api.add_router("", assets_router)
 api.add_router("", dashboard_router)
-api.add_router("", demo_router)
 api.add_router("", discoveries_router)
 api.add_router("", health_router)
 api.add_router("", jobs_router)
