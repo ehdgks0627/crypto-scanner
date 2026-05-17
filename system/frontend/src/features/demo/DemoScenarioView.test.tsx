@@ -1,15 +1,28 @@
-import { screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DemoSession } from "../../api/demoTypes";
 import { services } from "../../api/services";
+import { DemoPage } from "../../pages/DemoPage";
 import { renderWithApp } from "../../test/test-utils";
 import { DemoScenarioView } from "./DemoScenarioView";
 
 describe("DemoScenarioView", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("renders the /demo route", async () => {
+    vi.spyOn(services.demo, "session").mockResolvedValue(makeSession("targets"));
+    vi.spyOn(services.demo, "events").mockResolvedValue({ items: [] });
+
+    renderDemoRoute();
+
+    expect(await screen.findByText("최종 시연")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "IP / Domain / CIDR" })).toHaveValue("10.0.0.0/24");
   });
 
   it("renders the target step and advances with the next button", async () => {
@@ -22,11 +35,65 @@ describe("DemoScenarioView", () => {
     renderWithApp(<DemoScenarioView />);
 
     expect(await screen.findByText("최종 시연")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "IP / Domain / CIDR" })).toHaveValue("10.0.0.0/24");
+    expect(screen.getByRole("button", { name: "대상 추가" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "role" })).toHaveValue("edge-proxy");
     expect(screen.getByText("payments.demo.local")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /다음 단계/ }));
 
     await waitFor(() => expect(nextSpy).toHaveBeenCalled());
     expect(await screen.findByText("Discovery Agent 자산 28개 정리 완료")).toBeInTheDocument();
+    expect(screen.getByText("47 / 47 자산 정리 완료")).toBeInTheDocument();
+    expect(screen.getByText("잠든 키")).toBeInTheDocument();
+  });
+
+  it("renders CBOM, risk, and migration presentation details", async () => {
+    vi.spyOn(services.demo, "session").mockResolvedValue(makeSession("cbom"));
+    vi.spyOn(services.demo, "events").mockResolvedValue({ items: [] });
+
+    const { unmount } = renderWithApp(<DemoScenarioView />);
+
+    expect(await screen.findByText("CBOM 자산 목록")).toBeInTheDocument();
+    expect(screen.getByText("도메인")).toBeInTheDocument();
+    expect(screen.getByText("연결 대상")).toBeInTheDocument();
+    expect(screen.getByText("api.payments.example.com")).toBeInTheDocument();
+
+    unmount();
+    vi.restoreAllMocks();
+    vi.spyOn(services.demo, "session").mockResolvedValue(makeSession("risk"));
+    vi.spyOn(services.demo, "events").mockResolvedValue({ items: [] });
+
+    const riskRender = renderWithApp(<DemoScenarioView />);
+
+    expect(await screen.findByText("DHS 6기준 평가 진행")).toBeInTheDocument();
+    expect(screen.getByText("47 / 47 자산 평가 완료")).toBeInTheDocument();
+    expect(screen.getByText("선택 자산 DHS 응답")).toBeInTheDocument();
+    expect(screen.getByText("완료")).toBeInTheDocument();
+
+    riskRender.unmount();
+    vi.restoreAllMocks();
+    vi.spyOn(services.demo, "session").mockResolvedValue(makeSession("migration"));
+    vi.spyOn(services.demo, "events").mockResolvedValue({ items: [] });
+
+    renderWithApp(<DemoScenarioView />);
+
+    expect(await screen.findByText("추천 대상 20개")).toBeInTheDocument();
+    expect(screen.getByText("자동 변경이 아니라 전환 계획 추천입니다.")).toBeInTheDocument();
+    expect(screen.getByText("ML-DSA-65")).toBeInTheDocument();
+  });
+
+  it("renders retry state and disables next when a step fails", async () => {
+    vi.spyOn(services.demo, "session").mockResolvedValue(makeErroredSession());
+    vi.spyOn(services.demo, "events").mockResolvedValue({ items: [] });
+    vi.spyOn(services.demo, "next").mockResolvedValue(makeSession("agents"));
+    vi.spyOn(services.demo, "start").mockResolvedValue(makeSession("targets"));
+
+    renderWithApp(<DemoScenarioView />);
+
+    expect(await screen.findByText("단계 실행 실패")).toBeInTheDocument();
+    expect(screen.getByText("Discovery Agent timeout")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /다음 단계/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "재시도" })).toBeInTheDocument();
   });
 
   it("renders verification metrics at the final step", async () => {
@@ -38,11 +105,36 @@ describe("DemoScenarioView", () => {
     renderWithApp(<DemoScenarioView />);
 
     expect(await screen.findByText("4차원 가용성 검증")).toBeInTheDocument();
-    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.getAllByText("PASS").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("100%").length).toBeGreaterThan(0);
     expect(screen.getByText("42->54ms")).toBeInTheDocument();
     expect(screen.getByText("실패 경로 0건")).toBeInTheDocument();
   });
 });
+
+function renderDemoRoute() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false }
+    }
+  });
+  const router = createMemoryRouter([{ path: "/demo", element: <DemoPage /> }], { initialEntries: ["/demo"] });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  );
+}
+
+function makeErroredSession(): DemoSession {
+  return {
+    ...makeSession("targets"),
+    last_error: "Discovery Agent timeout",
+    can_retry: true
+  };
+}
 
 function makeSession(stepId: DemoSession["current_step_id"]): DemoSession {
   const ids: DemoSession["current_step_id"][] = ["targets", "agents", "cbom", "risk", "migration", "verification"];

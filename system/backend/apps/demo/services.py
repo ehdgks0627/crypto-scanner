@@ -79,6 +79,7 @@ AGENT_LOGS = {
     "discovery": [
         "CIDR 10.0.0.0/24 탐색 시작",
         "TLS endpoints: 9개 응답 확인",
+        "TLS 인증서 체인 9개 수집 완료",
         "STARTTLS mail endpoints: 4개 응답 확인",
         "SSH host key: 3개 수집",
         "IKE proposal: 2개 수집",
@@ -257,7 +258,6 @@ def demo_assets() -> tuple[dict, ...]:
         ("AES/ChaCha20", 9, "AES-256-GCM"),
         ("SHA256/SHA512", 5, "SHA-256"),
     ]
-    priorities = ["P1"] * 12 + ["P2"] * 8 + ["P3"] * 27
     assets = [
         {
             "id": "srv-01:443/tls",
@@ -287,7 +287,7 @@ def demo_assets() -> tuple[dict, ...]:
             category_index += 1
             used_in_category = 0
         group, _, algorithm = categories[category_index]
-        priority = priorities[number - 1]
+        priority = _priority_for_number(number)
         host = f"srv-{((number - 1) % 13) + 1:02d}"
         discovered_by = _discovered_by_for_number(number)
         assets.append(
@@ -296,7 +296,7 @@ def demo_assets() -> tuple[dict, ...]:
                 "host": host,
                 "domain": f"{host}.demo.local",
                 "name": _asset_name(group, number),
-                "asset_type": _asset_type(group),
+                "asset_type": _asset_type(group, number),
                 "algorithm_group": group,
                 "algorithm": algorithm,
                 "key_size": _key_size(algorithm),
@@ -340,6 +340,8 @@ def _asset_suffix(group: str, ordinal: int) -> str:
 
 
 def _asset_name(group: str, number: int) -> str:
+    if group == "RSA" and number == 12:
+        return "RSA key exchange profile #12"
     labels = {
         "RSA": "RSA service certificate",
         "ECDSA": "ECDSA service certificate",
@@ -351,7 +353,9 @@ def _asset_name(group: str, number: int) -> str:
     return f"{labels[group]} #{number:02d}"
 
 
-def _asset_type(group: str) -> str:
+def _asset_type(group: str, number: int) -> str:
+    if group == "RSA" and number == 12:
+        return "key_agreement"
     return {
         "RSA": "certificate",
         "ECDSA": "certificate",
@@ -360,6 +364,14 @@ def _asset_type(group: str) -> str:
         "AES/ChaCha20": "configuration",
         "SHA256/SHA512": "configuration",
     }[group]
+
+
+def _priority_for_number(number: int) -> str:
+    if number <= 12:
+        return "P1"
+    if 13 <= number <= 19 or number == 26:
+        return "P2"
+    return "P3"
 
 
 def _key_size(algorithm: str) -> int | None:

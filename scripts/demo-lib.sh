@@ -100,7 +100,7 @@ demo_dashboard_url() {
     printf '%s\n' "$DEMO_URL"
     return
   fi
-  printf 'http://localhost:%s/\n' "${SYSTEM_WEB_PORT:-8088}"
+  printf 'http://localhost:%s/demo\n' "${SYSTEM_WEB_PORT:-8088}"
 }
 
 demo_open_url() {

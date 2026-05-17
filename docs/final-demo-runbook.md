@@ -22,6 +22,8 @@ DEMO_RUNNER=compose ./demo-reset.sh
 
 - 기본 로컬 URL: `http://localhost:8088/demo`
 - 배포 URL: `https://pqc.sprout.kr/demo`
+- 인증: 현재 시연 페이지는 별도 로그인이 필요 없다. 운영 프록시나 API 토큰을 배포 서버에 붙인 경우 발표 전에 먼저 로그인한다.
+- 예상 소요 시간: 전체 deterministic 시연은 5분 이내이며, 보통 1~2분 안에 끝난다.
 
 사이드바의 `최종 시연` 메뉴로도 진입할 수 있다.
 
@@ -48,10 +50,12 @@ DEMO_URL=https://pqc.sprout.kr/demo ./record-demo.sh
 DEMO_RECORD_SECONDS=420 ./record-demo.sh
 ```
 
+녹화 결과는 기본적으로 `demo-recordings/demo-YYYYmmdd-HHMMSS.mp4`에 저장된다. 발표 장애 시에는 가장 최신 mp4 파일을 대체 영상으로 사용한다.
+
 ## 5. 발표 직전 점검
 
 - `./demo-reset.sh` 실행 완료
 - `/demo` 페이지 접속 가능
 - `다음 단계` 버튼으로 6단계까지 진행 가능
 - CBOM, PQC 추천, 가용성 검증 export 버튼 동작
-- 백업 영상 생성 완료
+- 백업 영상 생성 완료: `demo-recordings/` 아래 최신 mp4 확인

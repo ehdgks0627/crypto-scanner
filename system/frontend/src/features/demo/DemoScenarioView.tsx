@@ -12,6 +12,7 @@ import { ErrorState, LoadingState, Section } from "../../components/common/State
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
 import { Progress } from "../../components/ui/progress";
 import { DataTable } from "../../components/ui/table";
 import { downloadJson, downloadText } from "../../lib/download";
@@ -63,6 +64,13 @@ export function DemoScenarioView() {
     () => data?.assets.find((asset) => asset.id === selectedAssetId) ?? data?.assets[0] ?? null,
     [data?.assets, selectedAssetId]
   );
+  const currentStep = data?.steps[data.current_step];
+  const canAdvance = Boolean(
+    data &&
+    !data.last_error &&
+    data.current_step < data.steps.length - 1 &&
+    (currentStep?.status === "completed" || currentStep?.status === "ready")
+  );
 
   if (session.isLoading) {
     return <LoadingState />;
@@ -83,12 +91,26 @@ export function DemoScenarioView() {
             <Button type="button" onClick={() => start.mutate()} disabled={start.isPending}>
               <RotateCcw size={15} />처음으로
             </Button>
-            <Button type="button" variant="primary" onClick={() => next.mutate()} disabled={next.isPending || data.current_step >= data.steps.length - 1}>
+            <Button type="button" variant="primary" onClick={() => next.mutate()} disabled={next.isPending || !canAdvance}>
               <Play size={15} />다음 단계
             </Button>
           </div>
         }
       />
+
+      {data.last_error && (
+        <Card className="demo-error-card">
+          <CardContent>
+            <strong>단계 실행 실패</strong>
+            <span>{data.last_error}</span>
+            {data.can_retry && (
+              <Button type="button" size="sm" onClick={() => next.mutate()} disabled={next.isPending}>
+                재시도
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <DemoStepper session={data} />
 
@@ -105,7 +127,7 @@ export function DemoScenarioView() {
               onSelectAsset={setSelectedAssetId}
             />
           )}
-          {data.current_step_id === "risk" && <StepRisk session={data} onSelectAsset={setSelectedAssetId} />}
+          {data.current_step_id === "risk" && <StepRisk session={data} selectedAsset={selectedAsset} onSelectAsset={setSelectedAssetId} />}
           {data.current_step_id === "migration" && <StepMigration session={data} />}
           {data.current_step_id === "verification" && <StepVerification session={data} />}
         </div>
@@ -158,6 +180,7 @@ function DemoStepper({ session }: { session: DemoSession }) {
             <div>
               <strong>{step.title}</strong>
               <span>{step.subtitle}</span>
+              <small>{step.status === "locked" ? "대기" : `${step.progress}%`}</small>
             </div>
           </div>
         );
@@ -167,11 +190,40 @@ function DemoStepper({ session }: { session: DemoSession }) {
 }
 
 function StepTargets({ targets, labels }: { targets: DemoTarget[]; labels: DemoHostLabel[] }) {
+  const demoAddTarget = () => toast.success("시연 대상 13개가 이미 준비되어 있습니다.");
   return (
     <div className="demo-two-col">
       <Card>
         <CardHeader><CardTitle>탐색 대상</CardTitle></CardHeader>
         <CardContent>
+          <form className="demo-form-panel" onSubmit={(event) => { event.preventDefault(); demoAddTarget(); }}>
+            <div className="demo-form-grid">
+              <Field className="is-wide">
+                <FieldLabel>IP / Domain / CIDR</FieldLabel>
+                <Input defaultValue="10.0.0.0/24" aria-label="IP / Domain / CIDR" />
+              </Field>
+              <Field>
+                <FieldLabel>서비스 힌트</FieldLabel>
+                <Select defaultValue="auto" aria-label="service hint">
+                  <option value="auto">자동 감지</option>
+                  <option value="tls">TLS</option>
+                  <option value="ssh">SSH</option>
+                  <option value="starttls">STARTTLS</option>
+                  <option value="ike">IKE</option>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>탐색 방식</FieldLabel>
+                <Select defaultValue="discovery" aria-label="target role">
+                  <option value="discovery">Discovery Agent</option>
+                  <option value="host">Host Agent</option>
+                </Select>
+              </Field>
+            </div>
+            <div className="form-actions">
+              <Button type="submit" size="sm">대상 추가</Button>
+            </div>
+          </form>
           <DataTable
             items={targets}
             getRowKey={(item) => item.id}
@@ -186,6 +238,44 @@ function StepTargets({ targets, labels }: { targets: DemoTarget[]; labels: DemoH
       <Card>
         <CardHeader><CardTitle>호스트 라벨</CardTitle></CardHeader>
         <CardContent>
+          <form className="demo-form-panel">
+            <div className="demo-form-grid">
+              <Field>
+                <FieldLabel>role</FieldLabel>
+                <Select defaultValue="edge-proxy" aria-label="role">
+                  <option value="edge-proxy">edge-proxy</option>
+                  <option value="auth">auth</option>
+                  <option value="db">db</option>
+                  <option value="monitoring">monitoring</option>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>retention</FieldLabel>
+                <Select defaultValue="7y" aria-label="retention">
+                  <option value="1y">1y</option>
+                  <option value="3y">3y</option>
+                  <option value="5y">5y</option>
+                  <option value="7y">7y</option>
+                  <option value="10y+">10y+</option>
+                </Select>
+              </Field>
+              <div className="ui-field is-wide">
+                <FieldLabel>data_classes</FieldLabel>
+                <div className="demo-check-list">
+                  {["PII", "payment", "internal-only", "credential"].map((item) => (
+                    <label key={item}>
+                      <Checkbox defaultChecked={item === "PII" || item === "payment"} />
+                      <span>{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <Field className="is-wide">
+                <FieldLabel>partners</FieldLabel>
+                <Input defaultValue="PG-A" aria-label="partners" />
+              </Field>
+            </div>
+          </form>
           <div className="demo-label-list">
             {labels.map((label) => (
               <div key={label.host} className="demo-label-card">
@@ -211,12 +301,23 @@ function StepTargets({ targets, labels }: { targets: DemoTarget[]; labels: DemoH
 function StepAgents({ session }: { session: DemoSession }) {
   return (
     <div className="demo-stack">
+      <Card>
+        <CardHeader><CardTitle>Agent 실행 진행</CardTitle></CardHeader>
+        <CardContent>
+          <div className="demo-progress-row">
+            <strong>{session.agent_run.progress}%</strong>
+            <span>{session.agent_run.status === "completed" ? "47 / 47 자산 정리 완료" : "0 / 47 자산 정리 대기"}</span>
+          </div>
+          <Progress value={session.agent_run.progress} />
+        </CardContent>
+      </Card>
       <div className="content-grid content-grid--4">
         <DemoMetric label="총 자산" value={session.agent_run.total_assets} />
         <DemoMetric label="Discovery Agent" value={session.agent_run.discovery_assets} />
         <DemoMetric label="Host Agent" value={session.agent_run.host_assets} />
-        <DemoMetric label="중복" value={session.agent_run.overlap_assets} />
+        <DemoMetric label="잠든 키" value={session.agent_run.dormant_keys} tone="yellow" />
       </div>
+      <DemoMetric label="중복 제거" value={`${session.agent_run.overlap_assets}개`} />
       <div className="demo-two-col">
         <AgentLog title="Discovery Agent" logs={session.agent_run.logs.discovery} />
         <AgentLog title="Host Agent" logs={session.agent_run.logs.host} />
@@ -277,9 +378,11 @@ function StepCbom({
               { key: "algorithm", header: "알고리즘", render: (item) => item.algorithm },
               { key: "key_size", header: "키", render: (item) => item.key_size ? `${item.key_size} bit` : "-" },
               { key: "expires", header: "만료일", render: (item) => item.expires },
+              { key: "domain", header: "도메인", render: (item) => item.domain },
               ...(mode === "enriched"
                 ? [
                     { key: "role", header: "역할", render: (item: DemoAsset) => item.role },
+                    { key: "neighbors", header: "연결 대상", render: (item: DemoAsset) => item.neighbors.join(", ") || "-" },
                     { key: "data", header: "취급 정보", render: (item: DemoAsset) => item.data_tags.join(", ") },
                     { key: "retention", header: "보존", render: (item: DemoAsset) => item.retention }
                   ]
@@ -296,9 +399,28 @@ function StepCbom({
   );
 }
 
-function StepRisk({ session, onSelectAsset }: { session: DemoSession; onSelectAsset: (id: string) => void }) {
+function StepRisk({
+  session,
+  selectedAsset,
+  onSelectAsset
+}: {
+  session: DemoSession;
+  selectedAsset: DemoAsset | null;
+  onSelectAsset: (id: string) => void;
+}) {
+  const progress = session.risk.status === "completed" ? 100 : 0;
   return (
     <div className="demo-stack">
+      <Card>
+        <CardHeader><CardTitle>DHS 6기준 평가 진행</CardTitle></CardHeader>
+        <CardContent>
+          <div className="demo-progress-row">
+            <strong>{progress}%</strong>
+            <span>{session.risk.status === "completed" ? "47 / 47 자산 평가 완료" : "0 / 47 자산 평가 대기"}</span>
+          </div>
+          <Progress value={progress} />
+        </CardContent>
+      </Card>
       <div className="content-grid content-grid--3">
         <DemoMetric label="P1" value={session.risk.summary.P1} tone="red" />
         <DemoMetric label="P2" value={session.risk.summary.P2} tone="yellow" />
@@ -314,6 +436,11 @@ function StepRisk({ session, onSelectAsset }: { session: DemoSession; onSelectAs
               onRowClick={(item) => onSelectAsset(item.id)}
               columns={[
                 { key: "id", header: "자산", render: (item) => item.id },
+                {
+                  key: "status",
+                  header: "상태",
+                  render: () => session.risk.status === "completed" ? <Badge tone="green">완료</Badge> : <span className="demo-inline-spinner">평가 중</span>
+                },
                 { key: "score", header: "점수", align: "right", render: (item) => item.risk_score.toFixed(1) },
                 { key: "priority", header: "우선순위", render: (item) => <PriorityBadge priority={item.priority} /> },
                 { key: "data", header: "컨텍스트", render: (item) => item.data_tags.join(", ") }
@@ -322,8 +449,8 @@ function StepRisk({ session, onSelectAsset }: { session: DemoSession; onSelectAs
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>srv-01 DHS 응답</CardTitle></CardHeader>
-          <CardContent><JsonPreview value={session.risk.example} /></CardContent>
+          <CardHeader><CardTitle>선택 자산 DHS 응답</CardTitle></CardHeader>
+          <CardContent><JsonPreview value={riskJson(selectedAsset, session)} /></CardContent>
         </Card>
       </div>
     </div>
@@ -340,6 +467,7 @@ function StepMigration({ session }: { session: DemoSession }) {
         </Button>
       </CardHeader>
       <CardContent>
+        <p className="demo-note">자동 변경이 아니라 전환 계획 추천입니다.</p>
         <DataTable
           items={session.migration.items}
           getRowKey={(item) => item.asset_id}
@@ -361,10 +489,11 @@ function StepVerification({ session }: { session: DemoSession }) {
   return (
     <div className="demo-stack">
       <div className="content-grid content-grid--4">
+        <DemoMetric label="종합" value={verification.overall_status ?? "-"} tone="green" />
         <DemoMetric label="핸드셰이크" value={`${verification.handshake_success_rate}%`} tone="green" />
         <DemoMetric label="지연" value={`${verification.latency_before_ms}->${verification.latency_after_ms}ms`} />
         <DemoMetric label="처리량" value={`${verification.throughput_before_rps}->${verification.throughput_after_rps}`} />
-        <DemoMetric label="실패" value={verification.failure_count ?? 0} tone="green" />
+        <DemoMetric label="실패" value={`${verification.failure_count ?? 0}건`} tone="green" />
       </div>
       <Card>
         <CardHeader>
@@ -474,12 +603,35 @@ function cbomJson(asset: DemoAsset, mode: CbomMode) {
   };
 }
 
+function riskJson(asset: DemoAsset | null, session: DemoSession) {
+  if (!asset) {
+    return null;
+  }
+  if (asset.id === session.risk.example?.asset_id) {
+    return session.risk.example;
+  }
+  return {
+    asset_id: asset.id,
+    score: asset.risk_score,
+    priority: asset.priority,
+    criteria: {
+      value: { level: asset.priority === "P1" ? "HIGH" : "MED", reason: `${asset.role} 역할 자산` },
+      data: { level: asset.data_tags.length > 0 ? "HIGH" : "LOW", reason: asset.data_tags.join(", ") || "민감 정보 태그 없음" },
+      scope: { level: asset.neighbors.length > 0 ? "MED" : "LOW", reason: asset.neighbors.join(", ") || "연결 대상 없음" },
+      sharing: { level: "MED", reason: "발표용 deterministic fixture" },
+      critical: { level: asset.quantum_vulnerable ? "HIGH" : "LOW", reason: asset.algorithm },
+      lifetime: { level: asset.retention === "10y+" || asset.retention === "7y" ? "HIGH" : "MED", reason: asset.retention }
+    }
+  };
+}
+
 function migrationReport(session: DemoSession) {
   const lines = [
     "# PQC 매핑 추천",
     "",
     `- 추천 대상: ${session.migration.recommendation_count}개`,
     "- 범위: P1/P2 자산",
+    "- 주의: 이 결과는 자동 변경이 아니라 전환 계획 추천입니다.",
     ""
   ];
   session.migration.items.forEach((item) => {

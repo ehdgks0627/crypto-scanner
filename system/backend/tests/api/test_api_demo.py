@@ -41,6 +41,24 @@ def test_demo_session_advances_to_full_scenario(client):
     assert body["risk"]["example"]["score"] == 9.2
     assert body["risk"]["example"]["priority"] == "P1"
     assert body["migration"]["recommendation_count"] == 20
+    migration_items = body["migration"]["items"]
+    assert {item["priority"] for item in migration_items} <= {"P1", "P2"}
+    assert any(
+        item["current_algorithm"] == "RSA-2048" and item["recommended_algorithm"] == "ML-KEM-768"
+        for item in migration_items
+    )
+    assert any(
+        item["current_algorithm"] == "RSA-2048" and item["recommended_algorithm"] == "ML-DSA-65"
+        for item in migration_items
+    )
+    assert any(
+        item["current_algorithm"] == "ECDSA-P256" and item["recommended_algorithm"] == "ML-DSA-65"
+        for item in migration_items
+    )
+    assert any(
+        item["current_algorithm"] == "X25519" and item["recommended_algorithm"] == "ML-KEM-768"
+        for item in migration_items
+    )
     assert body["verification"]["handshake_success_rate"] == 100
     assert body["verification"]["latency_before_ms"] == 42
     assert body["verification"]["latency_after_ms"] == 54
@@ -62,5 +80,6 @@ def test_demo_events_follow_current_step(client):
     body = response.json()
     messages = [item["message"] for item in body["items"]]
     assert "대상 13개와 srv-01 라벨 준비 완료" in messages
+    assert "TLS 인증서 체인 9개 수집 완료" in messages
     assert "Discovery Agent 자산 28개 정리 완료" in messages
     assert "Host Agent 자산 24개 정리 완료" in messages
