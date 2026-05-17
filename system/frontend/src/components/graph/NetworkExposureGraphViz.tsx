@@ -1,4 +1,4 @@
-import { AlertTriangle, Box, ExternalLink, FileKey, KeyRound, Network, RotateCcw, Router, Server, ShieldAlert, ZoomIn, ZoomOut } from "lucide-react";
+import { AlertTriangle, Box, ExternalLink, FileKey, FolderTree, KeyRound, Network, RotateCcw, Router, Server, ShieldAlert, ZoomIn, ZoomOut } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
 
@@ -13,6 +13,7 @@ const NetworkExposureGraph3DView = lazy(() =>
 );
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
+  group: "수집 그룹",
   target: "스캔 대상",
   endpoint: "엔드포인트",
   asset: "암호 자산",
@@ -20,6 +21,7 @@ const kindLabels: Record<NetworkExposureNodeKind, string> = {
 };
 
 const relationLabels: Record<NetworkExposureLinkKind, string> = {
+  contains: "수집 그룹이 스캔 대상을 묶습니다",
   exposes: "스캔 대상이 엔드포인트를 노출합니다",
   presents: "엔드포인트가 인증서나 키를 제공합니다",
   supports: "엔드포인트가 프로토콜이나 알고리즘을 지원합니다",
@@ -155,6 +157,7 @@ export function NetworkExposureGraphViz({
             </div>
           ) : null}
           <div className="network-graph-stats" aria-label="네트워크 그래프 요약">
+            <span>그룹 {formatNumber(graph.stats.groups)}</span>
             <span>스캔 대상 {formatNumber(graph.stats.targets)}</span>
             <span>엔드포인트 {formatNumber(graph.stats.endpoints)}</span>
             <span>자산 {formatNumber(graph.stats.assets)}</span>
@@ -216,7 +219,7 @@ export function NetworkExposureGraphViz({
               <RelationLegend />
             </>
           )}
-          {selectedNode && onOpenNode ? (
+          {selectedNode && selectedNode.kind !== "group" && onOpenNode ? (
             <Button type="button" size="sm" onClick={() => onOpenNode(selectedNode)}>
               <ExternalLink size={14} />열기
             </Button>
@@ -230,6 +233,7 @@ export function NetworkExposureGraphViz({
 function GraphLegend() {
   return (
     <div className="network-graph-legend" aria-label="그래프 노드 범례">
+      <span><FolderTree size={14} />수집 그룹</span>
       <span><Server size={14} />스캔 대상</span>
       <span><Router size={14} />엔드포인트</span>
       <span><FileKey size={14} />인증서 자산</span>

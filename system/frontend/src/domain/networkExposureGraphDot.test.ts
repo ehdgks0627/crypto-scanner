@@ -6,6 +6,16 @@ import { buildNetworkExposureDot, graphNodeAppUrl, parseGraphNodeAppUrl } from "
 const graph: NetworkExposureGraph = {
   nodes: [
     {
+      id: "group:target-scope:10.10.10.0/24",
+      kind: "group",
+      label: "10.10.10.0/24",
+      subtitle: "Discovery Agent",
+      color: "#3f6f78",
+      val: 13,
+      riskTier: "HIGH",
+      assetCount: 2
+    },
+    {
       id: "target:10",
       kind: "target",
       label: "Web Server (RSA)",
@@ -50,11 +60,12 @@ const graph: NetworkExposureGraph = {
     }
   ],
   links: [
+    { id: "e0", source: "group:target-scope:10.10.10.0/24", target: "target:10", kind: "contains", label: "contains", color: "#3f6f78", width: 1.7 },
     { id: "e1", source: "target:10", target: "endpoint:10:TCP:443", kind: "exposes", label: "exposes", color: "#4b8ca8", width: 1.7 },
     { id: "e2", source: "endpoint:10:TCP:443", target: "asset:100", kind: "presents", label: "presents", color: "#6d5a9a", width: 1.7 },
     { id: "e3", source: "asset:100", target: "finding:HIGH", kind: "has_finding", label: "has finding", color: "#c4413a", width: 2.2 }
   ],
-  stats: { targets: 1, endpoints: 1, assets: 1, findings: 1, highestRiskTier: "HIGH" }
+  stats: { groups: 1, targets: 1, endpoints: 1, assets: 1, findings: 1, highestRiskTier: "HIGH" }
 };
 
 describe("buildNetworkExposureDot", () => {
@@ -64,14 +75,17 @@ describe("buildNetworkExposureDot", () => {
     expect(dot).toContain("graph NetworkExposure");
     expect(dot).toContain("layout=sfdp");
     expect(dot).toContain("splines=true");
+    expect(dot).toContain("shape=folder");
     expect(dot).toContain("shape=box3d");
     expect(dot).toContain("shape=component");
     expect(dot).toContain("shape=note");
     expect(dot).toContain("shape=octagon");
+    expect(dot).toContain('label="포함"');
     expect(dot).toContain('label="노출"');
     expect(dot).toContain('label="제공"');
     expect(dot).toContain('label="위험 발견"');
     expect(dot).toContain('style="dashed"');
+    expect(dot).toContain('"group:target-scope:10.10.10.0/24" -- "target:10"');
     expect(dot).toContain('"target:10" -- "endpoint:10:TCP:443"');
     expect(dot).not.toContain("rank=same");
   });
@@ -101,7 +115,7 @@ describe("buildNetworkExposureDot", () => {
         }
       ],
       links: [],
-      stats: { targets: 1, endpoints: 0, assets: 0, findings: 0, highestRiskTier: undefined }
+      stats: { groups: 0, targets: 1, endpoints: 0, assets: 0, findings: 0, highestRiskTier: undefined }
     });
 
     expect(dot).toContain('"target:\\"quoted\\"\\\\node"');

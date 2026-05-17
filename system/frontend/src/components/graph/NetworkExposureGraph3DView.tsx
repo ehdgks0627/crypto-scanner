@@ -11,6 +11,7 @@ import { Button } from "../ui/button";
 const graphRendererConfig = { preserveDrawingBuffer: true, antialias: true } as const;
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
+  group: "수집 그룹",
   target: "스캔 대상",
   endpoint: "엔드포인트",
   asset: "암호 자산",
@@ -203,7 +204,7 @@ function GraphNodeIcon(props: NodeRendererProps) {
 
 function nodeKindFor(node: InternalGraphNode): NetworkExposureNodeKind {
   const kind = node.data?.kind;
-  return kind === "target" || kind === "endpoint" || kind === "asset" || kind === "finding" ? kind : "asset";
+  return kind === "group" || kind === "target" || kind === "endpoint" || kind === "asset" || kind === "finding" ? kind : "asset";
 }
 
 function nodeSubLabel(node: NetworkExposureNode) {
@@ -342,6 +343,7 @@ function isWebGlSupported() {
 function nodeIconUri(kind: NetworkExposureNodeKind, color: string) {
   const stroke = normalizeHexColor(color);
   const svgByKind: Record<NetworkExposureNodeKind, string> = {
+    group: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><path d="M7 14h17l5 6h28v22H7z" fill="#ffffff" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><path d="M15 28h34M15 35h25" stroke="#171717" stroke-width="3" stroke-linecap="round"/></svg>`,
     target: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><rect x="7" y="8" width="50" height="32" rx="5" fill="#ffffff" stroke="${stroke}" stroke-width="4"/><path d="M15 18h18M15 29h26" stroke="#171717" stroke-width="3" stroke-linecap="round"/><circle cx="48" cy="18" r="3" fill="${stroke}"/><circle cx="48" cy="30" r="3" fill="${stroke}"/></svg>`,
     endpoint: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><rect x="10" y="11" width="44" height="26" rx="13" fill="#ffffff" stroke="${stroke}" stroke-width="4"/><path d="M18 24h28M25 17l-7 7 7 7M39 17l7 7-7 7" fill="none" stroke="#171717" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
     asset: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><path d="M25 23a10 10 0 1 1 6 9l-5 5h-6v-6h-6v-6h8z" fill="#ffffff" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><circle cx="39" cy="19" r="3" fill="#171717"/></svg>`,

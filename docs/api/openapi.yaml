@@ -1769,6 +1769,21 @@ components:
           type: string
           nullable: true
 
+    TargetGraphGroup:
+      type: object
+      required: [kind, key, label]
+      properties:
+        kind:
+          type: string
+          enum: [discovery_scope, host_agent, target_scope]
+        key:
+          type: string
+        label:
+          type: string
+        subtitle:
+          type: string
+          nullable: true
+
     ContextSource:
       type: string
       enum: [asset_override, target, heuristic]
@@ -1860,6 +1875,10 @@ components:
           nullable: true
         context:
           $ref: '#/components/schemas/TargetContext'
+        graph_group:
+          allOf:
+            - $ref: '#/components/schemas/TargetGraphGroup'
+          nullable: true
         created_at:
           type: string
           format: date-time

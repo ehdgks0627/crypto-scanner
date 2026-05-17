@@ -3,6 +3,7 @@ import { relationLabel, riskTierLabel } from "./displayLabels";
 import type { NetworkExposureGraph, NetworkExposureLink, NetworkExposureLinkKind, NetworkExposureNode, NetworkExposureNodeKind } from "./networkExposureGraph";
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
+  group: "수집 그룹",
   target: "스캔 대상",
   endpoint: "엔드포인트",
   asset: "암호 자산",
@@ -10,6 +11,7 @@ const kindLabels: Record<NetworkExposureNodeKind, string> = {
 };
 
 const kindShapes: Record<NetworkExposureNodeKind, string> = {
+  group: "folder",
   target: "box3d",
   endpoint: "component",
   asset: "note",
@@ -25,6 +27,7 @@ const riskStyles: Record<RiskTier | "UNKNOWN", { border: string; fill: string; t
 };
 
 const edgeStyles: Record<NetworkExposureLinkKind, { color: string; label: string; style: string }> = {
+  contains: { color: "#3f6f78", label: relationLabel("contains"), style: "solid" },
   exposes: { color: "#4b8ca8", label: relationLabel("exposes"), style: "solid" },
   presents: { color: "#6d5a9a", label: relationLabel("presents"), style: "solid" },
   supports: { color: "#5d8a5a", label: relationLabel("supports"), style: "solid" },

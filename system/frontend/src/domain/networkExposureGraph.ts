@@ -1,8 +1,8 @@
 import type { RiskTier, Schema } from "../api/types";
 import { assetTypeLabel, relationLabel, riskTierLabel } from "./displayLabels";
 
-export type NetworkExposureNodeKind = "target" | "endpoint" | "asset" | "finding";
-export type NetworkExposureLinkKind = "exposes" | "presents" | "supports" | "uses" | "has_finding";
+export type NetworkExposureNodeKind = "group" | "target" | "endpoint" | "asset" | "finding";
+export type NetworkExposureLinkKind = "contains" | "exposes" | "presents" | "supports" | "uses" | "has_finding";
 
 export type NetworkExposureNode = {
   id: string;
@@ -30,6 +30,7 @@ export type NetworkExposureGraph = {
   nodes: NetworkExposureNode[];
   links: NetworkExposureLink[];
   stats: {
+    groups: number;
     targets: number;
     endpoints: number;
     assets: number;
@@ -39,6 +40,7 @@ export type NetworkExposureGraph = {
 };
 
 const nodeColors: Record<NetworkExposureNodeKind, string> = {
+  group: "#3f6f78",
   target: "#4b8ca8",
   endpoint: "#6d5a9a",
   asset: "#4f6f52",
@@ -53,6 +55,7 @@ const tierColors: Record<RiskTier, string> = {
 };
 
 const linkColors: Record<NetworkExposureLinkKind, string> = {
+  contains: "#3f6f78",
   exposes: "#4b8ca8",
   presents: "#6d5a9a",
   supports: "#5d8a5a",
@@ -106,12 +109,22 @@ export function buildNetworkExposureGraph(
 
   for (const asset of assets) {
     const target = asset.target_id ? targetsById.get(asset.target_id) : undefined;
+    const group = groupFor(asset, target);
+    const groupNodeId = `group:${group.key}`;
     const targetNodeId = targetNodeIdFor(asset, target);
     const endpointNodeId = endpointNodeIdFor(asset, target);
     const assetNodeId = `asset:${asset.id}`;
     const relation = relationForAsset(asset.asset_type);
     const tier = asset.risk?.tier;
 
+    addNode({
+      id: groupNodeId,
+      kind: "group",
+      label: group.label,
+      subtitle: group.subtitle,
+      riskTier: tier,
+      assetCount: 1
+    });
     addNode({
       id: targetNodeId,
       kind: "target",
@@ -140,6 +153,13 @@ export function buildNetworkExposureGraph(
       assetCount: 1
     });
 
+    addLink({
+      id: `contains:${groupNodeId}:${targetNodeId}`,
+      source: groupNodeId,
+      target: targetNodeId,
+      kind: "contains",
+      label: relationLabel("contains")
+    });
     addLink({
       id: `exposes:${targetNodeId}:${endpointNodeId}`,
       source: targetNodeId,
@@ -185,6 +205,7 @@ export function buildNetworkExposureGraph(
     nodes: graphNodes,
     links: [...links.values()],
     stats: {
+      groups: graphNodes.filter((node) => node.kind === "group").length,
       targets: graphNodes.filter((node) => node.kind === "target").length,
       endpoints: graphNodes.filter((node) => node.kind === "endpoint").length,
       assets: assets.length,
@@ -192,6 +213,55 @@ export function buildNetworkExposureGraph(
       highestRiskTier: graphNodes.reduce<RiskTier | undefined>((highest, node) => mostSevereTier(highest, node.riskTier), undefined)
     }
   };
+}
+
+function groupFor(asset: Schema<"AssetListItem">, target?: Schema<"Target">) {
+  if (target?.graph_group) {
+    return {
+      key: target.graph_group.key,
+      label: target.graph_group.label,
+      subtitle: target.graph_group.subtitle ?? undefined
+    };
+  }
+
+  if (target?.agent_enabled) {
+    return {
+      key: `host:${target.host}`,
+      label: target.display_name || target.host,
+      subtitle: "Host Agent"
+    };
+  }
+
+  if (target?.ip) {
+    const range = ipv4Range24(target.ip);
+    return {
+      key: `target-scope:${range}`,
+      label: range,
+      subtitle: "IP 대역"
+    };
+  }
+
+  if (target) {
+    return {
+      key: `target-scope:${target.host}`,
+      label: target.host,
+      subtitle: "스캔 대상 그룹"
+    };
+  }
+
+  return {
+    key: asset.target_label ? `target-label:${asset.target_label}` : "unmapped",
+    label: asset.target_label ?? "매핑되지 않은 대상",
+    subtitle: "대상 매핑 없음"
+  };
+}
+
+function ipv4Range24(ip: string) {
+  const match = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/);
+  if (!match) {
+    return ip;
+  }
+  return `${match[1]}.${match[2]}.${match[3]}.0/24`;
 }
 
 function targetNodeIdFor(asset: Schema<"AssetListItem">, target?: Schema<"Target">) {
@@ -257,7 +327,7 @@ function mostSevereTier(left?: RiskTier, right?: RiskTier) {
 }
 
 function nodeValue(node: NetworkExposureNode) {
-  const base = node.kind === "target" ? 10 : node.kind === "endpoint" ? 9 : node.kind === "finding" ? 8 : 6;
+  const base = node.kind === "group" ? 12 : node.kind === "target" ? 10 : node.kind === "endpoint" ? 9 : node.kind === "finding" ? 8 : 6;
   const tierBoost = node.riskTier ? riskRank[node.riskTier] * 1.4 : 0;
   return Math.min(24, base + Math.sqrt(node.assetCount) + tierBoost);
 }

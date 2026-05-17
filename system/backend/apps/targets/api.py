@@ -3,6 +3,7 @@ from typing import Literal
 from datetime import UTC
 
 from django.db import IntegrityError, transaction
+from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
 from ninja import Query, Router
 from pydantic import AnyUrl, Field, IPvAnyAddress
@@ -10,6 +11,7 @@ from pydantic import AnyUrl, Field, IPvAnyAddress
 from apps.core.errors import error_response
 from apps.core.pagination import empty_page
 from apps.core.schemas import StrictSchema
+from apps.discoveries.models import DiscoveredEndpoint
 from apps.jobs.models import AsyncJob
 from apps.targets import services
 from apps.targets.models import Target, default_context
@@ -80,6 +82,7 @@ def _serialize_target(target: Target):
         "agent_enabled": target.agent_enabled,
         "agent_url": target.agent_url,
         "context": _normalized_context(target.context),
+        "graph_group": _target_graph_group(target),
         "created_at": target.created_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
         "updated_at": target.updated_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
     }
@@ -99,7 +102,7 @@ def list_targets(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    queryset = Target.objects.all()
+    queryset = _target_queryset()
     if host:
         queryset = queryset.filter(host__icontains=host)
     if protocol_hint:
@@ -149,7 +152,7 @@ def create_target(request, payload: TargetCreatePayload):
 @router.get("/targets/{target_id}")
 def get_target(request, target_id: int):
     try:
-        target = Target.objects.get(id=target_id)
+        target = _target_queryset().get(id=target_id)
     except Target.DoesNotExist:
         return _not_found()
     return _serialize_target(target)
@@ -205,7 +208,7 @@ def patch_target(request, target_id: int, payload: TargetPatchPayload):
             status=503,
         )
 
-    target.refresh_from_db()
+    target = _target_queryset().get(id=target.id)
     return {"target": _serialize_target(target), "recompute_job_id": recompute_job_id}
 
 
@@ -217,3 +220,61 @@ def delete_target(request, target_id: int):
         return _not_found()
     target.delete()
     return HttpResponse(status=204)
+
+
+def _target_queryset():
+    return Target.objects.prefetch_related(
+        Prefetch(
+            "discoveredendpoint_set",
+            queryset=DiscoveredEndpoint.objects.select_related("discovery", "discovery__discovery_agent").order_by(
+                "-discovery__created_at",
+                "-id",
+            ),
+            to_attr="_graph_discovered_endpoints",
+        )
+    )
+
+
+def _target_graph_group(target: Target) -> dict:
+    if target.agent_enabled:
+        return {
+            "kind": "host_agent",
+            "key": f"host:{target.host}",
+            "label": target.display_name or target.host,
+            "subtitle": "Host Agent",
+        }
+
+    endpoint = _latest_discovered_endpoint(target)
+    if endpoint:
+        discovery = endpoint.discovery
+        scope_value = discovery.scope_value or discovery.cidr
+        executor = "Discovery Agent"
+        if discovery.executor_type == "agent" and discovery.discovery_agent:
+            executor = f"Discovery Agent · {discovery.discovery_agent.hostname}"
+        elif discovery.executor_type == "central":
+            executor = "Central Discovery"
+        return {
+            "kind": "discovery_scope",
+            "key": f"discovery:{discovery.scope_type}:{scope_value}:{discovery.discovery_agent_id or 'central'}",
+            "label": scope_value,
+            "subtitle": f"{executor} · {discovery.scope_type.upper()}",
+        }
+
+    return {
+        "kind": "target_scope",
+        "key": f"target-scope:{target.ip or target.host}",
+        "label": target.ip or target.host,
+        "subtitle": "수동 스캔 대상",
+    }
+
+
+def _latest_discovered_endpoint(target: Target):
+    prefetched = getattr(target, "_graph_discovered_endpoints", None)
+    if prefetched is not None:
+        return prefetched[0] if prefetched else None
+    return (
+        DiscoveredEndpoint.objects.filter(target=target)
+        .select_related("discovery", "discovery__discovery_agent")
+        .order_by("-discovery__created_at", "-id")
+        .first()
+    )

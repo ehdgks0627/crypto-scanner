@@ -102,6 +102,7 @@ const migrationPurposeLabels: Record<string, string> = {
 };
 
 const relationLabels: Record<string, string> = {
+  contains: "포함",
   exposes: "노출",
   presents: "제공",
   supports: "지원",

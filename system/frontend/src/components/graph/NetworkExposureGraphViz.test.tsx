@@ -51,6 +51,7 @@ function graphWith(nodes: NetworkExposureGraph["nodes"]): NetworkExposureGraph {
     nodes,
     links: [],
     stats: {
+      groups: nodes.filter((node) => node.kind === "group").length,
       targets: nodes.filter((node) => node.kind === "target").length,
       endpoints: nodes.filter((node) => node.kind === "endpoint").length,
       assets: nodes.filter((node) => node.kind === "asset").length,

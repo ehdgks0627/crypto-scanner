@@ -340,6 +340,10 @@
   color: #4b8ca8;
 }
 
+.network-graph-relations .is-contains {
+  color: #3f6f78;
+}
+
 .network-graph-relations .is-presents {
   color: #6d5a9a;
 }

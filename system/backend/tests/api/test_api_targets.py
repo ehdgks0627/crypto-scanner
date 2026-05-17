@@ -45,6 +45,7 @@ def assert_target_shape(target):
         "agent_enabled",
         "agent_url",
         "context",
+        "graph_group",
         "created_at",
         "updated_at",
     } <= set(target)
@@ -117,6 +118,12 @@ def test_api_tgt_003_get_target_detail(client):
     assert body["protocol_hint"] == "TLS"
     assert body["transport"] == "TCP"
     assert body["context"] == TARGET_CONTEXT
+    assert body["graph_group"] == {
+        "kind": "host_agent",
+        "key": "host:web.testbed.local",
+        "label": "web.testbed.local",
+        "subtitle": "Host Agent",
+    }
     assert_target_shape(body)
 
 
@@ -244,6 +251,42 @@ def test_api_tgt_007c_display_name_is_trimmed_and_blank_becomes_null(client):
     assert created.json()["display_name"] == "Named Target"
     assert patched.status_code == 200
     assert patched.json()["target"]["display_name"] is None
+
+
+def test_api_tgt_007d_graph_group_uses_discovery_scope_for_promoted_targets(client):
+    from apps.discoveries.models import DiscoveredEndpoint, Discovery
+    from tests.api.factories import create_async_job
+
+    target = create_target(agent_enabled=False)
+    async_job = create_async_job(kind="discovery", status="COMPLETED")
+    discovery = Discovery.objects.create(
+        async_job=async_job,
+        scope_type="cidr",
+        scope_value="10.10.10.0/24",
+        cidr="10.10.10.0/24",
+        executor_type="central",
+        status="COMPLETED",
+    )
+    DiscoveredEndpoint.objects.create(
+        discovery=discovery,
+        host=target.host,
+        port=target.port,
+        transport=target.transport,
+        detected_protocol="HTTPS",
+        suggested_protocol_hint="TLS",
+        promoted=True,
+        target=target,
+    )
+
+    response = client.get(f"/api/targets/{target.id}")
+
+    assert response.status_code == 200
+    assert response.json()["graph_group"] == {
+        "kind": "discovery_scope",
+        "key": "discovery:cidr:10.10.10.0/24:central",
+        "label": "10.10.10.0/24",
+        "subtitle": "Central Discovery · CIDR",
+    }
 
 
 def test_api_tgt_008_delete_target_soft_unlinks_assets(client):

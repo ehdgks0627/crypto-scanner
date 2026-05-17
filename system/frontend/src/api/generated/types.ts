@@ -764,6 +764,12 @@ export interface components {
             exposure?: (string & components["schemas"]["Exposure"]) | null;
             service_role?: string | null;
         };
+        TargetGraphGroup: {
+            kind: "discovery_scope" | "host_agent" | "target_scope";
+            key: string;
+            label: string;
+            subtitle?: string | null;
+        };
         /** @enum {string} */
         ContextSource: "asset_override" | "target" | "heuristic";
         AssetContextValues: {
@@ -793,6 +799,7 @@ export interface components {
             /** Format: uri */
             agent_url?: string | null;
             context: components["schemas"]["TargetContext"];
+            graph_group?: components["schemas"]["TargetGraphGroup"] | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
