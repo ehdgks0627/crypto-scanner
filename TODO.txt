@@ -66,7 +66,7 @@ PQC 전환 자동화 시스템 · 구현 체크리스트
   · 백악관 NSM-10은 FCEB 기관의 CRQC 취약 IT 시스템 인벤토리 제출 의무로 설명하고 전체 민간/공공 자산 제출 의무처럼 확대하지 않는다.
   · 국내 PQC 마스터플랜은 KISA 공식 페이지로 존재와 후속 사업을 확인하되, 2023년 발표 주체는 국정원·과기정통부로 분리해 설명한다.
   · DHS 2021 PQC 로드맵은 중요 데이터/암호 시스템 인벤토리, 공개키 사용 위치 식별, 위험 기반 우선순위화, 전환 계획 수립 근거로 사용한다.
-  · 대시보드 2D 네트워크 노출 그래프는 Discovery Agent scope(CIDR/IP/Domain)와 Host Agent host 기준의 수집 영역(cluster)으로 대상을 묶어 표시한다.
+  · 대시보드 2D 네트워크 노출 그래프는 Discovery Agent scope(CIDR/IP/Domain)와 Host Agent host 기준의 작은 수집 영역(cluster) 안에 스캔 대상/엔드포인트를 묶어 표시한다.
   · pqc-tls 테스트베드는 ML-KEM/ML-DSA readiness endpoint를 노출하고 Discovery/Scanner가 이를 PQC 자산으로 수집한다.
   · 네트워크 스캔과 Host Agent가 같은 인증서를 발견하면 fingerprint 기반으로 단일 자산으로 병합한다.
   · Discovery Agent, 대시보드, CBOM 스냅샷, 마이그레이션 추천, 가용성 검사 UI는 코드 기준으로 반영한다.

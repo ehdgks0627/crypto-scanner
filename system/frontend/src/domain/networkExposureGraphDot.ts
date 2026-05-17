@@ -43,8 +43,8 @@ export function buildNetworkExposureDot(graph: NetworkExposureGraph) {
   const visibleLinks = graph.links.filter((link) => link.kind !== "contains" && !clusteredGroupIds.has(link.source) && !clusteredGroupIds.has(link.target));
   const lines = [
     "digraph NetworkExposure {",
-    '  graph [layout=dot, bgcolor="transparent", pad="0.24", rankdir=LR, compound=true, newrank=true, nodesep="0.44", ranksep="0.75", splines=ortho, outputorder=edgesfirst];',
-    '  node [fontname="Inter", fontsize=11, margin="0.13,0.08"];',
+    '  graph [layout=dot, bgcolor="transparent", pad="0.18", rankdir=LR, compound=true, newrank=true, nodesep="0.3", ranksep="0.56", splines=ortho, outputorder=edgesfirst];',
+    '  node [fontname="Inter", fontsize=10, margin="0.1,0.06"];',
     '  edge [fontname="JetBrains Mono", fontsize=9, penwidth=1.55, arrowsize=0.65];',
     ...clusters.map(clusterStatement),
     ...standaloneNodes.map(nodeStatement),
@@ -175,6 +175,9 @@ function collectClusterMembers(
     }
 
     memberIds.add(nodeId);
+    if (node.kind === "endpoint") {
+      continue;
+    }
     for (const descendantId of descendantsBySource.get(nodeId) ?? []) {
       queue.push(descendantId);
     }
@@ -199,8 +202,9 @@ function clusterStatement(cluster: GraphCluster) {
     `    color="${risk.border}";`,
     `    fillcolor="${clusterFillColor(risk.fill)}";`,
     `    fontcolor="${risk.text}";`,
-    '    penwidth=1.8;',
-    '    margin=18;',
+    '    fontsize=10;',
+    '    penwidth=1.45;',
+    '    margin=8;',
     ...cluster.members.map((node) => indent(nodeStatement(node), 4)),
     "  }"
   ].join("\n");
@@ -208,9 +212,8 @@ function clusterStatement(cluster: GraphCluster) {
 
 function clusterLabel(group: NetworkExposureNode) {
   return [
-    ...wrapText(group.label, 34, 2),
-    ...wrapText(group.subtitle ?? kindLabels.group, 36, 1),
-    `${group.assetCount}개 자산`
+    ...wrapText(group.label, 30, 1),
+    ...wrapText(group.subtitle ?? kindLabels.group, 30, 1)
   ]
     .filter(Boolean)
     .join("\n");
