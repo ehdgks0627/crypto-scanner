@@ -1,4 +1,5 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { services } from "../../api/services";
@@ -61,5 +62,43 @@ describe("SettingsView", () => {
     renderWithApp(<SettingsView />);
 
     expect(await screen.findByText("설정된 규칙이 없습니다")).toBeInTheDocument();
+  });
+
+  it("confirms snapshot and asset cleanup from settings", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(services.risk, "weights").mockResolvedValue(defaultWeights);
+    vi.spyOn(services.meta, "algorithmRiskTable").mockResolvedValue({ items: [] });
+    const cleanupSpy = vi.spyOn(services.settings, "deleteSnapshots").mockResolvedValue({
+      deleted: { snapshots: 2, assets: 67, risk_scores: 67 }
+    });
+
+    renderWithApp(<SettingsView />);
+
+    await user.click(await screen.findByRole("button", { name: "스냅샷/식별 자산 삭제" }));
+    const dialog = await screen.findByRole("dialog", { name: "스냅샷/식별 자산 삭제" });
+    expect(dialog).toHaveTextContent("Agent와 스캔 대상은 유지됩니다.");
+
+    await user.click(within(dialog).getByRole("button", { name: "삭제 실행" }));
+
+    await waitFor(() => expect(cleanupSpy).toHaveBeenCalledTimes(1));
+  });
+
+  it("confirms scan target cleanup from settings", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(services.risk, "weights").mockResolvedValue(defaultWeights);
+    vi.spyOn(services.meta, "algorithmRiskTable").mockResolvedValue({ items: [] });
+    const cleanupSpy = vi.spyOn(services.settings, "deleteScanTargets").mockResolvedValue({
+      deleted: { scan_targets: 30 }
+    });
+
+    renderWithApp(<SettingsView />);
+
+    await user.click(await screen.findByRole("button", { name: "스캔 대상 삭제" }));
+    const dialog = await screen.findByRole("dialog", { name: "스캔 대상 삭제" });
+    expect(dialog).toHaveTextContent("스냅샷과 Agent 등록 정보는 삭제하지 않습니다.");
+
+    await user.click(within(dialog).getByRole("button", { name: "삭제 실행" }));
+
+    await waitFor(() => expect(cleanupSpy).toHaveBeenCalledTimes(1));
   });
 });

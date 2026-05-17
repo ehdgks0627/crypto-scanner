@@ -3,6 +3,7 @@ from ninja import NinjaAPI
 
 from apps.agents.api import router as agents_router
 from apps.assets.api import router as assets_router
+from apps.core.api import router as core_router
 from apps.core.errors import register_exception_handlers
 from apps.dashboard.api import router as dashboard_router
 from apps.discoveries.api import router as discoveries_router
@@ -20,6 +21,7 @@ register_exception_handlers(api)
 
 api.add_router("", agents_router)
 api.add_router("", assets_router)
+api.add_router("", core_router)
 api.add_router("", dashboard_router)
 api.add_router("", discoveries_router)
 api.add_router("", health_router)

@@ -37,6 +37,8 @@ tags:
     description: Backend dependency health for UI status indicators.
   - name: Dashboard
     description: Aggregated dashboard metrics.
+  - name: Settings
+    description: Operator settings and cleanup actions.
   - name: Meta
     description: Static enums and reference tables.
 
@@ -1437,6 +1439,46 @@ paths:
           $ref: '#/components/responses/Error'
         '422':
           $ref: '#/components/responses/Unprocessable'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /settings/snapshots:
+    delete:
+      tags: [Settings]
+      summary: Delete snapshot-derived inventory results
+      operationId: deleteSnapshotResults
+      responses:
+        '200':
+          description: Deleted snapshot-derived rows
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsCleanupResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /settings/scan-targets:
+    delete:
+      tags: [Settings]
+      summary: Delete registered scan targets
+      operationId: deleteScanTargets
+      responses:
+        '200':
+          description: Deleted scan targets
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsCleanupResult'
+        '400':
+          $ref: '#/components/responses/Error'
         default:
           $ref: '#/components/responses/Error'
 
@@ -4033,6 +4075,15 @@ components:
           type: integer
         message:
           type: string
+
+    SettingsCleanupResult:
+      type: object
+      required: [deleted]
+      properties:
+        deleted:
+          type: object
+          additionalProperties:
+            type: integer
 
     ProtocolMeta:
       type: object

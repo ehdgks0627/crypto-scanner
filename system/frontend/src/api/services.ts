@@ -244,6 +244,20 @@ export class HealthService extends BaseService {
   }
 }
 
+export type SettingsCleanupResult = {
+  deleted: Record<string, number>;
+};
+
+export class SettingsService extends BaseService {
+  deleteSnapshots() {
+    return this.client.request<SettingsCleanupResult>("/settings/snapshots", { method: "DELETE" });
+  }
+
+  deleteScanTargets() {
+    return this.client.request<SettingsCleanupResult>("/settings/scan-targets", { method: "DELETE" });
+  }
+}
+
 export const services = {
   dashboard: new DashboardService(apiClient),
   targets: new TargetService(apiClient),
@@ -256,7 +270,8 @@ export const services = {
   performance: new PerformanceService(apiClient),
   agents: new AgentService(apiClient),
   meta: new MetaService(apiClient),
-  health: new HealthService(apiClient)
+  health: new HealthService(apiClient),
+  settings: new SettingsService(apiClient)
 };
 
 export const protocolOptions: ProtocolHint[] = ["TLS", "SSH", "IKE", "SMTP", "IMAP", "POP3", "UNKNOWN"];
