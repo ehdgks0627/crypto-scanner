@@ -13,7 +13,7 @@ const NetworkExposureGraph3DView = lazy(() =>
 );
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
-  group: "수집 그룹",
+  group: "수집 영역",
   target: "스캔 대상",
   endpoint: "엔드포인트",
   asset: "암호 자산",
@@ -21,7 +21,7 @@ const kindLabels: Record<NetworkExposureNodeKind, string> = {
 };
 
 const relationLabels: Record<NetworkExposureLinkKind, string> = {
-  contains: "수집 그룹이 스캔 대상을 묶습니다",
+  contains: "수집 영역 안에 스캔 대상을 배치합니다",
   exposes: "스캔 대상이 엔드포인트를 노출합니다",
   presents: "엔드포인트가 인증서나 키를 제공합니다",
   supports: "엔드포인트가 프로토콜이나 알고리즘을 지원합니다",
@@ -75,7 +75,7 @@ export function NetworkExposureGraphViz({
 
     import("@hpcc-js/wasm/graphviz")
       .then(({ Graphviz }) => Graphviz.load())
-      .then((graphviz) => graphviz.sfdp(dot, "svg"))
+      .then((graphviz) => graphviz.dot(dot, "svg"))
       .then((nextSvg) => {
         if (!cancelled) {
           setSvg(nextSvg);
@@ -233,7 +233,7 @@ export function NetworkExposureGraphViz({
 function GraphLegend() {
   return (
     <div className="network-graph-legend" aria-label="그래프 노드 범례">
-      <span><FolderTree size={14} />수집 그룹</span>
+      <span><FolderTree size={14} />수집 영역</span>
       <span><Server size={14} />스캔 대상</span>
       <span><Router size={14} />엔드포인트</span>
       <span><FileKey size={14} />인증서 자산</span>

@@ -3,7 +3,7 @@ import { relationLabel, riskTierLabel } from "./displayLabels";
 import type { NetworkExposureGraph, NetworkExposureLink, NetworkExposureLinkKind, NetworkExposureNode, NetworkExposureNodeKind } from "./networkExposureGraph";
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
-  group: "수집 그룹",
+  group: "수집 영역",
   target: "스캔 대상",
   endpoint: "엔드포인트",
   asset: "암호 자산",
@@ -36,13 +36,19 @@ const edgeStyles: Record<NetworkExposureLinkKind, { color: string; label: string
 };
 
 export function buildNetworkExposureDot(graph: NetworkExposureGraph) {
+  const clusters = buildGroupClusters(graph);
+  const clusteredNodeIds = new Set(clusters.flatMap((cluster) => cluster.members.map((node) => node.id)));
+  const clusteredGroupIds = new Set(clusters.map((cluster) => cluster.group.id));
+  const standaloneNodes = graph.nodes.filter((node) => !clusteredNodeIds.has(node.id) && !clusteredGroupIds.has(node.id));
+  const visibleLinks = graph.links.filter((link) => link.kind !== "contains" && !clusteredGroupIds.has(link.source) && !clusteredGroupIds.has(link.target));
   const lines = [
-    "graph NetworkExposure {",
-    '  graph [layout=sfdp, bgcolor="transparent", pad="0.24", overlap=prism, overlap_scaling=-5, sep="+24", K=0.95, repulsiveforce=1.55, start=37, splines=true, outputorder=edgesfirst];',
+    "digraph NetworkExposure {",
+    '  graph [layout=dot, bgcolor="transparent", pad="0.24", rankdir=LR, compound=true, newrank=true, nodesep="0.44", ranksep="0.75", splines=ortho, outputorder=edgesfirst];',
     '  node [fontname="Inter", fontsize=11, margin="0.13,0.08"];',
-    '  edge [fontname="JetBrains Mono", fontsize=9, penwidth=1.55, len=1.6];',
-    ...graph.nodes.map(nodeStatement),
-    ...graph.links.map(edgeStatement),
+    '  edge [fontname="JetBrains Mono", fontsize=9, penwidth=1.55, arrowsize=0.65];',
+    ...clusters.map(clusterStatement),
+    ...standaloneNodes.map(nodeStatement),
+    ...visibleLinks.map(edgeStatement),
     "}"
   ];
   return lines.join("\n");
@@ -87,14 +93,143 @@ function nodeStatement(node: NetworkExposureNode) {
 function edgeStatement(link: NetworkExposureLink) {
   const style = edgeStyles[link.kind];
   return [
-    `  ${quoteId(link.source)} -- ${quoteId(link.target)} [`,
+    `  ${quoteId(link.source)} -> ${quoteId(link.target)} [`,
     `    label="${dotEscape(style.label)}",`,
     `    color="${style.color}",`,
     `    fontcolor="${style.color}",`,
     `    style="${style.style}",`,
+    '    arrowhead="vee",',
     `    tooltip="${dotEscape(style.label)}"`,
     "  ];"
   ].join("\n");
+}
+
+type GraphCluster = {
+  id: string;
+  group: NetworkExposureNode;
+  memberIds: Set<string>;
+  members: NetworkExposureNode[];
+};
+
+function buildGroupClusters(graph: NetworkExposureGraph) {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const descendantLinks = graph.links.filter((link) => link.kind !== "contains" && link.kind !== "has_finding");
+  const descendantsBySource = new Map<string, string[]>();
+  for (const link of descendantLinks) {
+    const targets = descendantsBySource.get(link.source) ?? [];
+    targets.push(link.target);
+    descendantsBySource.set(link.source, targets);
+  }
+
+  const clusteredNodeIds = new Set<string>();
+  const clusters: GraphCluster[] = [];
+
+  for (const link of graph.links) {
+    if (link.kind !== "contains") {
+      continue;
+    }
+
+    const group = nodesById.get(link.source);
+    if (group?.kind !== "group") {
+      continue;
+    }
+
+    const memberIds = collectClusterMembers(link.target, descendantsBySource, nodesById, clusteredNodeIds);
+    if (memberIds.size === 0) {
+      continue;
+    }
+
+    for (const memberId of memberIds) {
+      clusteredNodeIds.add(memberId);
+    }
+
+    clusters.push({
+      id: `cluster_${clusterIdSuffix(group.id)}`,
+      group,
+      memberIds,
+      members: [...memberIds].map((memberId) => nodesById.get(memberId)).filter((node): node is NetworkExposureNode => Boolean(node))
+    });
+  }
+
+  return clusters;
+}
+
+function collectClusterMembers(
+  rootId: string,
+  descendantsBySource: Map<string, string[]>,
+  nodesById: Map<string, NetworkExposureNode>,
+  alreadyClustered: Set<string>
+) {
+  const memberIds = new Set<string>();
+  const queue = [rootId];
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift();
+    if (!nodeId || memberIds.has(nodeId) || alreadyClustered.has(nodeId)) {
+      continue;
+    }
+
+    const node = nodesById.get(nodeId);
+    if (!node || node.kind === "group" || node.kind === "finding") {
+      continue;
+    }
+
+    memberIds.add(nodeId);
+    for (const descendantId of descendantsBySource.get(nodeId) ?? []) {
+      queue.push(descendantId);
+    }
+  }
+
+  return memberIds;
+}
+
+function clusterStatement(cluster: GraphCluster) {
+  const risk = riskStyles[cluster.group.riskTier ?? "UNKNOWN"];
+  const label = clusterLabel(cluster.group);
+  const tooltip = [kindLabels.group, cluster.group.label, cluster.group.subtitle].filter(Boolean).join(" | ");
+  return [
+    `  subgraph ${quoteId(cluster.id)} {`,
+    `    label="${dotEscape(label)}";`,
+    `    tooltip="${dotEscape(tooltip)}";`,
+    `    URL="${graphNodeAppUrl(cluster.group.id)}";`,
+    '    target="_self";',
+    '    labelloc="t";',
+    '    labeljust="l";',
+    '    style="rounded,filled";',
+    `    color="${risk.border}";`,
+    `    fillcolor="${clusterFillColor(risk.fill)}";`,
+    `    fontcolor="${risk.text}";`,
+    '    penwidth=1.8;',
+    '    margin=18;',
+    ...cluster.members.map((node) => indent(nodeStatement(node), 4)),
+    "  }"
+  ].join("\n");
+}
+
+function clusterLabel(group: NetworkExposureNode) {
+  return [
+    ...wrapText(group.label, 34, 2),
+    ...wrapText(group.subtitle ?? kindLabels.group, 36, 1),
+    `${group.assetCount}개 자산`
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function clusterIdSuffix(value: string) {
+  return value.replace(/[^a-zA-Z0-9_]/g, "_").replace(/^_+/, "") || "group";
+}
+
+function clusterFillColor(fill: string) {
+  return fill;
+}
+
+function indent(value: string, spaces: number) {
+  const prefix = " ".repeat(spaces);
+  return value
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
 }
 
 function nodeLabel(node: NetworkExposureNode) {

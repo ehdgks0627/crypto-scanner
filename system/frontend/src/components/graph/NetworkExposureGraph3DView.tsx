@@ -11,7 +11,7 @@ import { Button } from "../ui/button";
 const graphRendererConfig = { preserveDrawingBuffer: true, antialias: true } as const;
 
 const kindLabels: Record<NetworkExposureNodeKind, string> = {
-  group: "수집 그룹",
+  group: "수집 영역",
   target: "스캔 대상",
   endpoint: "엔드포인트",
   asset: "암호 자산",

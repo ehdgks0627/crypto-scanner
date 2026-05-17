@@ -69,24 +69,25 @@ const graph: NetworkExposureGraph = {
 };
 
 describe("buildNetworkExposureDot", () => {
-  it("emits Graphviz nodes with meaningful shapes and edge labels", () => {
+  it("emits Graphviz clusters with meaningful node shapes and edge labels", () => {
     const dot = buildNetworkExposureDot(graph);
 
-    expect(dot).toContain("graph NetworkExposure");
-    expect(dot).toContain("layout=sfdp");
-    expect(dot).toContain("splines=true");
-    expect(dot).toContain("shape=folder");
+    expect(dot).toContain("digraph NetworkExposure");
+    expect(dot).toContain("layout=dot");
+    expect(dot).toContain("rankdir=LR");
+    expect(dot).toContain('subgraph "cluster_group_target_scope_10_10_10_0_24"');
+    expect(dot).toContain('label="10.10.10.0/24\\nDiscovery Agent\\n2개 자산"');
+    expect(dot).not.toContain("shape=folder");
     expect(dot).toContain("shape=box3d");
     expect(dot).toContain("shape=component");
     expect(dot).toContain("shape=note");
     expect(dot).toContain("shape=octagon");
-    expect(dot).toContain('label="포함"');
     expect(dot).toContain('label="노출"');
     expect(dot).toContain('label="제공"');
     expect(dot).toContain('label="위험 발견"');
     expect(dot).toContain('style="dashed"');
-    expect(dot).toContain('"group:target-scope:10.10.10.0/24" -- "target:10"');
-    expect(dot).toContain('"target:10" -- "endpoint:10:TCP:443"');
+    expect(dot).not.toContain('"group:target-scope:10.10.10.0/24" -> "target:10"');
+    expect(dot).toContain('"target:10" -> "endpoint:10:TCP:443"');
     expect(dot).not.toContain("rank=same");
   });
 

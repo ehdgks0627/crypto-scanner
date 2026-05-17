@@ -6,7 +6,7 @@ import { graphNodeAppUrl } from "../../domain/networkExposureGraphDot";
 import { NetworkExposureGraphViz } from "./NetworkExposureGraphViz";
 
 const graphvizMock = vi.hoisted(() => ({
-  sfdp: vi.fn(),
+  dot: vi.fn(),
   load: vi.fn()
 }));
 
@@ -67,10 +67,10 @@ function svgForNode(nodeId: string, label: string) {
 
 describe("NetworkExposureGraphViz", () => {
   beforeEach(() => {
-    graphvizMock.sfdp.mockReset();
+    graphvizMock.dot.mockReset();
     graphvizMock.load.mockReset();
-    graphvizMock.sfdp.mockReturnValue(svgForNode(targetNode.id, targetNode.label));
-    graphvizMock.load.mockResolvedValue({ sfdp: graphvizMock.sfdp });
+    graphvizMock.dot.mockReturnValue(svgForNode(targetNode.id, targetNode.label));
+    graphvizMock.load.mockResolvedValue({ dot: graphvizMock.dot });
   });
 
   it("stores selected node by id and clears stale selections after graph refresh", async () => {
@@ -80,7 +80,7 @@ describe("NetworkExposureGraphViz", () => {
 
     expect(screen.getByRole("heading", { name: targetNode.label })).toBeInTheDocument();
 
-    graphvizMock.sfdp.mockReturnValue(svgForNode(assetNode.id, assetNode.label));
+    graphvizMock.dot.mockReturnValue(svgForNode(assetNode.id, assetNode.label));
     rerender(<NetworkExposureGraphViz graph={graphWith([assetNode])} />);
 
     await waitFor(() => expect(screen.getByRole("heading", { name: "노드를 선택하세요" })).toBeInTheDocument());
@@ -92,7 +92,7 @@ describe("NetworkExposureGraphViz", () => {
     expect(await screen.findByText("그래프 데이터를 불러오지 못했습니다")).toBeInTheDocument();
 
     unmount();
-    graphvizMock.sfdp.mockImplementation(() => {
+    graphvizMock.dot.mockImplementation(() => {
       throw new Error("dot failed");
     });
 
