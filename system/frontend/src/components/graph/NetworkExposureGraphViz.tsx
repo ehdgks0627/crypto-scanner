@@ -122,8 +122,7 @@ export function NetworkExposureGraphViz({
   }
 
   const graphSvgStyle = {
-    width: `${Math.round(zoom * 100)}%`,
-    minWidth: `${Math.round(920 * zoom)}px`
+    transform: `scale(${zoom})`
   } satisfies CSSProperties;
 
   return (

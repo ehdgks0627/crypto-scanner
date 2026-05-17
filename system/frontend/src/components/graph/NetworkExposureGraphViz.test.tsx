@@ -107,14 +107,14 @@ describe("NetworkExposureGraphViz", () => {
     await screen.findByText(targetNode.label);
 
     const graphSvg = container.querySelector(".network-graph-svg") as HTMLElement;
-    expect(graphSvg.style.width).toBe("100%");
+    expect(graphSvg.style.transform).toBe("scale(1)");
 
     fireEvent.click(screen.getByRole("button", { name: "2D 그래프 확대" }));
-    expect(graphSvg.style.width).toBe("115%");
+    expect(graphSvg.style.transform).toBe("scale(1.15)");
     expect(screen.getByText("115%")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "2D 그래프 줌 초기화" }));
-    expect(graphSvg.style.width).toBe("100%");
+    expect(graphSvg.style.transform).toBe("scale(1)");
   });
 
   it("switches between 2D and 3D graph modes", async () => {

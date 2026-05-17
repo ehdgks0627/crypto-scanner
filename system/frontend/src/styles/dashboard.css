@@ -127,17 +127,20 @@
 }
 
 .network-graph-svg {
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  min-width: 920px;
+  width: max-content;
+  min-width: 100%;
   min-height: 100%;
   box-sizing: border-box;
   padding: 18px;
+  transform-origin: center center;
 }
 
 .network-graph-svg svg {
   display: block;
-  width: 100%;
+  width: auto;
+  max-width: none;
   height: auto;
 }
 
