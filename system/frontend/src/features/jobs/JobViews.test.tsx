@@ -105,7 +105,7 @@ describe("JobDetailView", () => {
       started_at: null,
       cancel_requested_at: null,
       finished_at: "2026-04-29T00:00:00Z",
-      result: { snapshot_id: 4 },
+      result: { snapshot_id: 4, assets_count: 324, risk_scores_count: 324 },
       error: null
     });
     vi.spyOn(services.jobs, "logs").mockResolvedValue({
@@ -131,6 +131,11 @@ describe("JobDetailView", () => {
     renderWithApp(<JobDetailView id={8} />);
 
     expect(await screen.findByText("api.testbed.local:443")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "#4" })).toBeInTheDocument();
+    expect(screen.getByText("식별 자산")).toBeInTheDocument();
+    expect(screen.getByText("324")).toBeInTheDocument();
+    expect(screen.queryByText("탐색 작업")).not.toBeInTheDocument();
+    expect(screen.queryByText("업데이트 점수")).not.toBeInTheDocument();
     expect(screen.getByText("network")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
   });

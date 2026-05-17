@@ -2253,6 +2253,14 @@ components:
         snapshot_id:
           type: integer
           nullable: true
+        assets_count:
+          type: integer
+          description: Number of crypto assets persisted by a completed scan job.
+          nullable: true
+        risk_scores_count:
+          type: integer
+          description: Number of RiskScore rows created by a completed scan job.
+          nullable: true
         discovery_id:
           type: integer
           nullable: true

@@ -19,7 +19,7 @@ import { DataTable } from "../../components/ui/table";
 import { jobKindLabel, resourceKindLabel, statusLabel, yesNoLabel } from "../../domain/displayLabels";
 import { canCancelJob, pageHasActiveJob } from "../../domain/jobStatus";
 import { JobProgressModel, TargetModel } from "../../domain/models";
-import { formatDateTime } from "../../lib/format";
+import { formatDateTime, formatNumber } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import { ScanSelectionModel } from "./scanSelection";
 
@@ -315,6 +315,10 @@ export function JobDetailView({ id }: { id: number }) {
   const progress = new JobProgressModel(job.data.progress);
   const canCancel = canCancelJob(job.data);
   const jobError = formatJobError(job.data.error);
+  const result = job.data.result;
+  const isScanJob = job.data.kind === "scan_job";
+  const isDiscoveryJob = job.data.kind === "discovery";
+  const isRecomputeJob = job.data.kind === "recompute";
 
   return (
     <Section>
@@ -361,31 +365,46 @@ export function JobDetailView({ id }: { id: number }) {
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div>
-                <dt>스냅샷</dt>
-                <dd>
-                  {job.data.result?.snapshot_id ? (
-                    <button className="link-button" type="button" onClick={() => navigate(`/snapshots/${job.data.result?.snapshot_id}`)}>
-                      #{job.data.result.snapshot_id}
-                    </button>
-                  ) : (
-                    "-"
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt>탐색 작업</dt>
-                <dd>
-                  {job.data.result?.discovery_id ? (
-                    <button className="link-button" type="button" onClick={() => navigate(`/discoveries/${job.data.result?.discovery_id}`)}>
-                      #{job.data.result.discovery_id}
-                    </button>
-                  ) : (
-                    "-"
-                  )}
-                </dd>
-              </div>
-              <div><dt>업데이트 점수</dt><dd>{job.data.result?.updated_scores_count ?? "-"}</dd></div>
+              {isScanJob || result?.snapshot_id ? (
+                <div>
+                  <dt>스냅샷</dt>
+                  <dd>
+                    {result?.snapshot_id ? (
+                      <button className="link-button" type="button" onClick={() => navigate(`/snapshots/${result.snapshot_id}`)}>
+                        #{result.snapshot_id}
+                      </button>
+                    ) : (
+                      "-"
+                    )}
+                  </dd>
+                </div>
+              ) : null}
+              {isScanJob ? (
+                <div>
+                  <dt>식별 자산</dt>
+                  <dd>{result?.assets_count == null ? "-" : formatNumber(result.assets_count)}</dd>
+                </div>
+              ) : null}
+              {isDiscoveryJob ? (
+                <div>
+                  <dt>탐색 작업</dt>
+                  <dd>
+                    {result?.discovery_id ? (
+                      <button className="link-button" type="button" onClick={() => navigate(`/discoveries/${result.discovery_id}`)}>
+                        #{result.discovery_id}
+                      </button>
+                    ) : (
+                      "-"
+                    )}
+                  </dd>
+                </div>
+              ) : null}
+              {isRecomputeJob ? (
+                <div>
+                  <dt>업데이트 점수</dt>
+                  <dd>{result?.updated_scores_count ?? "-"}</dd>
+                </div>
+              ) : null}
             </dl>
           </CardContent>
         </Card>

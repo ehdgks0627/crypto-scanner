@@ -969,6 +969,10 @@ export interface components {
         /** @description Completed-job result only. PENDING and RUNNING jobs must return null for JobEnvelope.result. */
         JobResult: {
             snapshot_id?: number | null;
+            /** @description Number of crypto assets persisted by a completed scan job. */
+            assets_count?: number | null;
+            /** @description Number of RiskScore rows created by a completed scan job. */
+            risk_scores_count?: number | null;
             discovery_id?: number | null;
             /** @description Number of RiskScore rows updated by a completed recompute job. */
             updated_scores_count?: number | null;
