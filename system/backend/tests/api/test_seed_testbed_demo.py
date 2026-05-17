@@ -11,6 +11,7 @@ from apps.core.management.commands.seed_testbed_demo import (
     SCAN_SCANNERS,
 )
 from apps.discoveries.models import Discovery
+from apps.assets.models import AssetContextOverride
 from apps.jobs.models import ScanRunLog
 from apps.risk.models import RiskScore
 from apps.snapshots.models import CbomSnapshot
@@ -92,3 +93,35 @@ def test_seed_testbed_demo_api_loads_resettable_demo_data(client):
     assert body["latest_snapshot_id"] == CbomSnapshot.objects.get(serial_number="testbed-demo-latest").id
     assert body["baseline_snapshot_id"] == CbomSnapshot.objects.get(serial_number="testbed-demo-baseline").id
     assert Target.objects.count() == 31
+
+
+def test_seed_demo_labels_applies_srv_01_context():
+    call_command("seed_testbed_demo", "--reset")
+    call_command("seed_demo_labels")
+
+    target = Target.objects.get(host="api-gateway.testbed.local", port=8443, transport="TCP")
+    assert target.display_name == "srv-01 - 외부 결제 API"
+    assert target.context["host_alias"] == "srv-01"
+    assert target.context["service_role"] == "edge-proxy"
+    assert target.context["sensitivity"] == "critical"
+    assert target.context["lifespan_years"] == 7
+    assert target.context["demo_label"] == {
+        "role": "edge-proxy",
+        "data_classes": ["PII", "payment"],
+        "partners": ["PG-A"],
+        "retention": "7y",
+    }
+
+    latest = CbomSnapshot.objects.get(serial_number="testbed-demo-latest")
+    asset = latest.assets.get(bom_ref="tls:api-gateway:leaf:rsa")
+    assert asset.metadata["host_alias"] == "srv-01"
+    assert asset.metadata["host_role"] == "edge-proxy"
+    assert asset.metadata["data_tags"] == ["PII", "payment"]
+    assert asset.metadata["partners"] == ["PG-A"]
+    assert asset.metadata["retention_policy"] == "7y"
+    assert asset.metadata["discovered_by"] == ["discovery_agent", "host_agent"]
+
+    override = AssetContextOverride.objects.get(asset=asset)
+    assert override.service_role == "edge-proxy"
+    assert override.sensitivity == "critical"
+    assert override.lifespan_years == 7
