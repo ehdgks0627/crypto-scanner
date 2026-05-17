@@ -6,6 +6,7 @@ import { lazyRoute } from "./lazyRoute";
 import { LoadingState } from "../components/common/StateViews";
 
 const DashboardPage = lazyRoute(() => import("../pages/DashboardPage"), "DashboardPage");
+const DemoPage = lazyRoute(() => import("../pages/DemoPage"), "DemoPage");
 const TargetsPage = lazyRoute(() => import("../pages/TargetsPage"), "TargetsPage");
 const TargetDetailPage = lazyRoute(() => import("../pages/TargetDetailPage"), "TargetDetailPage");
 const DiscoveriesPage = lazyRoute(() => import("../pages/DiscoveriesPage"), "DiscoveriesPage");
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: page(<DashboardPage />) },
+      { path: "demo", element: page(<DemoPage />) },
       { path: "targets", element: page(<TargetsPage />) },
       { path: "targets/:id", element: page(<TargetDetailPage />) },
       { path: "discoveries", element: page(<DiscoveriesPage />) },

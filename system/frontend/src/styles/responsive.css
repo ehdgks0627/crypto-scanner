@@ -11,6 +11,17 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
   }
+
+  .demo-stepper {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .demo-grid,
+  .demo-two-col,
+  .demo-two-col--wide-left,
+  .demo-verification-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1024px) {
@@ -63,6 +74,7 @@
   .content-grid,
   .content-grid--3,
   .content-grid--4,
+  .demo-stepper,
   .snapshot-diff-controls,
   .split-pane {
     grid-template-columns: 1fr;
@@ -139,6 +151,7 @@
   }
 
   .form-grid,
+  .demo-bar-row,
   .discovery-service-grid,
   .detail-list {
     grid-template-columns: 1fr;

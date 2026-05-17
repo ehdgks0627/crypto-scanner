@@ -1,4 +1,5 @@
 import { apiClient, type ApiClient } from "./client";
+import type { DemoEvent, DemoSession } from "./demoTypes";
 import type { AgentRole, AssetType, JobStatus, ProtocolHint, QueryParams, RiskTier, Schema, ScannerId } from "./types";
 
 abstract class BaseService {
@@ -39,6 +40,31 @@ export class TargetService extends BaseService {
 
   delete(id: number) {
     return this.client.request<void>(`/targets/${id}`, { method: "DELETE" });
+  }
+}
+
+export class DemoService extends BaseService {
+  reset(seedDatabase = false) {
+    return this.client.request<DemoSession>("/demo/reset", {
+      method: "POST",
+      body: { seed_database: seedDatabase, reset_session: true }
+    });
+  }
+
+  session() {
+    return this.client.request<DemoSession>("/demo/session");
+  }
+
+  start() {
+    return this.client.request<DemoSession>("/demo/session/start", { method: "POST" });
+  }
+
+  next() {
+    return this.client.request<DemoSession>("/demo/session/next", { method: "POST" });
+  }
+
+  events() {
+    return this.client.request<{ items: DemoEvent[] }>("/demo/session/events");
   }
 }
 
@@ -246,6 +272,7 @@ export class HealthService extends BaseService {
 
 export const services = {
   dashboard: new DashboardService(apiClient),
+  demo: new DemoService(apiClient),
   targets: new TargetService(apiClient),
   discoveries: new DiscoveryService(apiClient),
   jobs: new JobService(apiClient),

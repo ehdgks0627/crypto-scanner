@@ -1,5 +1,5 @@
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Bot, Database, Gauge, ListChecks, Moon, Radar, RefreshCw, Settings, ShieldAlert, Sun, Target, Timer, Workflow } from "lucide-react";
+import { Activity, Bot, Database, Gauge, ListChecks, Moon, PlaySquare, Radar, RefreshCw, Settings, ShieldAlert, Sun, Target, Timer, Workflow } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -14,7 +14,7 @@ import { useUiStore } from "../stores/uiStore";
 import { getSnapshotSidebarState, type SnapshotSidebarState } from "./snapshotSidebar";
 
 type NavItem = {
-  key: "dashboard" | "assets" | "risk" | "migration" | "performance" | "discoveries" | "targets" | "scans" | "agents" | "settings";
+  key: "dashboard" | "demo" | "assets" | "risk" | "migration" | "performance" | "discoveries" | "targets" | "scans" | "agents" | "settings";
   to: string;
   label: string;
   icon: typeof Gauge;
@@ -23,6 +23,7 @@ type NavItem = {
 
 const reportNavItems: NavItem[] = [
   { key: "dashboard", to: "/", label: "대시보드", icon: Gauge, end: true },
+  { key: "demo", to: "/demo", label: "최종 시연", icon: PlaySquare },
   { key: "assets", to: "/snapshots", label: "식별 자산", icon: Database },
   { key: "risk", to: "/risk", label: "위험평가", icon: Workflow },
   { key: "migration", to: "/migration", label: "Review Targets", icon: ListChecks },
