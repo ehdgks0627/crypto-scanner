@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, CheckCircle2, FileJson, Gauge, ListChecks, Play, RotateCcw, ShieldCheck, Target } from "lucide-react";
+import { Bot, CheckCircle2, Download, FileJson, Gauge, ListChecks, Play, RotateCcw, ShieldCheck, Target } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +14,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Progress } from "../../components/ui/progress";
 import { DataTable } from "../../components/ui/table";
+import { downloadJson, downloadText } from "../../lib/download";
 
 type CbomMode = "standard" | "enriched";
 
@@ -256,9 +257,14 @@ function StepCbom({
       <Card>
         <CardHeader>
           <CardTitle>CBOM 자산 목록</CardTitle>
-          <div className="demo-segmented">
-            <button type="button" className={mode === "standard" ? "is-active" : undefined} onClick={() => onModeChange("standard")}>표준</button>
-            <button type="button" className={mode === "enriched" ? "is-active" : undefined} onClick={() => onModeChange("enriched")}>확장</button>
+          <div className="inline-actions">
+            <div className="demo-segmented">
+              <button type="button" className={mode === "standard" ? "is-active" : undefined} onClick={() => onModeChange("standard")}>표준</button>
+              <button type="button" className={mode === "enriched" ? "is-active" : undefined} onClick={() => onModeChange("enriched")}>확장</button>
+            </div>
+            <Button type="button" size="sm" onClick={() => downloadJson(`demo-cbom-${mode}.json`, assets.map((asset) => cbomJson(asset, mode)))}>
+              <Download size={14} />Export
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -327,7 +333,12 @@ function StepRisk({ session, onSelectAsset }: { session: DemoSession; onSelectAs
 function StepMigration({ session }: { session: DemoSession }) {
   return (
     <Card>
-      <CardHeader><CardTitle>추천 대상 {session.migration.recommendation_count}개</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>추천 대상 {session.migration.recommendation_count}개</CardTitle>
+        <Button type="button" size="sm" onClick={() => downloadText("demo-migration-plan.md", migrationReport(session), "text/markdown;charset=utf-8")}>
+          <Download size={14} />Export
+        </Button>
+      </CardHeader>
       <CardContent>
         <DataTable
           items={session.migration.items}
@@ -356,7 +367,12 @@ function StepVerification({ session }: { session: DemoSession }) {
         <DemoMetric label="실패" value={verification.failure_count ?? 0} tone="green" />
       </div>
       <Card>
-        <CardHeader><CardTitle>4차원 가용성 검증</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>4차원 가용성 검증</CardTitle>
+          <Button type="button" size="sm" onClick={() => downloadJson("demo-availability-report.json", verification)}>
+            <Download size={14} />Export
+          </Button>
+        </CardHeader>
         <CardContent>
           <div className="demo-verification-grid">
             {(verification.checks ?? []).map((check) => (
@@ -456,4 +472,23 @@ function cbomJson(asset: DemoAsset, mode: CbomMode) {
     retention_policy: asset.retention,
     discovered_by: asset.discovered_by
   };
+}
+
+function migrationReport(session: DemoSession) {
+  const lines = [
+    "# PQC 매핑 추천",
+    "",
+    `- 추천 대상: ${session.migration.recommendation_count}개`,
+    "- 범위: P1/P2 자산",
+    ""
+  ];
+  session.migration.items.forEach((item) => {
+    lines.push(`## ${item.asset_id}`);
+    lines.push(`- 현재 알고리즘: ${item.current_algorithm}`);
+    lines.push(`- 추천 알고리즘: ${item.recommended_algorithm}`);
+    lines.push(`- 우선순위: ${item.priority}`);
+    lines.push(`- 사유: ${item.reason}`);
+    lines.push("");
+  });
+  return lines.join("\n");
 }

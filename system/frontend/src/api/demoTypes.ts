@@ -109,6 +109,9 @@ export type DemoSession = {
   current_step: number;
   current_step_id: DemoStep["id"];
   is_complete: boolean;
+  resource_ids: Record<string, string>;
+  last_error: string | null;
+  can_retry: boolean;
   steps: DemoStep[];
   targets: DemoTarget[];
   host_labels: DemoHostLabel[];
