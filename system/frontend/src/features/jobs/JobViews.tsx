@@ -23,6 +23,8 @@ import { formatDateTime } from "../../lib/format";
 import { useJobWatchStore } from "../../stores/jobWatchStore";
 import { ScanSelectionModel } from "./scanSelection";
 
+const ACTIVE_JOB_REFETCH_MS = 2_000;
+
 function formatJobError(value: unknown): string | null {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -56,7 +58,7 @@ export function JobsView() {
     queryKey: queryKeys.jobs.list(status || undefined),
     queryFn: () => services.jobs.list(status || undefined),
     refetchInterval: (query) =>
-      status === "RUNNING" || status === "PENDING" || (!status && pageHasActiveJob(query.state.data?.items)) ? 5_000 : false
+      status === "RUNNING" || status === "PENDING" || (!status && pageHasActiveJob(query.state.data?.items)) ? ACTIVE_JOB_REFETCH_MS : false
   });
 
   return (
@@ -269,12 +271,12 @@ export function JobDetailView({ id }: { id: number }) {
   const job = useQuery({
     queryKey: queryKeys.jobs.detail(id),
     queryFn: () => services.jobs.get(id),
-    refetchInterval: (query) => (query.state.data?.status === "RUNNING" || query.state.data?.status === "PENDING" ? 5_000 : false)
+    refetchInterval: (query) => (query.state.data?.status === "RUNNING" || query.state.data?.status === "PENDING" ? ACTIVE_JOB_REFETCH_MS : false)
   });
   const logs = useQuery({
     queryKey: queryKeys.jobs.logs(id),
     queryFn: () => services.jobs.logs(id),
-    refetchInterval: job.data?.status === "RUNNING" ? 5_000 : false
+    refetchInterval: job.data?.status === "RUNNING" ? ACTIVE_JOB_REFETCH_MS : false
   });
   const cancel = useMutation({
     mutationFn: () => services.jobs.cancel(id),
