@@ -108,6 +108,8 @@ def test_llm_provider_calls_codex_cli_and_reads_last_message(monkeypatch):
     assert calls["command"][:2] == ["/usr/local/bin/codex", "exec"]
     assert "--ephemeral" in calls["command"]
     assert "--skip-git-repo-check" in calls["command"]
+    assert "--sandbox" in calls["command"]
+    assert "read-only" in calls["command"]
     assert calls["command"][-1] == "-"
     assert calls["command"][calls["command"].index("--model") + 1] == "gpt-test"
     assert calls["command"][-3:-1] == ["--config", "reasoning_effort=\"low\""]

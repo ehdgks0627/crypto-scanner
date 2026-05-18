@@ -127,8 +127,6 @@ def _call_codex_cli(prompt: Mapping[str, Any], config: LlmConfig) -> LlmCompleti
             "--ephemeral",
             "--sandbox",
             "read-only",
-            "--ask-for-approval",
-            "never",
             "--output-last-message",
             str(output_path),
         ]
