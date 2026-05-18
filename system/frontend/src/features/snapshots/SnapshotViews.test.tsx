@@ -215,6 +215,8 @@ describe("AssetDetailView", () => {
     await screen.findByRole("heading", { name: "asset detail certificate", level: 1 });
     await user.click(screen.getByRole("button", { name: /컨텍스트 수정/ }));
     await user.selectOptions(screen.getByLabelText("민감도 수정 값"), "critical");
+    expect(screen.getByLabelText("민감도 수정 값").closest(".ui-field")).toHaveClass("is-modified");
+    expect(screen.getByText("변경됨")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "저장" }));
 
     await waitFor(() => expect(patchSpy).toHaveBeenCalledWith(84, { sensitivity: "critical" }));
@@ -254,9 +256,45 @@ describe("AssetDetailView", () => {
     expect(screen.getByLabelText("노출 범위 수정 값")).toHaveValue("public_internet");
     expect(screen.getByLabelText("보호 기간 수정 값")).toHaveValue(12);
     expect(screen.getByLabelText("서비스 역할 수정 값")).toHaveValue("customer-portal");
+    expect(screen.getByLabelText("서비스 역할 수정 값").closest(".ui-field")).toHaveClass("is-modified");
+    expect(screen.getAllByText("변경됨").length).toBeGreaterThanOrEqual(4);
     expect(screen.getByText("신뢰도 87% · codex-cli")).toBeInTheDocument();
     expect(screen.getByText("Customer portal certificate protects public long-lived customer sessions.")).toBeInTheDocument();
     expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it("marks saved asset context overrides in the context summary", async () => {
+    vi.spyOn(services.assets, "get").mockResolvedValue(makeAssetDetail({
+      effective_context: {
+        sensitivity: "critical",
+        lifespan_years: 10,
+        criticality: "high",
+        exposure: "internal_network",
+        service_role: "web"
+      },
+      context_override: {
+        sensitivity: "critical",
+        lifespan_years: null,
+        criticality: null,
+        exposure: null,
+        service_role: null
+      },
+      context_sources: {
+        sensitivity: "asset_override",
+        lifespan_years: "target",
+        criticality: "target",
+        exposure: "target",
+        service_role: "target"
+      }
+    }));
+    vi.spyOn(services.performance, "history").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+
+    renderWithApp(<AssetDetailView snapshotId={2} assetId={84} />);
+
+    await screen.findByRole("heading", { name: "asset detail certificate", level: 1 });
+    const contextCard = screen.getByRole("heading", { name: "평가 기준 컨텍스트" }).closest(".ui-card") as HTMLElement;
+    expect(within(contextCard).getByText("수정됨")).toBeInTheDocument();
+    expect(within(contextCard).getByText("치명").closest("dd")).toHaveClass("is-modified");
   });
 });
 

@@ -176,6 +176,41 @@
   outline-offset: 1px;
 }
 
+.ui-field.is-modified {
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, var(--success) 62%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--success) 10%, var(--panel));
+}
+
+.ui-field.is-modified .ui-input {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 8%, var(--panel));
+}
+
+.ui-field.is-modified .ui-field__hint {
+  color: var(--text-soft);
+}
+
+.context-modified-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid color-mix(in srgb, var(--success) 56%, var(--border));
+  border-radius: 999px;
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, var(--panel));
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.context-value.is-modified {
+  color: var(--success);
+  font-weight: 700;
+}
+
 .ui-textarea {
   min-height: 84px;
   resize: vertical;

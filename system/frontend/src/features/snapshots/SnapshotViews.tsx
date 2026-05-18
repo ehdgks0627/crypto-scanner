@@ -275,7 +275,10 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
                 {Object.entries(asset.data.effective_context).map(([key, value]) => (
                   <div key={key}>
                     <dt>{contextFieldLabel(key)}</dt>
-                    <dd>{contextValueLabel(key, value)}</dd>
+                    <dd className={contextSourcesForField(key, asset.data.context_sources) === "asset_override" ? "context-value is-modified" : undefined}>
+                      {contextValueLabel(key, value)}
+                      {contextSourcesForField(key, asset.data.context_sources) === "asset_override" ? <span className="context-modified-badge">수정됨</span> : null}
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -405,7 +408,8 @@ function AssetContextForm({
   onSuggest: () => Promise<Schema<"AssetContextSuggestion">>;
   onCancel: () => void;
 }) {
-  const [values, setValues] = useState(() => assetContextToFormValues(initialValue));
+  const initialFormValues = useMemo(() => assetContextToFormValues(initialValue), [initialValue]);
+  const [values, setValues] = useState(() => initialFormValues);
   const [suggestion, setSuggestion] = useState<Schema<"AssetContextSuggestion"> | null>(null);
   const validationError = validateAssetContextPatchValues(values);
   async function applySuggestion() {
@@ -444,8 +448,11 @@ function AssetContextForm({
         {suggestion ? <div className="callout">{suggestion.rationale}</div> : null}
         <div className="form-grid">
           {(["sensitivity", "criticality"] as const).map((field) => (
-            <Field key={field}>
-              <FieldLabel>{contextFieldLabel(field)}</FieldLabel>
+            <Field key={field} className={isContextFieldModified(field, initialFormValues, values) ? "is-modified" : undefined}>
+              <FieldLabel>
+                {contextFieldLabel(field)}
+                {isContextFieldModified(field, initialFormValues, values) ? <span className="context-modified-badge">변경됨</span> : null}
+              </FieldLabel>
               <FieldHint>{contextCurrentHint(field, initialValue, contextSources)}</FieldHint>
               <Select aria-label={`${contextFieldLabel(field)} 수정 값`} value={values[field]} onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value }))}>
                 <option value="">미지정</option>
@@ -455,8 +462,11 @@ function AssetContextForm({
               </Select>
             </Field>
           ))}
-          <Field>
-            <FieldLabel>{contextFieldLabel("exposure")}</FieldLabel>
+          <Field className={isContextFieldModified("exposure", initialFormValues, values) ? "is-modified" : undefined}>
+            <FieldLabel>
+              {contextFieldLabel("exposure")}
+              {isContextFieldModified("exposure", initialFormValues, values) ? <span className="context-modified-badge">변경됨</span> : null}
+            </FieldLabel>
             <FieldHint>{contextCurrentHint("exposure", initialValue, contextSources)}</FieldHint>
             <Select aria-label="노출 범위 수정 값" value={values.exposure} onChange={(event) => setValues((current) => ({ ...current, exposure: event.target.value }))}>
               <option value="">미지정</option>
@@ -465,13 +475,19 @@ function AssetContextForm({
               ))}
             </Select>
           </Field>
-          <Field>
-            <FieldLabel>{contextFieldLabel("lifespan_years")}</FieldLabel>
+          <Field className={isContextFieldModified("lifespan_years", initialFormValues, values) ? "is-modified" : undefined}>
+            <FieldLabel>
+              {contextFieldLabel("lifespan_years")}
+              {isContextFieldModified("lifespan_years", initialFormValues, values) ? <span className="context-modified-badge">변경됨</span> : null}
+            </FieldLabel>
             <FieldHint>{contextCurrentHint("lifespan_years", initialValue, contextSources)}</FieldHint>
             <Input aria-label="보호 기간 수정 값" type="number" min="0" step="1" placeholder="미지정" value={values.lifespan_years} onChange={(event) => setValues((current) => ({ ...current, lifespan_years: event.target.value }))} />
           </Field>
-          <Field className="is-wide">
-            <FieldLabel>{contextFieldLabel("service_role")}</FieldLabel>
+          <Field className={`is-wide${isContextFieldModified("service_role", initialFormValues, values) ? " is-modified" : ""}`}>
+            <FieldLabel>
+              {contextFieldLabel("service_role")}
+              {isContextFieldModified("service_role", initialFormValues, values) ? <span className="context-modified-badge">변경됨</span> : null}
+            </FieldLabel>
             <FieldHint>{contextCurrentHint("service_role", initialValue, contextSources)}</FieldHint>
             <Input aria-label="서비스 역할 수정 값" placeholder="미지정" value={values.service_role} onChange={(event) => setValues((current) => ({ ...current, service_role: event.target.value }))} />
           </Field>
@@ -487,6 +503,18 @@ function AssetContextForm({
 }
 
 type AssetContextField = keyof Schema<"AssetContextValues">;
+
+function isContextFieldModified(
+  field: AssetContextField,
+  initialValues: Record<AssetContextField, string>,
+  values: Record<AssetContextField, string>
+) {
+  return values[field] !== initialValues[field];
+}
+
+function contextSourcesForField(field: string, contextSources: Schema<"AssetContextSources">) {
+  return contextSources[field as AssetContextField];
+}
 
 function contextCurrentHint(
   field: AssetContextField,
