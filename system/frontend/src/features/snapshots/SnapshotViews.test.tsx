@@ -215,7 +215,6 @@ describe("AssetDetailView", () => {
     await screen.findByRole("heading", { name: "asset detail certificate", level: 1 });
     await user.click(screen.getByRole("button", { name: /컨텍스트 수정/ }));
     await user.selectOptions(screen.getByLabelText("민감도 수정 값"), "critical");
-    expect(screen.getByLabelText("민감도 수정 값").closest(".ui-field")).toHaveClass("is-modified");
     expect(screen.getByText("변경됨")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "저장" }));
 
@@ -256,7 +255,6 @@ describe("AssetDetailView", () => {
     expect(screen.getByLabelText("노출 범위 수정 값")).toHaveValue("public_internet");
     expect(screen.getByLabelText("보호 기간 수정 값")).toHaveValue(12);
     expect(screen.getByLabelText("서비스 역할 수정 값")).toHaveValue("customer-portal");
-    expect(screen.getByLabelText("서비스 역할 수정 값").closest(".ui-field")).toHaveClass("is-modified");
     expect(screen.getAllByText("변경됨").length).toBeGreaterThanOrEqual(4);
     expect(screen.getByText("신뢰도 87%")).toBeInTheDocument();
     expect(screen.queryByText("Customer portal certificate protects public long-lived customer sessions.")).not.toBeInTheDocument();
@@ -296,7 +294,6 @@ describe("AssetDetailView", () => {
     const contextCard = screen.getByRole("heading", { name: "평가 기준 컨텍스트" }).closest(".ui-card") as HTMLElement;
     expect(within(contextCard).queryByText("수정됨")).not.toBeInTheDocument();
     expect(within(contextCard).queryByText("변경됨")).not.toBeInTheDocument();
-    expect(within(contextCard).getByText("치명").closest("dd")).not.toHaveClass("is-modified");
   });
 });
 

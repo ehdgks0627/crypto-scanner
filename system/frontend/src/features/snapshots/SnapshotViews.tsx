@@ -444,7 +444,7 @@ function AssetContextForm({
         </div>
         <div className="form-grid">
           {(["sensitivity", "criticality"] as const).map((field) => (
-            <Field key={field} className={isContextFieldModified(field, initialFormValues, values) ? "is-modified" : undefined}>
+            <Field key={field}>
               <FieldLabel>
                 {contextFieldLabel(field)}
                 {isContextFieldModified(field, initialFormValues, values) ? <span className="context-modified-badge">변경됨</span> : null}
@@ -458,7 +458,7 @@ function AssetContextForm({
               </Select>
             </Field>
           ))}
-          <Field className={isContextFieldModified("exposure", initialFormValues, values) ? "is-modified" : undefined}>
+          <Field>
             <FieldLabel>
               {contextFieldLabel("exposure")}
               {isContextFieldModified("exposure", initialFormValues, values) ? <span className="context-modified-badge">변경됨</span> : null}
@@ -471,7 +471,7 @@ function AssetContextForm({
               ))}
             </Select>
           </Field>
-          <Field className={isContextFieldModified("lifespan_years", initialFormValues, values) ? "is-modified" : undefined}>
+          <Field>
             <FieldLabel>
               {contextFieldLabel("lifespan_years")}
               {isContextFieldModified("lifespan_years", initialFormValues, values) ? <span className="context-modified-badge">변경됨</span> : null}
@@ -479,7 +479,7 @@ function AssetContextForm({
             <FieldHint>{contextCurrentHint("lifespan_years", initialValue, contextSources)}</FieldHint>
             <Input aria-label="보호 기간 수정 값" type="number" min="0" step="1" placeholder="미지정" value={values.lifespan_years} onChange={(event) => setValues((current) => ({ ...current, lifespan_years: event.target.value }))} />
           </Field>
-          <Field className={`is-wide${isContextFieldModified("service_role", initialFormValues, values) ? " is-modified" : ""}`}>
+          <Field className="is-wide">
             <FieldLabel>
               {contextFieldLabel("service_role")}
               {isContextFieldModified("service_role", initialFormValues, values) ? <span className="context-modified-badge">변경됨</span> : null}
