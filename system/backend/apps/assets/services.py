@@ -233,6 +233,13 @@ def _qualitative_provider_cache_identity() -> dict:
         return {"provider": QUALITATIVE_PROVIDER, "model": None, "config_error": exc.__class__.__name__}
     if config.provider in llm_client.DISABLED_PROVIDERS:
         return {"provider": QUALITATIVE_PROVIDER, "model": None}
+    if config.provider in llm_client.CODEX_CLI_PROVIDERS:
+        return {
+            "provider": config.provider,
+            "model": config.model or None,
+            "cli_command": config.cli_command,
+            "cli_extra_args": list(config.cli_extra_args),
+        }
     return {
         "provider": config.provider,
         "model": config.model or None,

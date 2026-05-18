@@ -1,0 +1,16 @@
+services:
+  backend:
+    environment:
+      QUALITATIVE_LLM_PROVIDER: ${QUALITATIVE_LLM_PROVIDER:-codex-cli}
+      QUALITATIVE_LLM_TIMEOUT_SECONDS: ${QUALITATIVE_LLM_TIMEOUT_SECONDS:-120}
+      CODEX_HOME: /root/.codex
+    volumes:
+      - ${HOST_CODEX_HOME:-/home/sprout/.codex}:/root/.codex
+
+  worker:
+    environment:
+      QUALITATIVE_LLM_PROVIDER: ${QUALITATIVE_LLM_PROVIDER:-codex-cli}
+      QUALITATIVE_LLM_TIMEOUT_SECONDS: ${QUALITATIVE_LLM_TIMEOUT_SECONDS:-120}
+      CODEX_HOME: /root/.codex
+    volumes:
+      - ${HOST_CODEX_HOME:-/home/sprout/.codex}:/root/.codex

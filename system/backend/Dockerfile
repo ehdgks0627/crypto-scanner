@@ -1,9 +1,19 @@
+FROM node:24-slim AS codex-cli
+
+ARG CODEX_CLI_VERSION=0.130.0
+
+RUN npm install -g "@openai/codex@${CODEX_CLI_VERSION}"
+
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
+
+COPY --from=codex-cli /usr/local/bin/node /usr/local/bin/node
+COPY --from=codex-cli /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf ../lib/node_modules/@openai/codex/bin/codex.js /usr/local/bin/codex
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates openssl openssh-client \
