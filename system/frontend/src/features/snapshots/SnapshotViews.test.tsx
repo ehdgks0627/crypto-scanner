@@ -264,7 +264,7 @@ describe("AssetDetailView", () => {
     expect(patchSpy).not.toHaveBeenCalled();
   });
 
-  it("marks saved asset context overrides in the context summary", async () => {
+  it("does not mark saved asset context overrides in the read-only context summary", async () => {
     vi.spyOn(services.assets, "get").mockResolvedValue(makeAssetDetail({
       effective_context: {
         sensitivity: "critical",
@@ -294,8 +294,9 @@ describe("AssetDetailView", () => {
 
     await screen.findByRole("heading", { name: "asset detail certificate", level: 1 });
     const contextCard = screen.getByRole("heading", { name: "평가 기준 컨텍스트" }).closest(".ui-card") as HTMLElement;
-    expect(within(contextCard).getByText("수정됨")).toBeInTheDocument();
-    expect(within(contextCard).getByText("치명").closest("dd")).toHaveClass("is-modified");
+    expect(within(contextCard).queryByText("수정됨")).not.toBeInTheDocument();
+    expect(within(contextCard).queryByText("변경됨")).not.toBeInTheDocument();
+    expect(within(contextCard).getByText("치명").closest("dd")).not.toHaveClass("is-modified");
   });
 });
 

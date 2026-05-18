@@ -275,10 +275,7 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
                 {Object.entries(asset.data.effective_context).map(([key, value]) => (
                   <div key={key}>
                     <dt>{contextFieldLabel(key)}</dt>
-                    <dd className={contextSourcesForField(key, asset.data.context_sources) === "asset_override" ? "context-value is-modified" : undefined}>
-                      {contextValueLabel(key, value)}
-                      {contextSourcesForField(key, asset.data.context_sources) === "asset_override" ? <span className="context-modified-badge">수정됨</span> : null}
-                    </dd>
+                    <dd>{contextValueLabel(key, value)}</dd>
                   </div>
                 ))}
               </dl>
@@ -509,10 +506,6 @@ function isContextFieldModified(
   values: Record<AssetContextField, string>
 ) {
   return values[field] !== initialValues[field];
-}
-
-function contextSourcesForField(field: string, contextSources: Schema<"AssetContextSources">) {
-  return contextSources[field as AssetContextField];
 }
 
 function contextCurrentHint(
