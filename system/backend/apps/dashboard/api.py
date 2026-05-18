@@ -16,6 +16,7 @@ from apps.jobs.models import AsyncJob
 from apps.jobs.services import serialize_dt, serialize_job
 from apps.risk.models import RiskScore
 from apps.snapshots.models import CbomSnapshot
+from apps.targets.models import Target
 
 
 router = Router(tags=["Dashboard"])
@@ -54,6 +55,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
             "recent_jobs": recent_jobs,
             "agents_status": agent_status,
             "trend": [],
+            "context_inferences": [],
         }
 
     risk_scores = list(RiskScore.objects.filter(snapshot=latest).select_related("asset"))
@@ -113,6 +115,7 @@ def get_dashboard_summary(request, snapshot_id: int | None = None):
         "recent_jobs": recent_jobs,
         "agents_status": agent_status,
         "trend": trend,
+        "context_inferences": _homepage_context_inferences(assets),
     }
 
 
@@ -256,6 +259,37 @@ def _is_dormant_private_key(asset) -> bool:
     dormant = _metadata_bool(metadata.get("dormant"))
     in_use = _metadata_bool(metadata.get("in_use"))
     return dormant is True or in_use is False
+
+
+def _homepage_context_inferences(assets: list) -> list[dict]:
+    target_ids = sorted({asset.target_id for asset in assets if asset.target_id})
+    if not target_ids:
+        return []
+    targets = Target.objects.filter(id__in=target_ids).order_by("host", "port")
+    rows = []
+    for target in targets:
+        context = target.context if isinstance(target.context, dict) else {}
+        inference = context.get("homepage_inference")
+        if not isinstance(inference, dict):
+            continue
+        rows.append(
+            {
+                "target_id": target.id,
+                "target_label": f"{target.host}:{target.port}",
+                "service_role": context.get("service_role"),
+                "sensitivity": context.get("sensitivity"),
+                "criticality": context.get("criticality"),
+                "exposure": context.get("exposure"),
+                "lifespan_years": context.get("lifespan_years"),
+                "confidence": inference.get("confidence"),
+                "title": inference.get("title"),
+                "description": inference.get("description"),
+                "signals": inference.get("signals") or [],
+                "url": inference.get("url"),
+            }
+        )
+    rows.sort(key=lambda item: (-(item["confidence"] or 0), item["target_label"]))
+    return rows[:6]
 
 
 def _has_private_key_file_evidence(metadata: dict) -> bool:

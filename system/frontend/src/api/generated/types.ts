@@ -50,10 +50,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List discovery jobs */
+        /** List registered discovery targets */
         get: operations["listDiscoveries"];
         put?: never;
-        /** Start discovery */
+        /** Register or rerun a discovery target */
         post: operations["createDiscovery"];
         delete?: never;
         options?: never;
@@ -110,7 +110,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Promote discovered endpoints to targets */
+        /**
+         * Legacy manual promotion for discovered endpoints
+         * @description Discovered endpoints are promoted to scan targets automatically when discovery completes. This endpoint is retained for older clients.
+         */
         post: operations["promoteDiscoveredEndpoints"];
         delete?: never;
         options?: never;
@@ -667,6 +670,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete snapshot-derived inventory results */
+        delete: operations["deleteSnapshotResults"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/scan-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete registered scan targets */
+        delete: operations["deleteScanTargets"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/meta/protocols": {
         parameters: {
             query?: never;
@@ -765,6 +802,7 @@ export interface components {
             service_role?: string | null;
         };
         TargetGraphGroup: {
+            /** @enum {string} */
             kind: "discovery_scope" | "host_agent" | "target_scope";
             key: string;
             label: string;
@@ -875,7 +913,7 @@ export interface components {
         };
         Discovery: {
             id: number;
-            /** @description API-visible AsyncJob id used for polling or cancellation. */
+            /** @description Latest AsyncJob id used for polling or cancellation. */
             job_id: number;
             scope_type: components["schemas"]["DiscoveryScopeType"];
             scope_value: string;
@@ -889,7 +927,7 @@ export interface components {
             progress?: components["schemas"]["JobProgress"] | null;
             /**
              * Format: date-time
-             * @description Discovery request creation time.
+             * @description Discovery target registration time. Existing targets are reused for later runs.
              */
             created_at: string;
             /**
@@ -914,6 +952,7 @@ export interface components {
             banner_metadata: {
                 [key: string]: unknown;
             };
+            /** @description True when the endpoint is registered as a scan target. New discovery results are promoted automatically. */
             promoted: boolean;
             target_id?: number | null;
             suggested_protocol_hint?: (string & components["schemas"]["ProtocolHint"]) | null;
@@ -1669,6 +1708,21 @@ export interface components {
                 critical_count: number;
                 total_count: number;
             }[];
+            context_inferences: components["schemas"]["DashboardContextInference"][];
+        };
+        DashboardContextInference: {
+            target_id: number;
+            target_label: string;
+            service_role: string | null;
+            sensitivity: string | null;
+            criticality: string | null;
+            exposure: string | null;
+            lifespan_years: number | null;
+            confidence: number | null;
+            title: string | null;
+            description: string | null;
+            signals: string[];
+            url: string | null;
         };
         DashboardKpis: {
             discovered_crypto_assets_per_scan: components["schemas"]["DashboardKpiMetric"];
@@ -1701,6 +1755,11 @@ export interface components {
             baseline_snapshot_id: number | null;
             asset_count: number;
             message: string;
+        };
+        SettingsCleanupResult: {
+            deleted: {
+                [key: string]: number;
+            };
         };
         ProtocolMeta: {
             protocols: components["schemas"]["ProtocolHint"][];
@@ -2016,7 +2075,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Discovery job accepted */
+            /** @description Discovery target registered and latest job accepted */
             202: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3093,6 +3152,52 @@ export interface operations {
             };
             400: components["responses"]["Error"];
             422: components["responses"]["Unprocessable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteSnapshotResults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted snapshot-derived rows */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsCleanupResult"];
+                };
+            };
+            400: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteScanTargets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted scan targets */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsCleanupResult"];
+                };
+            };
+            400: components["responses"]["Error"];
             default: components["responses"]["Error"];
         };
     };

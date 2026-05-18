@@ -70,6 +70,16 @@ const exposureLabels: Record<string, string> = {
   air_gapped: "망분리"
 };
 
+const serviceRoleLabels: Record<string, string> = {
+  customer_portal: "고객 포털",
+  authentication: "인증",
+  admin_console: "관리 콘솔",
+  developer_api: "개발자 API",
+  file_service: "파일 서비스",
+  monitoring: "모니터링",
+  public_web: "공개 웹"
+};
+
 const contextFieldLabels: Record<AssetContextField, string> = {
   sensitivity: "민감도",
   lifespan_years: "보호 기간(년)",
@@ -160,6 +170,10 @@ export function contextValueLabel(field: string, value: unknown) {
   }
   if (field === "exposure") {
     return exposureLabel(String(value));
+  }
+  if (field === "service_role") {
+    const text = String(value);
+    return serviceRoleLabels[text] ?? text;
   }
   return String(value);
 }

@@ -129,5 +129,21 @@
       "critical_count": 8,
       "total_count": 142
     }
+  ],
+  "context_inferences": [
+    {
+      "target_id": 10,
+      "target_label": "web.testbed.local:443",
+      "service_role": "customer_portal",
+      "sensitivity": "high",
+      "criticality": "high",
+      "exposure": "public_internet",
+      "lifespan_years": 10,
+      "confidence": 0.92,
+      "title": "Customer Portal Login",
+      "description": "Sign in to view invoices, billing history, and account profile.",
+      "signals": ["customer portal", "billing", "invoice", "profile", "login", "account"],
+      "url": "https://web.testbed.local:443/"
+    }
   ]
 }

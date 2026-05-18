@@ -111,6 +111,122 @@ DORMANT_PRIVATE_KEY_PATHS = {
     "postgres:jks:app:rsa": ["/opt/postgres/legacy/app-server.key"],
     "legacy-java:jks:app:rsa1024": ["/opt/legacy-java/conf/old-client.key"],
 }
+HOMEPAGE_CONTEXT_INFERENCES = {
+    "web.testbed.local": {
+        "service_role": "customer_portal",
+        "sensitivity": "high",
+        "criticality": "high",
+        "exposure": "public_internet",
+        "lifespan_years": 10,
+        "homepage_inference": {
+            "source": "homepage",
+            "method": "html_keyword_inference",
+            "url": "https://web.testbed.local:443/",
+            "status_code": 200,
+            "content_type": "text/html",
+            "title": "Customer Portal Login",
+            "description": "Sign in to view invoices, billing history, and account profile.",
+            "signals": ["customer portal", "billing", "invoice", "profile", "login", "account"],
+            "confidence": 0.92,
+            "applied_fields": ["service_role", "sensitivity", "criticality", "exposure", "lifespan_years"],
+        },
+    },
+    "auth-oidc.testbed.local": {
+        "service_role": "authentication",
+        "sensitivity": "high",
+        "criticality": "high",
+        "exposure": "dmz",
+        "lifespan_years": 10,
+        "homepage_inference": {
+            "source": "homepage",
+            "method": "html_keyword_inference",
+            "url": "https://auth-oidc.testbed.local:443/",
+            "status_code": 200,
+            "content_type": "text/html",
+            "title": "Identity Login",
+            "description": "Single sign-on portal for OIDC, MFA, and password authentication.",
+            "signals": ["login", "sign in", "oidc", "identity", "password", "mfa"],
+            "confidence": 0.91,
+            "applied_fields": ["service_role", "sensitivity", "criticality", "exposure", "lifespan_years"],
+        },
+    },
+    "admin-console.testbed.local": {
+        "service_role": "admin_console",
+        "sensitivity": "high",
+        "criticality": "high",
+        "exposure": "internal_network",
+        "lifespan_years": 5,
+        "homepage_inference": {
+            "source": "homepage",
+            "method": "html_keyword_inference",
+            "url": "https://admin-console.testbed.local:443/",
+            "status_code": 200,
+            "content_type": "text/html",
+            "title": "Operations Admin Console",
+            "description": "Administrator control panel for service operations and management.",
+            "signals": ["admin", "administrator", "control panel", "operations console"],
+            "confidence": 0.91,
+            "applied_fields": ["service_role", "sensitivity", "criticality", "exposure", "lifespan_years"],
+        },
+    },
+    "api-gateway.testbed.local": {
+        "service_role": "developer_api",
+        "sensitivity": "medium",
+        "criticality": "high",
+        "exposure": "dmz",
+        "lifespan_years": 5,
+        "homepage_inference": {
+            "source": "homepage",
+            "method": "html_keyword_inference",
+            "url": "https://api-gateway.testbed.local:8443/",
+            "status_code": 200,
+            "content_type": "text/html",
+            "title": "Developer API Gateway",
+            "description": "OpenAPI documentation, developer webhooks, and GraphQL gateway.",
+            "signals": ["api", "openapi", "developer", "webhook", "graphql"],
+            "confidence": 0.82,
+            "applied_fields": ["service_role", "sensitivity", "criticality", "exposure", "lifespan_years"],
+        },
+    },
+    "artifact-repo.testbed.local": {
+        "service_role": "file_service",
+        "sensitivity": "high",
+        "criticality": "medium",
+        "exposure": "dmz",
+        "lifespan_years": 10,
+        "homepage_inference": {
+            "source": "homepage",
+            "method": "html_keyword_inference",
+            "url": "https://artifact-repo.testbed.local:8443/",
+            "status_code": 200,
+            "content_type": "text/html",
+            "title": "Artifact Repository",
+            "description": "Upload and download package artifacts, files, and release documents.",
+            "signals": ["download", "upload", "artifact", "repository", "file", "document"],
+            "confidence": 0.88,
+            "applied_fields": ["service_role", "sensitivity", "criticality", "exposure", "lifespan_years"],
+        },
+    },
+    "monitoring.testbed.local": {
+        "service_role": "monitoring",
+        "sensitivity": "medium",
+        "criticality": "medium",
+        "exposure": "internal_network",
+        "lifespan_years": 3,
+        "homepage_inference": {
+            "source": "homepage",
+            "method": "html_keyword_inference",
+            "url": "https://monitoring.testbed.local:9090/",
+            "status_code": 200,
+            "content_type": "text/html",
+            "title": "Monitoring Dashboard",
+            "description": "Prometheus metrics, Grafana dashboard, and observability status.",
+            "signals": ["prometheus", "metrics", "grafana", "dashboard", "monitoring"],
+            "confidence": 0.82,
+            "applied_fields": ["service_role", "sensitivity", "criticality", "exposure", "lifespan_years"],
+        },
+    },
+}
 
 
 LATEST_ASSETS = [
@@ -288,11 +404,17 @@ class Command(BaseCommand):
                     "sni": fields["sni"],
                     "agent_enabled": fields["agent_enabled"],
                     "agent_url": fields["agent_url"],
-                    "context": fields["context"],
+                    "context": self._target_context(fields),
                 },
             )
             targets[(target.host, target.port, target.transport)] = target
         return targets
+
+    def _target_context(self, fields):
+        return {
+            **fields["context"],
+            **HOMEPAGE_CONTEXT_INFERENCES.get(fields["host"], {}),
+        }
 
     def _seed_agents(self, now):
         for index, (hostname, capabilities, os_distribution, active) in enumerate(AGENT_FIXTURES):

@@ -62,7 +62,29 @@ def test_api_snp_005_snapshot_scan_job_id_can_be_null_for_imported_snapshots(cli
 
 def test_api_snp_003_export_snapshot_returns_cbom_download(client):
     snapshot = create_snapshot(serial_number="snap-56")
-    cert = create_asset(snapshot=snapshot, bom_ref="cert:web", name="web certificate", algorithm="RSA-2048", algorithm_family="RSA")
+    target = create_target(
+        context={
+            **TARGET_CONTEXT,
+            "service_role": "customer_portal",
+            "exposure": "public_internet",
+            "homepage_inference": {
+                "source": "homepage",
+                "method": "html_keyword_inference",
+                "url": "https://web.testbed.local:443/",
+                "title": "Customer Portal Login",
+                "signals": ["customer portal", "billing"],
+                "confidence": 0.84,
+            },
+        }
+    )
+    cert = create_asset(
+        snapshot=snapshot,
+        target=target,
+        bom_ref="cert:web",
+        name="web certificate",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+    )
     algorithm = create_asset(snapshot=snapshot, bom_ref="alg:rsa", name="RSA-2048", asset_type="algorithm", algorithm="RSA-2048", algorithm_family="RSA")
     create_risk_score(cert, score=95.0, tier="CRITICAL")
     create_asset_dependency(cert, algorithm, semantic="signature_algorithm")
@@ -84,6 +106,11 @@ def test_api_snp_003_export_snapshot_returns_cbom_download(client):
     assert {"name": "migration.asset_purpose", "value": "digital_signature"} in component["properties"]
     assert {"name": "migration.strategy", "value": "hybrid"} in component["properties"]
     assert {"name": "migration.target_algorithm", "value": "RSA-2048 + ML-DSA-65"} in component["properties"]
+    assert {"name": "context.service_role", "value": "customer_portal"} in component["properties"]
+    assert {"name": "context.exposure", "value": "public_internet"} in component["properties"]
+    assert {"name": "context.homepage.source", "value": "homepage"} in component["properties"]
+    assert {"name": "context.homepage.title", "value": "Customer Portal Login"} in component["properties"]
+    assert {"name": "context.homepage.signals", "value": '["customer portal", "billing"]'} in component["properties"]
     assert {"name": "migration_plan.attached", "value": "true"} in body["metadata"]["properties"]
     assert {"name": "migration_plan.item_count", "value": "1"} in body["metadata"]["properties"]
     annotation = body["annotations"][0]

@@ -3,6 +3,7 @@ import struct
 import subprocess
 from types import SimpleNamespace
 
+from apps.jobs.homepage_context import infer_homepage_context
 from apps.jobs import network_scanner
 
 
@@ -149,6 +150,45 @@ def test_network_scanner_tls_records_pqc_readiness_assets(monkeypatch):
     signature = next(item for item in candidates if item.algorithm == "ML-DSA-65")
     assert signature.metadata["source"] == "tls-pqc-readiness"
     assert signature.metadata["pqc_role"] == "signature"
+
+
+def test_homepage_context_infers_public_homepage_without_storing_body():
+    result = infer_homepage_context(
+        url="https://web.testbed.local:443/",
+        status_code=200,
+        content_type="text/html; charset=utf-8",
+        body=b"""
+            <html>
+              <head>
+                <title>Customer Portal Login</title>
+                <meta name="description" content="Sign in to view invoices, billing history, and account profile.">
+              </head>
+              <body>
+                <h1>Customer portal</h1>
+                <p>My account dashboard for order history and profile updates.</p>
+              </body>
+            </html>
+        """,
+    )
+
+    assert result["service_role"] == "customer_portal"
+    assert result["sensitivity"] == "high"
+    assert result["criticality"] == "high"
+    assert result["exposure"] == "public_internet"
+    assert result["lifespan_years"] == 10
+    evidence = result["homepage_inference"]
+    assert evidence["source"] == "homepage"
+    assert evidence["method"] == "html_keyword_inference"
+    assert evidence["title"] == "Customer Portal Login"
+    assert {"customer portal", "billing", "invoice", "profile"} <= set(evidence["signals"])
+    assert "body" not in evidence
+
+
+def test_network_scanner_homepage_scheme_is_limited_to_http_services():
+    assert network_scanner._homepage_scheme(target(port=443, protocol_hint="TLS")) == "https"
+    assert network_scanner._homepage_scheme(target(port=8443, protocol_hint="TLS")) == "https"
+    assert network_scanner._homepage_scheme(target(port=8080, protocol_hint="UNKNOWN")) == "http"
+    assert network_scanner._homepage_scheme(target(port=3306, protocol_hint="TLS")) is None
 
 
 def test_network_scanner_ssh_keyscan_maps_rsa_ecdsa_and_ed25519(monkeypatch):

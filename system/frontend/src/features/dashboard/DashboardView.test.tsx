@@ -61,7 +61,8 @@ describe("DashboardView", () => {
       },
       recent_jobs: [],
       agents_status: { total: 0, active: 0, stale: 0 },
-      trend: []
+      trend: [],
+      context_inferences: []
     });
     vi.spyOn(services.snapshots, "list").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 20 });
     vi.spyOn(services.snapshots, "assets").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
@@ -122,7 +123,8 @@ describe("DashboardView", () => {
       },
       recent_jobs: [],
       agents_status: { total: 0, active: 0, stale: 0 },
-      trend: []
+      trend: [],
+      context_inferences: []
     });
     vi.spyOn(services.snapshots, "list").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 20 });
     vi.spyOn(services.snapshots, "assets").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
@@ -206,7 +208,26 @@ describe("DashboardView", () => {
       },
       recent_jobs: [],
       agents_status: { total: 2, active: 1, stale: 1 },
-      trend: [{ snapshot_id: snapshotId ?? 1, created_at: "2026-04-29T00:00:00Z", critical_count: 3, total_count: 12 }]
+      trend: [{ snapshot_id: snapshotId ?? 1, created_at: "2026-04-29T00:00:00Z", critical_count: 3, total_count: 12 }],
+      context_inferences:
+        snapshotId === 2
+          ? [
+              {
+                target_id: 10,
+                target_label: "web.testbed.local:443",
+                service_role: "customer_portal",
+                sensitivity: "high",
+                criticality: "high",
+                exposure: "public_internet",
+                lifespan_years: 10,
+                confidence: 0.84,
+                title: "Customer Portal Login",
+                description: "Sign in to view invoices.",
+                signals: ["customer portal", "billing"],
+                url: "https://web.testbed.local:443/"
+              }
+            ]
+          : []
     }));
     vi.spyOn(services.snapshots, "list").mockResolvedValue({
       items: [
@@ -283,6 +304,11 @@ describe("DashboardView", () => {
     expect(screen.getByText("전체 파이프라인")).toBeInTheDocument();
     expect(screen.getByText("9분")).toBeInTheDocument();
     expect(screen.getByText("10분 이내")).toBeInTheDocument();
+    expect(screen.getByText("홈페이지 추론 컨텍스트")).toBeInTheDocument();
+    expect(screen.getByText("Customer Portal Login")).toBeInTheDocument();
+    expect(screen.getByText("고객 포털")).toBeInTheDocument();
+    expect(screen.getByText("인터넷 공개")).toBeInTheDocument();
+    expect(screen.getByText("84%")).toBeInTheDocument();
     expect(await screen.findByText("네트워크 암호 노출 현황")).toBeInTheDocument();
   });
 });

@@ -58,5 +58,6 @@
     "active": 0,
     "stale": 0
   },
-  "trend": []
+  "trend": [],
+  "context_inferences": []
 }

@@ -13,7 +13,10 @@ from apps.jobs.agent_asset_mapper import map_agent_findings
 from apps.jobs.models import AsyncJob, QueuedTask, ScanRunLog
 from apps.risk import services as risk_services
 from apps.snapshots.models import CbomSnapshot
-from apps.targets.models import Target
+from apps.targets.models import Target, default_context
+
+
+TARGET_CONTEXT_FIELDS = ("sensitivity", "lifespan_years", "criticality", "exposure", "service_role")
 
 
 AGENT_SCANNER_PREFIX = "agent."
@@ -121,6 +124,10 @@ def _run_network_scanner(async_job, target) -> list:
             error=str(exc)[:128],
         )
         return []
+    try:
+        _apply_homepage_context_inference(target, network_scanner.infer_homepage_context(target))
+    except Exception:
+        pass
     ScanRunLog.objects.create(
         async_job=async_job,
         target=target,
@@ -131,6 +138,35 @@ def _run_network_scanner(async_job, target) -> list:
         finished_at=timezone.now(),
     )
     return candidates
+
+
+def _apply_homepage_context_inference(target, inference: dict | None) -> None:
+    if not inference:
+        return
+    current = {**default_context(), **(target.context or {})}
+    changed = False
+    applied_fields = []
+    for field in TARGET_CONTEXT_FIELDS:
+        value = inference.get(field)
+        if value is None or current.get(field) is not None:
+            continue
+        current[field] = value
+        applied_fields.append(field)
+        changed = True
+
+    evidence = inference.get("homepage_inference")
+    if isinstance(evidence, dict):
+        next_evidence = {
+            **evidence,
+            "applied_fields": applied_fields,
+        }
+        if current.get("homepage_inference") != next_evidence:
+            current["homepage_inference"] = next_evidence
+            changed = True
+
+    if changed:
+        Target.objects.filter(id=target.id).update(context=current, updated_at=timezone.now())
+        target.context = current
 
 
 def _run_agent_scanners(async_job, target, scanner_kinds: list[str], completed: int, total: int):

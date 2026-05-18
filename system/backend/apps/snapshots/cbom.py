@@ -64,6 +64,7 @@ def _component(asset, migration_plan_item=None):
         {"name": "internal:quantum_vulnerable", "value": str(_is_quantum_vulnerable(asset)).lower()},
     ]
     properties.extend(_asset_metadata_properties(asset))
+    properties.extend(_target_context_properties(asset))
     if risk_score:
         properties.extend(
             [
@@ -207,4 +208,25 @@ def _asset_metadata_properties(asset):
         else:
             value = str(value).lower() if isinstance(value, bool) else str(value)
         properties.append({"name": name, "value": value})
+    return properties
+
+
+def _target_context_properties(asset):
+    if not asset.target or not isinstance(asset.target.context, dict):
+        return []
+    context = asset.target.context
+    properties = []
+    for key in ("service_role", "sensitivity", "criticality", "exposure", "lifespan_years"):
+        value = context.get(key)
+        if value is not None:
+            properties.append({"name": f"context.{key}", "value": str(value)})
+    inference = context.get("homepage_inference")
+    if isinstance(inference, dict):
+        for key in ("source", "method", "url", "title", "description", "signals", "confidence"):
+            value = inference.get(key)
+            if value in (None, "", []):
+                continue
+            if isinstance(value, list):
+                value = json.dumps(value, sort_keys=True)
+            properties.append({"name": f"context.homepage.{key}", "value": str(value)})
     return properties

@@ -3952,6 +3952,7 @@ components:
         - recent_jobs
         - agents_status
         - trend
+        - context_inferences
       properties:
         snapshot:
           type: object
@@ -4011,6 +4012,50 @@ components:
                 type: integer
               total_count:
                 type: integer
+        context_inferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardContextInference'
+
+    DashboardContextInference:
+      type: object
+      required: [target_id, target_label, service_role, sensitivity, criticality, exposure, lifespan_years, confidence, title, description, signals, url]
+      properties:
+        target_id:
+          type: integer
+        target_label:
+          type: string
+        service_role:
+          type: string
+          nullable: true
+        sensitivity:
+          type: string
+          nullable: true
+        criticality:
+          type: string
+          nullable: true
+        exposure:
+          type: string
+          nullable: true
+        lifespan_years:
+          type: integer
+          nullable: true
+        confidence:
+          type: number
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        signals:
+          type: array
+          items:
+            type: string
+        url:
+          type: string
+          nullable: true
 
     DashboardKpis:
       type: object

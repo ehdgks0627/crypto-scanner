@@ -12,10 +12,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone as dt_timezone
 from hashlib import sha256
 
+from apps.jobs.homepage_context import infer_homepage_context as infer_homepage_context_from_html
 from apps.jobs.scan_assets import AssetCandidate, family_from_algorithm, stable_bom_ref
 
 
 TLS_DIRECT_PORTS = {443, 465, 993, 995, 3306, 5000, 6380, 8200, 8443, 8883, 9090, 9093, 9200, 9443, 15017}
+HTTP_HOMEPAGE_PORTS = {80, 8080}
+HTTPS_HOMEPAGE_PORTS = {443, 8443}
 MQTT_TLS_PORTS = {8883}
 SMTP_STARTTLS_PORTS = {25, 587}
 POSTGRESQL_SSL_REQUEST_CODE = 80877103
@@ -371,6 +374,95 @@ def _recv_http_response(tls_sock) -> bytes:
         if b"\r\n\r\n" in b"".join(chunks) and b"}" in chunk:
             break
     return b"".join(chunks)
+
+
+def infer_homepage_context(target, timeout_sec: float = 5.0) -> dict | None:
+    if str(os.getenv("NETWORK_HOMEPAGE_CONTEXT", "1")).lower() in {"0", "false", "no"}:
+        return None
+    if target.transport != "TCP":
+        return None
+    scheme = _homepage_scheme(target)
+    if not scheme:
+        return None
+    host_header = target.sni or target.host
+    try:
+        status_code, content_type, body = _fetch_homepage(target, scheme, host_header, timeout_sec)
+    except (OSError, ssl.SSLError, TimeoutError):
+        return None
+    if status_code < 200 or status_code >= 400:
+        return None
+    if content_type and not _is_textual_homepage(content_type):
+        return None
+    return infer_homepage_context_from_html(
+        url=f"{scheme}://{host_header}:{target.port}/",
+        status_code=status_code,
+        content_type=content_type,
+        body=body,
+    )
+
+
+def _homepage_scheme(target) -> str | None:
+    if target.port in HTTPS_HOMEPAGE_PORTS:
+        return "https"
+    if target.port in HTTP_HOMEPAGE_PORTS:
+        return "http"
+    return None
+
+
+def _fetch_homepage(target, scheme: str, host_header: str, timeout_sec: float) -> tuple[int, str, bytes]:
+    address = _target_address(target)
+    request = (
+        "GET / HTTP/1.1\r\n"
+        f"Host: {host_header}\r\n"
+        "User-Agent: pqc-context-inference/1.0\r\n"
+        "Accept: text/html,application/xhtml+xml,text/plain;q=0.5\r\n"
+        "Accept-Encoding: identity\r\n"
+        "Connection: close\r\n\r\n"
+    ).encode("ascii")
+    with socket.create_connection((address, target.port), timeout=timeout_sec) as raw_sock:
+        raw_sock.settimeout(max(0.5, min(timeout_sec, 2.0)))
+        sock = raw_sock
+        if scheme == "https":
+            sock = _tls_context().wrap_socket(raw_sock, server_hostname=host_header)
+        with sock:
+            sock.sendall(request)
+            response = _recv_http_bytes(sock)
+    try:
+        header_bytes, body = response.split(b"\r\n\r\n", 1)
+    except ValueError:
+        return 0, "", b""
+    header_text = header_bytes.decode("iso-8859-1", errors="replace")
+    status_match = re.match(r"HTTP/\d(?:\.\d)?\s+(?P<status>\d{3})", header_text)
+    status_code = int(status_match.group("status")) if status_match else 0
+    return status_code, _header_value(header_text, "content-type"), body
+
+
+def _recv_http_bytes(sock, limit: int = 32768) -> bytes:
+    chunks = []
+    total = 0
+    while total < limit:
+        try:
+            chunk = sock.recv(min(4096, limit - total))
+        except socket.timeout as exc:
+            raise TimeoutError from exc
+        if not chunk:
+            break
+        chunks.append(chunk)
+        total += len(chunk)
+    return b"".join(chunks)
+
+
+def _header_value(header_text: str, name: str) -> str:
+    prefix = f"{name.lower()}:"
+    for line in header_text.splitlines()[1:]:
+        if line.lower().startswith(prefix):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
+def _is_textual_homepage(content_type: str) -> bool:
+    normalized = content_type.lower().split(";", 1)[0].strip()
+    return normalized in {"text/html", "application/xhtml+xml", "text/plain"}
 
 
 def _pqc_readiness_ports() -> set[int]:

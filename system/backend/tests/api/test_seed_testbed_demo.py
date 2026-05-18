@@ -7,6 +7,7 @@ from apps.core.management.commands.seed_testbed_demo import (
     DEMO_SCAN_RUNTIME_MINUTES,
     DORMANT_PRIVATE_KEY_PATHS,
     EXPIRING_CERTIFICATE_DAYS,
+    HOMEPAGE_CONTEXT_INFERENCES,
     LATEST_ASSETS,
     SCAN_SCANNERS,
     TESTBED_TARGET_IPS,
@@ -35,6 +36,10 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert Target.objects.count() == 31
     for hostname, ip in TESTBED_TARGET_IPS.items():
         assert set(Target.objects.filter(host=hostname).values_list("ip", flat=True)) == {ip}
+    web_target = Target.objects.get(host="web.testbed.local", port=443, transport="TCP")
+    assert web_target.context["service_role"] == "customer_portal"
+    assert web_target.context["homepage_inference"]["source"] == "homepage"
+    assert web_target.context["homepage_inference"]["title"] == HOMEPAGE_CONTEXT_INFERENCES["web.testbed.local"]["homepage_inference"]["title"]
     discovery = Discovery.objects.get(cidr="172.20.0.0/16")
     assert discovery.endpoints.count() == 33
     assert discovery.discovery_agent.agent_role == Agent.ROLE_DISCOVERY
@@ -63,6 +68,8 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert body["by_tier"]["HIGH"] == 31
     assert body["quantum_vulnerable_ratio"]["vulnerable"] == 52
     assert body["agents_status"]["total"] == 11
+    assert body["context_inferences"][0]["service_role"] == "customer_portal"
+    assert body["context_inferences"][0]["title"] == "Customer Portal Login"
     assert len(body["recent_jobs"]) == 5
     assert {job["status"] for job in body["recent_jobs"]} >= {"COMPLETED", "FAILED", "CANCELLED"}
 

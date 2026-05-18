@@ -9,6 +9,7 @@ from tests.api.factories import (
     create_async_job,
     create_risk_score,
     create_snapshot,
+    create_target,
 )
 
 
@@ -126,6 +127,46 @@ def test_api_dsh_002_dashboard_empty_state_without_snapshots(client):
     assert body["kpis"]["full_pipeline_runtime_minutes"]["value"] == 0
     assert body["recent_jobs"] == []
     assert body["trend"] == []
+    assert body["context_inferences"] == []
+
+
+def test_api_dsh_002b_dashboard_summary_includes_homepage_context_inferences(client):
+    snapshot = create_snapshot(serial_number="latest")
+    target = create_target(
+        host="web.testbed.local",
+        port=443,
+        context={
+            "sensitivity": "high",
+            "lifespan_years": 10,
+            "criticality": "high",
+            "exposure": "public_internet",
+            "service_role": "customer_portal",
+            "homepage_inference": {
+                "source": "homepage",
+                "method": "html_keyword_inference",
+                "url": "https://web.testbed.local:443/",
+                "title": "Customer Portal Login",
+                "description": "Sign in to view invoices and account profile.",
+                "signals": ["customer portal", "billing", "login"],
+                "confidence": 0.84,
+            },
+        },
+    )
+    asset = create_asset(snapshot=snapshot, target=target, bom_ref="cert:web")
+    create_risk_score(asset, score=82.0, tier="HIGH")
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    row = response.json()["context_inferences"][0]
+    assert row["target_id"] == target.id
+    assert row["target_label"] == "web.testbed.local:443"
+    assert row["service_role"] == "customer_portal"
+    assert row["sensitivity"] == "high"
+    assert row["exposure"] == "public_internet"
+    assert row["confidence"] == 0.84
+    assert row["title"] == "Customer Portal Login"
+    assert row["signals"] == ["customer portal", "billing", "login"]
 
 
 def test_api_dsh_003_dashboard_does_not_expose_agent_tokens(client):

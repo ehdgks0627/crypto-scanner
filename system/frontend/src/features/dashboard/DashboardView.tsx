@@ -15,7 +15,7 @@ import { NetworkExposureGraphViz } from "../../components/graph/NetworkExposureG
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { DataTable } from "../../components/ui/table";
-import { assetTypeLabel, jobKindLabel, riskTierLabel } from "../../domain/displayLabels";
+import { assetTypeLabel, contextValueLabel, jobKindLabel, riskTierLabel } from "../../domain/displayLabels";
 import type { NetworkExposureNode } from "../../domain/networkExposureGraph";
 import { buildNetworkExposureGraph } from "../../domain/networkExposureGraph";
 import { formatDateTime, formatNumber } from "../../lib/format";
@@ -30,6 +30,21 @@ function objectToChartData(value: Record<string, number> | undefined, labeler: (
 const GRAPH_REFRESH_MS = 15_000;
 const GRAPH_ASSET_QUERY = { limit: 100, sort: "-risk_score" } as const;
 const GRAPH_TARGET_QUERY = { limit: 100 } as const;
+
+type HomepageContextInference = {
+  target_id: number;
+  target_label: string;
+  service_role?: string | null;
+  sensitivity?: string | null;
+  criticality?: string | null;
+  exposure?: string | null;
+  lifespan_years?: number | null;
+  confidence?: number | null;
+  title?: string | null;
+  description?: string | null;
+  signals?: string[];
+  url?: string | null;
+};
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -80,6 +95,7 @@ export function DashboardView() {
       })),
     [summary.data?.trend]
   );
+  const contextInferences = useMemo(() => dashboardContextInferences(summary.data), [summary.data]);
   const exposureGraph = useMemo(
     () => buildNetworkExposureGraph(graphAssets.data?.items ?? [], graphTargets.data?.items ?? []),
     [graphAssets.data?.items, graphTargets.data?.items]
@@ -253,6 +269,25 @@ export function DashboardView() {
       <div className="dashboard-secondary-grid">
         <Card>
           <CardHeader>
+            <CardTitle>홈페이지 추론 컨텍스트</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              items={contextInferences}
+              getRowKey={(item) => item.target_id}
+              empty={<EmptyState title="홈페이지 추론 결과가 없습니다" description="웹 서비스 스캔 시 공개 홈페이지의 제목과 본문 신호로 운영 맥락을 추정합니다." />}
+              columns={[
+                { key: "target", header: "대상", render: (item) => <button className="link-button" onClick={() => navigate(`/targets/${item.target_id}`)}>{item.target_label}</button> },
+                { key: "title", header: "홈페이지", render: (item) => item.title || "-" },
+                { key: "role", header: "역할", render: (item) => contextValueLabel("service_role", item.service_role) },
+                { key: "exposure", header: "노출", render: (item) => contextValueLabel("exposure", item.exposure) },
+                { key: "confidence", header: "신뢰도", align: "right", render: (item) => formatConfidence(item.confidence) }
+              ]}
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardTitle>최근 스캔 실행</CardTitle>
           </CardHeader>
           <CardContent>
@@ -291,3 +326,16 @@ function quantumStatusLabel(name: string) {
   };
   return labels[name] ?? name;
 }
+
+function dashboardContextInferences(summary?: SchemaWithContextInferences | null): HomepageContextInference[] {
+  const value = summary?.context_inferences;
+  return Array.isArray(value) ? value : [];
+}
+
+function formatConfidence(value?: number | null) {
+  return typeof value === "number" ? `${Math.round(value * 100)}%` : "-";
+}
+
+type SchemaWithContextInferences = {
+  context_inferences?: HomepageContextInference[];
+};
