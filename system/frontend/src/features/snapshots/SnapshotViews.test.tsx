@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -140,14 +140,17 @@ describe("AssetDetailView", () => {
     await screen.findByRole("heading", { name: "asset detail certificate", level: 1 });
     await user.click(screen.getByRole("button", { name: /컨텍스트 수정/ }));
 
+    const contextCard = screen.getByRole("heading", { name: "평가 기준 컨텍스트" }).closest(".ui-card") as HTMLElement;
+    expect(contextCard).not.toBeNull();
+    expect(screen.queryByRole("heading", { name: "컨텍스트 재정의" })).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: /override 사용/ })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("option", { name: "재정의 없음" })).toHaveLength(3);
-    expect(screen.getByLabelText("민감도 재정의 값")).not.toBeDisabled();
-    expect(screen.getAllByText("현재 적용값: 높음 · 출처: 스캔 대상")).toHaveLength(2);
-    expect(screen.getByText("현재 적용값: 10 · 출처: 스캔 대상")).toBeInTheDocument();
-    expect(screen.getByText("현재 적용값: web · 출처: 스캔 대상")).toBeInTheDocument();
-    expect(screen.getByLabelText("보호 기간 재정의 값")).toHaveAttribute("placeholder", "재정의 없음");
-    expect(screen.getByLabelText("서비스 역할 재정의 값")).toHaveAttribute("placeholder", "재정의 없음");
+    expect(within(contextCard).getAllByRole("option", { name: "재정의 없음" })).toHaveLength(3);
+    expect(within(contextCard).getByLabelText("민감도 재정의 값")).not.toBeDisabled();
+    expect(within(contextCard).getAllByText("현재 적용값: 높음 · 출처: 스캔 대상")).toHaveLength(2);
+    expect(within(contextCard).getByText("현재 적용값: 10 · 출처: 스캔 대상")).toBeInTheDocument();
+    expect(within(contextCard).getByText("현재 적용값: web · 출처: 스캔 대상")).toBeInTheDocument();
+    expect(within(contextCard).getByLabelText("보호 기간 재정의 값")).toHaveAttribute("placeholder", "재정의 없음");
+    expect(within(contextCard).getByLabelText("서비스 역할 재정의 값")).toHaveAttribute("placeholder", "재정의 없음");
     expect(screen.getByText("Enriched CBOM")).toBeInTheDocument();
     expect(screen.getByText("context.homepage.title")).toBeInTheDocument();
     expect(screen.getAllByText("Customer Portal Login").length).toBeGreaterThanOrEqual(1);

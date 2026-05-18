@@ -233,11 +233,6 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
       <PageHeader
         title={asset.data.name}
         description={`${assetClassLabel(asset.data.asset_class)} · ${assetTypeLabel(asset.data.asset_type)}`}
-        actions={
-          <Button type="button" variant="primary" onClick={() => setEditing((value) => !value)}>
-            <Save size={15} />컨텍스트 수정
-          </Button>
-        }
       />
       {recomputeJob.data ? <div className="callout" role="status" aria-live="polite">재계산 #{recomputeJob.data.id}: {statusLabel(recomputeJob.data.status)}</div> : null}
       <div className="content-grid">
@@ -257,36 +252,33 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
         <Card>
           <CardHeader>
             <CardTitle>평가 기준 컨텍스트</CardTitle>
+            <Button type="button" variant={editing ? "ghost" : "primary"} onClick={() => setEditing((value) => !value)}>
+              <Save size={15} />{editing ? "보기" : "컨텍스트 수정"}
+            </Button>
           </CardHeader>
           <CardContent>
-            <dl className="detail-list">
-              {Object.entries(asset.data.effective_context).map(([key, value]) => (
-                <div key={key}>
-                  <dt>{contextFieldLabel(key)}</dt>
-                  <dd>{contextValueLabel(key, value)}</dd>
-                </div>
-              ))}
-            </dl>
+            {editing ? (
+              <AssetContextForm
+                initialValue={asset.data.context_override}
+                effectiveValue={asset.data.effective_context}
+                contextSources={asset.data.context_sources}
+                isSubmitting={patchContext.isPending}
+                onCancel={() => setEditing(false)}
+                onSubmit={(payload) => patchContext.mutate(payload)}
+              />
+            ) : (
+              <dl className="detail-list">
+                {Object.entries(asset.data.effective_context).map(([key, value]) => (
+                  <div key={key}>
+                    <dt>{contextFieldLabel(key)}</dt>
+                    <dd>{contextValueLabel(key, value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </CardContent>
         </Card>
       </div>
-      {editing ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>컨텍스트 재정의</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AssetContextForm
-              initialValue={asset.data.context_override}
-              effectiveValue={asset.data.effective_context}
-              contextSources={asset.data.context_sources}
-              isSubmitting={patchContext.isPending}
-              onCancel={() => setEditing(false)}
-              onSubmit={(payload) => patchContext.mutate(payload)}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>가용성 검사 이력</CardTitle>
