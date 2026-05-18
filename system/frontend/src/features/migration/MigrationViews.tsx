@@ -11,7 +11,7 @@ import { RiskTierBadge } from "../../components/common/Badges";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { MigrationReportBuilder } from "../../domain/migrationReport";
-import { displayMigrationRecommendation, displayMigrationTargetAlgorithm } from "../../domain/migrationRecommendation";
+import { displayMigrationPhase, displayMigrationRecommendation, displayMigrationStrategy, displayMigrationTargetAlgorithm } from "../../domain/migrationRecommendation";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -198,8 +198,8 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                   { key: "asset", header: "자산", render: (item) => item.asset_name ?? item.current?.algorithm ?? "-" },
                   { key: "purpose", header: "용도", render: (item) => migrationPurposeLabel(item.asset_purpose) },
                   { key: "current", header: "현재 알고리즘", render: (item) => item.current.algorithm ?? "-" },
-                  { key: "strategy", header: "전략", render: (item) => item.recommendation.strategy },
-                  { key: "phase", header: "단계", render: (item) => item.recommendation.phase },
+                  { key: "strategy", header: "전략", render: (item) => displayMigrationStrategy(item) },
+                  { key: "phase", header: "단계", render: (item) => displayMigrationPhase(item) },
                   {
                     key: "target",
                     header: "목표 알고리즘",

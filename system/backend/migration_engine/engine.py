@@ -79,8 +79,8 @@ def build_recommendation(
 ) -> dict:
     candidate = candidate or candidate_for_algorithm(algorithm, algorithm_family, asset_type)
     strategy = choose_strategy(candidate, context)
-    target_set = candidate["hybrid_set"] if strategy == "hybrid" else candidate["replace_set"]
-    final_set = candidate["replace_set"] or target_set
+    final_set = candidate["replace_set"] or candidate["hybrid_set"]
+    target_set = final_set if strategy == "hybrid" else candidate["replace_set"]
     blockers = build_blockers(strategy, capabilities, candidate)
     phase = {"hybrid": "hybrid_first", "replace": "replace_now", "no_change": "monitor"}[strategy]
     target_algorithm = " + ".join(target_set) if target_set else algorithm
@@ -195,9 +195,9 @@ def build_playbook(recommendation: Mapping[str, Any], agility: Mapping[str, Any]
         steps.append(
             {
                 "order": order,
-                "kind": "enable_hybrid",
-                "title": "Enable hybrid transition",
-                "action": f"Deploy {recommendation['target_algorithm']} while retaining the classical fallback.",
+                "kind": "prepare_pqc_transition",
+                "title": "Prepare PQC transition",
+                "action": f"Introduce {recommendation['target_algorithm']} and validate service compatibility.",
                 "validation": "; ".join(recommendation["validation"]),
             }
         )
@@ -205,10 +205,10 @@ def build_playbook(recommendation: Mapping[str, Any], agility: Mapping[str, Any]
         steps.append(
             {
                 "order": order,
-                "kind": "remove_classical_fallback",
-                "title": "Remove classical fallback",
+                "kind": "complete_pqc_transition",
+                "title": "Complete PQC transition",
                 "action": f"After compatibility is proven, converge on {', '.join(recommendation['final_algorithm_set'])}.",
-                "validation": "Rescan and verify the classical-only algorithm is no longer negotiated.",
+                "validation": "Rescan and verify the PQC target is active.",
             }
         )
         return steps
@@ -227,10 +227,13 @@ def build_playbook(recommendation: Mapping[str, Any], agility: Mapping[str, Any]
 def build_alternatives(recommendation: Mapping[str, Any]) -> list[dict]:
     if recommendation["strategy"] != "hybrid":
         return []
+    final_algorithm = " + ".join(recommendation["final_algorithm_set"])
+    if final_algorithm == recommendation["target_algorithm"]:
+        return []
     return [
         {
             "strategy": "replace",
-            "target_algorithm": " + ".join(recommendation["final_algorithm_set"]),
+            "target_algorithm": final_algorithm,
             "trade_off": "Removes the classical dependency earlier but requires stronger compatibility validation.",
         }
     ]
@@ -240,7 +243,7 @@ def rollback_for(strategy: str, algorithm: str) -> str:
     if strategy == "no_change":
         return "No rollout is required; preserve the current configuration."
     if strategy == "hybrid":
-        return f"Keep the existing {algorithm} path enabled until hybrid compatibility is verified."
+        return "Keep an approved rollback path available until service compatibility is verified."
     return f"Keep a signed and deployable copy of the previous {algorithm} configuration for rollback."
 
 
@@ -259,9 +262,9 @@ def rationale_for(strategy: str, algorithm: str, target_algorithm: str, context:
     if strategy == "no_change":
         return f"{algorithm} is already PQC-safe or does not require immediate migration under the current policy."
     if strategy == "replace":
-        return f"{algorithm} should be replaced with {target_algorithm} because the current primitive is weak or has a direct safer successor."
+        return f"The current primitive should be replaced with {target_algorithm} because a direct safer successor is available."
     if candidate.get("purpose") == "long_term_signature":
-        return f"{algorithm} protects long-term signatures; use {target_algorithm} as a hybrid transition before converging to hash-based SLH-DSA."
+        return f"Long-term signature use requires a PQC target; prioritize {target_algorithm} for durable signature protection."
     details = []
     if context.get("lifespan_years") is not None:
         details.append(f"lifespan={context['lifespan_years']}y")
@@ -270,7 +273,7 @@ def rationale_for(strategy: str, algorithm: str, target_algorithm: str, context:
     if context.get("exposure"):
         details.append(f"exposure={context['exposure']}")
     suffix = f" ({', '.join(details)})" if details else ""
-    return f"{algorithm} is quantum-vulnerable; use {target_algorithm} as a hybrid transition before converging to the final PQC set{suffix}."
+    return f"The current public-key primitive is quantum-vulnerable; prioritize {target_algorithm} as the PQC target{suffix}."
 
 
 def confidence_for(strategy: str, blockers: list[str]) -> float:

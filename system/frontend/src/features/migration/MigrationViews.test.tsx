@@ -15,14 +15,14 @@ const migrationItem = {
   current: { algorithm: "RSA-2048", key_size_bits: 2048, quantum_vulnerable: true },
   recommendation: {
     strategy: "hybrid",
-    target_algorithm: "RSA-2048 + ML-DSA-65",
-    target_algorithm_set: ["RSA-2048", "ML-DSA-65"],
+    target_algorithm: "ML-DSA-65",
+    target_algorithm_set: ["ML-DSA-65"],
     final_algorithm_set: ["ML-DSA-65"],
     phase: "hybrid_first",
     blockers: ["runtime_capability_unknown"],
-    rollback: "Keep the existing RSA path enabled.",
+    rollback: "Keep an approved rollback path available.",
     validation: ["rescan_crypto_inventory"],
-    rationale: "Use a hybrid transition before converging to PQC.",
+    rationale: "Use the PQC target after compatibility review.",
     confidence: 0.77
   },
   alternatives: [{ strategy: "replace", target_algorithm: "ML-DSA-65", trade_off: "requires client compatibility review" }],
@@ -37,9 +37,9 @@ const migrationItem = {
   playbook: [
     {
       order: 1,
-      kind: "enable_hybrid",
-      title: "Enable hybrid transition",
-      action: "Deploy RSA-2048 + ML-DSA-65 while retaining the classical fallback.",
+      kind: "prepare_pqc_transition",
+      title: "Prepare PQC transition",
+      action: "Introduce ML-DSA-65 and validate service compatibility.",
       validation: "rescan_crypto_inventory"
     }
   ]
@@ -70,9 +70,9 @@ describe("MigrationPlanView", () => {
     expect(screen.getByRole("heading", { name: "전환 대상 계획" })).toBeInTheDocument();
     expect(await screen.findByText("cert-leaf-web-rsa2048")).toBeInTheDocument();
     expect(screen.getByText("디지털 서명")).toBeInTheDocument();
-    expect(screen.getByText("hybrid_first")).toBeInTheDocument();
+    expect(screen.getByText("전환 검토")).toBeInTheDocument();
+    expect(screen.getByText("PQC 전환")).toBeInTheDocument();
     expect(screen.getByText("36 · 낮음")).toBeInTheDocument();
-    expect(screen.queryByText("RSA-2048 + ML-DSA-65")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "AI 산출" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("checkbox", { name: "cert-leaf-web-rsa2048 선택" }));
@@ -84,8 +84,8 @@ describe("MigrationPlanView", () => {
     expect(screen.getByText("web.testbed.local:443")).toBeInTheDocument();
     expect(screen.queryByText("selected_count")).not.toBeInTheDocument();
     expect(screen.getByText("runtime_capability_unknown")).toBeInTheDocument();
-    expect(screen.getByText("Enable hybrid transition")).toBeInTheDocument();
-    expect(screen.getByText("Keep the existing RSA path enabled.")).toBeInTheDocument();
+    expect(screen.getByText("Prepare PQC transition")).toBeInTheDocument();
+    expect(screen.getByText("Keep an approved rollback path available.")).toBeInTheDocument();
   });
 
   it("applies guarded AI migration recommendations to the visible row", async () => {
@@ -108,11 +108,11 @@ describe("MigrationPlanView", () => {
         recommendation: {
           ...migrationItem.recommendation,
           strategy: "hybrid",
-          target_algorithm: "RSA-2048 + ML-DSA-65",
-          target_algorithm_set: ["RSA-2048", "ML-DSA-65"],
+          target_algorithm: "ML-DSA-65",
+          target_algorithm_set: ["ML-DSA-65"],
           final_algorithm_set: ["ML-DSA-65"],
           phase: "hybrid_first",
-          rationale: "AI selected the allowed hybrid transition.",
+          rationale: "AI selected the allowed PQC target.",
           confidence: 0.88
         },
         ai_recommendation: {
@@ -133,13 +133,12 @@ describe("MigrationPlanView", () => {
     renderWithApp(<MigrationPlanView snapshotId={3} />);
 
     await screen.findByRole("button", { name: "AI 산출" });
-    expect(screen.queryByText("RSA-2048 + ML-DSA-65")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "AI 산출" }));
 
     expect((await screen.findAllByText("ML-DSA-65")).length).toBeGreaterThan(0);
-    expect(screen.queryByText("RSA-2048 + ML-DSA-65")).not.toBeInTheDocument();
     expect(screen.getByText("AI 목표 알고리즘 산출 상세")).toBeInTheDocument();
-    expect(screen.getByText("AI selected the allowed hybrid transition.")).toBeInTheDocument();
+    expect(screen.getByText("AI selected the allowed PQC target.")).toBeInTheDocument();
     expect(screen.getByText("policy_default")).toBeInTheDocument();
+    expect(screen.queryByText(/RSA-2048 \+ ML-DSA-65/)).not.toBeInTheDocument();
   });
 });

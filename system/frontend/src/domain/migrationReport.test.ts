@@ -16,12 +16,12 @@ describe("MigrationReportBuilder", () => {
           current: { algorithm: "RSA", key_size_bits: 2048, quantum_vulnerable: true },
           recommendation: {
             strategy: "hybrid",
-            target_algorithm: "ML-DSA-65 + ECDSA-P256",
-            target_algorithm_set: ["ML-DSA-65", "ECDSA-P256"],
+            target_algorithm: "ML-DSA-65",
+            target_algorithm_set: ["ML-DSA-65"],
             final_algorithm_set: ["ML-DSA-65"],
             phase: "hybrid_first",
             blockers: ["runtime_capability_unknown"],
-            rollback: "Keep the existing RSA path enabled.",
+            rollback: "Keep an approved rollback path available.",
             validation: ["rescan_crypto_inventory"],
             rationale: "Public TLS certificate should migrate before long-lived exposure increases.",
             confidence: 0.82
@@ -36,7 +36,7 @@ describe("MigrationReportBuilder", () => {
           risk_score: 91,
           tier: "CRITICAL",
           agility: { score: 45, level: "MEDIUM", blockers: ["runtime_capability_unknown"], enablers: ["config_policy"] },
-          playbook: [{ order: 1, kind: "enable_hybrid", title: "Enable hybrid transition", action: "Deploy hybrid certificate.", validation: "Rescan." }]
+          playbook: [{ order: 1, kind: "prepare_pqc_transition", title: "Prepare PQC transition", action: "Introduce ML-DSA-65.", validation: "Rescan." }]
         })
       ],
       {
@@ -57,10 +57,11 @@ describe("MigrationReportBuilder", () => {
     expect(report).toContain("### 1. cert-leaf-web-rsa2048");
     expect(report).toContain("- 용도: 디지털 서명");
     expect(report).toContain("- 현재: RSA/2048bit (양자취약)");
-    expect(report).toContain("- 권고: hybrid -> ML-DSA-65");
+    expect(report).toContain("- 권고: PQC 전환 -> ML-DSA-65");
+    expect(report).toContain("- 단계: 전환 검토");
     expect(report).toContain("- 최종 알고리즘 세트: ML-DSA-65");
     expect(report).toContain("- 민첩성: 45/100 (보통)");
-    expect(report).toContain("- 플레이북: 1. Enable hybrid transition: Deploy hybrid certificate.");
+    expect(report).toContain("- 플레이북: 1. Prepare PQC transition: Introduce ML-DSA-65.");
     expect(report).toContain("replace -> ML-DSA-65");
   });
 

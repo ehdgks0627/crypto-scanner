@@ -104,8 +104,8 @@ def test_api_snp_003_export_snapshot_returns_cbom_download(client):
     assert component["cryptoProperties"] == {"assetType": "certificate", "algorithm": "RSA-2048", "algorithmFamily": "RSA"}
     assert {"name": "risk.tier", "value": "CRITICAL"} in component["properties"]
     assert {"name": "migration.asset_purpose", "value": "digital_signature"} in component["properties"]
-    assert {"name": "migration.strategy", "value": "hybrid"} in component["properties"]
-    assert {"name": "migration.target_algorithm", "value": "RSA-2048 + ML-DSA-65"} in component["properties"]
+    assert {"name": "migration.strategy", "value": "pqc_transition"} in component["properties"]
+    assert {"name": "migration.target_algorithm", "value": "ML-DSA-65"} in component["properties"]
     assert {"name": "context.service_role", "value": "customer_portal"} in component["properties"]
     assert {"name": "context.exposure", "value": "public_internet"} in component["properties"]
     assert {"name": "context.homepage.source", "value": "homepage"} in component["properties"]
@@ -120,8 +120,8 @@ def test_api_snp_003_export_snapshot_returns_cbom_download(client):
     plan_items = json.loads(item_payload)
     assert plan_items[0]["bom_ref"] == "cert:web"
     assert plan_items[0]["asset_purpose"] == "digital_signature"
-    assert plan_items[0]["strategy"] == "hybrid"
-    assert plan_items[0]["target_algorithm"] == "RSA-2048 + ML-DSA-65"
+    assert plan_items[0]["strategy"] == "pqc_transition"
+    assert plan_items[0]["target_algorithm"] == "ML-DSA-65"
     assert body["dependencies"] == [{"ref": "cert:web", "dependsOn": ["alg:rsa"]}]
 
 
@@ -271,7 +271,7 @@ def test_api_ast_002_get_asset_detail_with_context_sources(client):
     }
     assert {"name": "context.homepage.title", "value": "Customer Portal Login"} in body["enriched_cbom_component"]["properties"]
     assert {"name": "risk.tier", "value": "CRITICAL"} in body["enriched_cbom_component"]["properties"]
-    assert {"name": "migration.target_algorithm", "value": "RSA-2048 + ML-DSA-65"} in body["enriched_cbom_component"]["properties"]
+    assert {"name": "migration.target_algorithm", "value": "ML-DSA-65"} in body["enriched_cbom_component"]["properties"]
 
 
 def test_api_ast_002b_asset_dependencies_are_cbom_component_edges(client):

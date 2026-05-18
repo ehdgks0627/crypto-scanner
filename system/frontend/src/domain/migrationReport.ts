@@ -1,7 +1,7 @@
 import type { Schema } from "../api/types";
 import { formatDateTime, formatScore } from "../lib/format";
 import { agilityLevelLabel, assetTypeLabel, migrationPurposeLabel, riskTierLabel } from "./displayLabels";
-import { displayMigrationRecommendation, displayMigrationTargetAlgorithm, hasAiRecommendation, type MigrationPlanItemWithAi } from "./migrationRecommendation";
+import { displayMigrationPhase, displayMigrationRecommendation, displayMigrationTargetAlgorithm, hasAiRecommendation, type MigrationPlanItemWithAi } from "./migrationRecommendation";
 
 type MigrationImpact = Schema<"MigrationImpact">;
 
@@ -65,7 +65,7 @@ export class MigrationReportBuilder {
       `- 위험도: ${formatScore(item.risk_score)} (${riskTierLabel(item.tier)})`,
       `- 현재: ${this.currentAlgorithm(item)}`,
       `- 권고: ${this.recommendation(item)}`,
-      `- 단계: ${this.aiReady(item) ? item.recommendation.phase : "AI 산출 전"}`,
+      `- 단계: ${this.aiReady(item) ? displayMigrationPhase(item) : "AI 산출 전"}`,
       `- 최종 알고리즘 세트: ${this.aiReady(item) ? displayMigrationTargetAlgorithm(item) : "-"}`,
       `- 민첩성: ${item.agility.score}/100 (${agilityLevelLabel(item.agility.level)})`,
       `- 차단 요인: ${item.agility.blockers.length ? item.agility.blockers.join(", ") : "-"}`,

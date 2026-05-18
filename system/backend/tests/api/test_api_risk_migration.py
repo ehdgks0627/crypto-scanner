@@ -302,7 +302,7 @@ def test_api_mig_005_migration_plan_validates_score_and_missing_snapshot(client)
     assert missing_response.status_code == 404
 
 
-def test_api_mig_006_migration_plan_marks_rsa_hybrid_and_safe_no_change(client):
+def test_api_mig_006_migration_plan_marks_rsa_pqc_target_and_safe_no_change(client):
     snapshot = create_snapshot()
     rsa_asset = create_asset(snapshot=snapshot, algorithm="RSA-2048", algorithm_family="RSA", bom_ref="mig:rsa")
     pqc_asset = create_asset(snapshot=snapshot, algorithm="ML-DSA-65", algorithm_family="ML-DSA", bom_ref="mig:pqc")
@@ -315,7 +315,8 @@ def test_api_mig_006_migration_plan_marks_rsa_hybrid_and_safe_no_change(client):
     by_asset = {item["asset_id"]: item for item in response.json()["items"]}
     assert by_asset[rsa_asset.id]["recommendation"]["strategy"] == "hybrid"
     assert by_asset[rsa_asset.id]["asset_purpose"] == "digital_signature"
-    assert by_asset[rsa_asset.id]["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
+    assert by_asset[rsa_asset.id]["recommendation"]["target_algorithm"] == "ML-DSA-65"
+    assert by_asset[rsa_asset.id]["recommendation"]["target_algorithm_set"] == ["ML-DSA-65"]
     assert by_asset[rsa_asset.id]["recommendation"]["phase"] == "hybrid_first"
     assert by_asset[rsa_asset.id]["current"]["quantum_vulnerable"] is True
     assert by_asset[rsa_asset.id]["risk_score"] == 95
@@ -351,10 +352,10 @@ def test_api_mig_006b_migration_plan_maps_rsa_key_agreement_to_ml_kem(client):
     assert response.status_code == 200
     by_asset = {item["asset_id"]: item for item in response.json()["items"]}
     assert by_asset[key_exchange_asset.id]["asset_purpose"] == "key_exchange"
-    assert by_asset[key_exchange_asset.id]["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert by_asset[key_exchange_asset.id]["recommendation"]["target_algorithm_set"] == ["ML-KEM-768"]
     assert by_asset[key_exchange_asset.id]["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
     assert by_asset[certificate_asset.id]["asset_purpose"] == "digital_signature"
-    assert by_asset[certificate_asset.id]["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
+    assert by_asset[certificate_asset.id]["recommendation"]["target_algorithm_set"] == ["ML-DSA-65"]
 
 
 def test_api_mig_006c_migration_plan_maps_ecdsa_p256_alias_to_ml_dsa(client):
@@ -375,7 +376,7 @@ def test_api_mig_006c_migration_plan_maps_ecdsa_p256_alias_to_ml_dsa(client):
     item = response.json()["items"][0]
     assert item["asset_purpose"] == "digital_signature"
     assert item["current"]["quantum_vulnerable"] is True
-    assert item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "ML-DSA-65"]
+    assert item["recommendation"]["target_algorithm_set"] == ["ML-DSA-65"]
     assert item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
 
 
@@ -406,11 +407,11 @@ def test_api_mig_006d_migration_plan_maps_x25519_and_dh_aliases_to_ml_kem(client
     by_asset = {item["asset_id"]: item for item in response.json()["items"]}
     assert by_asset[x25519_asset.id]["asset_purpose"] == "key_agreement"
     assert by_asset[x25519_asset.id]["current"]["quantum_vulnerable"] is True
-    assert by_asset[x25519_asset.id]["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert by_asset[x25519_asset.id]["recommendation"]["target_algorithm_set"] == ["ML-KEM-768"]
     assert by_asset[x25519_asset.id]["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
     assert by_asset[dh_asset.id]["asset_purpose"] == "key_agreement"
     assert by_asset[dh_asset.id]["current"]["quantum_vulnerable"] is True
-    assert by_asset[dh_asset.id]["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert by_asset[dh_asset.id]["recommendation"]["target_algorithm_set"] == ["ML-KEM-768"]
     assert by_asset[dh_asset.id]["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
 
 
@@ -436,9 +437,9 @@ def test_api_mig_006e_migration_plan_maps_long_term_signature_to_slh_dsa(client)
     assert response.status_code == 200
     item = response.json()["items"][0]
     assert item["asset_purpose"] == "long_term_signature"
-    assert item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "SLH-DSA-SHA2-128s"]
+    assert item["recommendation"]["target_algorithm_set"] == ["SLH-DSA-SHA2-128s"]
     assert item["recommendation"]["final_algorithm_set"] == ["SLH-DSA-SHA2-128s"]
-    assert "hash-based SLH-DSA" in item["recommendation"]["rationale"]
+    assert "SLH-DSA-SHA2-128s" in item["recommendation"]["rationale"]
 
 
 def test_api_mig_006f_ai_migration_suggestion_selects_allowed_candidate(client, monkeypatch):
@@ -463,9 +464,9 @@ def test_api_mig_006f_ai_migration_suggestion_selects_allowed_candidate(client, 
     def fake_provider(prompt):
         seen_prompt.update(prompt)
         payload = {
-            "selected_candidate_id": "alternative_1",
+            "selected_candidate_id": "policy_default",
             "confidence": 0.88,
-            "rationale": "Public payment context can use the direct allowed replacement after compatibility review.",
+            "rationale": "Public payment context should use the allowed PQC target after compatibility review.",
             "evidence": ["service_role:payment", "exposure:public_internet"],
         }
         return LlmCompletion(provider="codex-cli", model="gpt-5.3-codex-spark", content=json.dumps(payload), usage={"tokens": 1})
@@ -481,11 +482,20 @@ def test_api_mig_006f_ai_migration_suggestion_selects_allowed_candidate(client, 
     assert body["fallback"]["used"] is False
     assert body["plan_item"]["recommendation"]["target_algorithm"] == "ML-DSA-65"
     assert body["plan_item"]["recommendation"]["confidence"] == 0.88
-    assert body["plan_item"]["ai_recommendation"]["selected_candidate_id"] == "alternative_1"
+    assert body["plan_item"]["ai_recommendation"]["selected_candidate_id"] == "policy_default"
     assert seen_prompt["payload"]["enriched_cbom"]["asset"]["algorithm"] == "RSA-2048"
     assert seen_prompt["payload"]["enriched_cbom"]["effective_context"]["service_role"] == "payment"
-    assert {item["candidate_id"] for item in seen_prompt["payload"]["allowed_candidates"]} == {"policy_default", "alternative_1"}
-    assert body["llm_trace"]["response"]["parsed"]["selected_candidate_id"] == "alternative_1"
+    assert len(seen_prompt["payload"]["allowed_candidates"]) == 1
+    candidate = seen_prompt["payload"]["allowed_candidates"][0]
+    assert candidate["candidate_id"] == "policy_default"
+    assert candidate["label"] == "Policy default PQC target"
+    assert candidate["transition_mode"] == "pqc_transition"
+    assert candidate["target_algorithm"] == "ML-DSA-65"
+    assert candidate["target_algorithm_set"] == ["ML-DSA-65"]
+    assert candidate["final_algorithm_set"] == ["ML-DSA-65"]
+    assert "RSA" not in json.dumps(candidate)
+    assert "hybrid" not in json.dumps(candidate).lower()
+    assert body["llm_trace"]["response"]["parsed"]["selected_candidate_id"] == "policy_default"
 
 
 def test_api_mig_006g_ai_migration_suggestion_rejects_unallowed_algorithm(client, monkeypatch):
@@ -511,7 +521,7 @@ def test_api_mig_006g_ai_migration_suggestion_rejects_unallowed_algorithm(client
     assert response.status_code == 200
     body = response.json()
     assert body["fallback"] == {"used": True, "reason": "candidate_not_allowed"}
-    assert body["plan_item"]["recommendation"]["target_algorithm"] == "RSA-2048 + ML-DSA-65"
+    assert body["plan_item"]["recommendation"]["target_algorithm"] == "ML-DSA-65"
     assert body["plan_item"]["ai_recommendation"]["fallback"]["used"] is True
 
 

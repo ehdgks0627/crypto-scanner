@@ -29,7 +29,21 @@ export function displayMigrationRecommendation(item: MigrationPlanItemWithAi): s
   if (!hasAiRecommendation(item)) {
     return "AI 산출 전";
   }
-  return `${item.recommendation.strategy} -> ${displayMigrationTargetAlgorithm(item)}`;
+  return `${displayMigrationStrategy(item)} -> ${displayMigrationTargetAlgorithm(item)}`;
+}
+
+export function displayMigrationStrategy(item: MigrationPlanItemWithAi): string {
+  if (item.recommendation.strategy === "no_change") {
+    return "유지";
+  }
+  return "PQC 전환";
+}
+
+export function displayMigrationPhase(item: MigrationPlanItemWithAi): string {
+  if (item.recommendation.phase === "monitor") {
+    return "모니터링";
+  }
+  return "전환 검토";
 }
 
 function normalizeAlgorithm(value?: string | null): string {

@@ -76,10 +76,11 @@ def test_migration_engine_recommends_hybrid_first_for_long_lived_rsa():
     assert item["recommendation"]["strategy"] == "hybrid"
     assert item["asset_purpose"] == "digital_signature"
     assert item["recommendation"]["phase"] == "hybrid_first"
-    assert item["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
+    assert item["recommendation"]["target_algorithm"] == "ML-DSA-65"
+    assert item["recommendation"]["target_algorithm_set"] == ["ML-DSA-65"]
     assert item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
     assert "runtime_capability_unknown" in item["recommendation"]["blockers"]
-    assert "enable_hybrid" in [step["kind"] for step in item["playbook"]]
+    assert "prepare_pqc_transition" in [step["kind"] for step in item["playbook"]]
     assert item["agility"]["level"] == "LOW"
 
 
@@ -108,10 +109,10 @@ def test_migration_engine_maps_rsa_key_exchange_to_ml_kem_without_changing_signa
     )
 
     assert key_exchange_item["asset_purpose"] == "key_exchange"
-    assert key_exchange_item["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert key_exchange_item["recommendation"]["target_algorithm_set"] == ["ML-KEM-768"]
     assert key_exchange_item["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
     assert certificate_item["asset_purpose"] == "digital_signature"
-    assert certificate_item["recommendation"]["target_algorithm_set"] == ["RSA-2048", "ML-DSA-65"]
+    assert certificate_item["recommendation"]["target_algorithm_set"] == ["ML-DSA-65"]
     assert certificate_item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
 
 
@@ -130,7 +131,7 @@ def test_migration_engine_maps_ecdsa_p256_aliases_to_ml_dsa_65():
 
     assert item["asset_purpose"] == "digital_signature"
     assert item["current"]["quantum_vulnerable"] is True
-    assert item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "ML-DSA-65"]
+    assert item["recommendation"]["target_algorithm_set"] == ["ML-DSA-65"]
     assert item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
 
 
@@ -160,11 +161,11 @@ def test_migration_engine_maps_x25519_and_dh_aliases_to_ml_kem_768():
 
     assert x25519_item["asset_purpose"] == "key_agreement"
     assert x25519_item["current"]["quantum_vulnerable"] is True
-    assert x25519_item["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert x25519_item["recommendation"]["target_algorithm_set"] == ["ML-KEM-768"]
     assert x25519_item["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
     assert dh_item["asset_purpose"] == "key_agreement"
     assert dh_item["current"]["quantum_vulnerable"] is True
-    assert dh_item["recommendation"]["target_algorithm_set"] == ["X25519", "ML-KEM-768"]
+    assert dh_item["recommendation"]["target_algorithm_set"] == ["ML-KEM-768"]
     assert dh_item["recommendation"]["final_algorithm_set"] == ["ML-KEM-768"]
 
 
@@ -193,11 +194,11 @@ def test_migration_engine_maps_long_term_signatures_to_slh_dsa():
     )
 
     assert archive_item["asset_purpose"] == "long_term_signature"
-    assert archive_item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "SLH-DSA-SHA2-128s"]
+    assert archive_item["recommendation"]["target_algorithm_set"] == ["SLH-DSA-SHA2-128s"]
     assert archive_item["recommendation"]["final_algorithm_set"] == ["SLH-DSA-SHA2-128s"]
-    assert "hash-based SLH-DSA" in archive_item["recommendation"]["rationale"]
+    assert "SLH-DSA-SHA2-128s" in archive_item["recommendation"]["rationale"]
     assert default_item["asset_purpose"] == "digital_signature"
-    assert default_item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "ML-DSA-65"]
+    assert default_item["recommendation"]["target_algorithm_set"] == ["ML-DSA-65"]
     assert default_item["recommendation"]["final_algorithm_set"] == ["ML-DSA-65"]
 
 

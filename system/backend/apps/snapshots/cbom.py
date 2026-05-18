@@ -97,7 +97,7 @@ def _migration_plan_component_properties(item):
     recommendation = item["recommendation"]
     return [
         {"name": "migration.asset_purpose", "value": item["asset_purpose"]},
-        {"name": "migration.strategy", "value": recommendation["strategy"]},
+        {"name": "migration.strategy", "value": _public_migration_strategy(recommendation["strategy"])},
         {"name": "migration.target_algorithm", "value": recommendation["target_algorithm"]},
         {
             "name": "migration.target_algorithm_set",
@@ -107,7 +107,7 @@ def _migration_plan_component_properties(item):
             "name": "migration.final_algorithm_set",
             "value": json.dumps(recommendation["final_algorithm_set"], sort_keys=True),
         },
-        {"name": "migration.phase", "value": recommendation["phase"]},
+        {"name": "migration.phase", "value": _public_migration_phase(recommendation["phase"])},
         {"name": "migration.agility_level", "value": item["agility"]["level"]},
     ]
 
@@ -155,16 +155,28 @@ def _migration_plan_attachment_item(item, asset):
         "tier": item["tier"],
         "current_algorithm": current["algorithm"],
         "quantum_vulnerable": current["quantum_vulnerable"],
-        "strategy": recommendation["strategy"],
+        "strategy": _public_migration_strategy(recommendation["strategy"]),
         "target_algorithm": recommendation["target_algorithm"],
         "target_algorithm_set": recommendation["target_algorithm_set"],
         "final_algorithm_set": recommendation["final_algorithm_set"],
-        "phase": recommendation["phase"],
+        "phase": _public_migration_phase(recommendation["phase"]),
         "blockers": recommendation["blockers"],
         "validation": recommendation["validation"],
         "agility_level": agility["level"],
         "agility_score": agility["score"],
     }
+
+
+def _public_migration_strategy(strategy):
+    if strategy == "no_change":
+        return "monitor"
+    return "pqc_transition"
+
+
+def _public_migration_phase(phase):
+    if phase == "monitor":
+        return "monitor"
+    return "transition_review"
 
 
 def _dependency_rows(assets, dependencies):

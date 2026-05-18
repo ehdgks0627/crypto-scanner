@@ -92,7 +92,7 @@ def _allowed_migration_options(base_item):
     options = [
         {
             "candidate_id": "policy_default",
-            "label": "Policy default recommendation",
+            "label": "Policy default PQC target",
             "recommendation": dict(recommendation),
         }
     ]
@@ -206,13 +206,18 @@ def _option_payload(option):
     return {
         "candidate_id": option["candidate_id"],
         "label": option["label"],
-        "strategy": recommendation["strategy"],
+        "transition_mode": _public_transition_mode(recommendation["strategy"]),
         "target_algorithm": recommendation["target_algorithm"],
         "target_algorithm_set": recommendation["target_algorithm_set"],
         "final_algorithm_set": recommendation["final_algorithm_set"],
-        "phase": recommendation["phase"],
         "rationale": recommendation["rationale"],
     }
+
+
+def _public_transition_mode(strategy):
+    if strategy == "no_change":
+        return "monitor"
+    return "pqc_transition"
 
 
 def _parse_migration_suggestion_response(text, options):
