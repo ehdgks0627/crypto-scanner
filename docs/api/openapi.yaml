@@ -302,7 +302,8 @@ paths:
       - $ref: '#/components/parameters/Id'
     post:
       tags: [Discovery]
-      summary: Promote discovered endpoints to targets
+      summary: Legacy manual promotion for discovered endpoints
+      description: Discovered endpoints are promoted to scan targets automatically when discovery completes. This endpoint is retained for older clients.
       operationId: promoteDiscoveredEndpoints
       requestBody:
         required: true
@@ -2173,6 +2174,7 @@ components:
           additionalProperties: true
         promoted:
           type: boolean
+          description: True when the endpoint is registered as a scan target. New discovery results are promoted automatically.
         target_id:
           type: integer
           nullable: true

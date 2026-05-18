@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
 import { Progress } from "../../components/ui/progress";
 import { DataTable } from "../../components/ui/table";
-import { statusLabel, yesNoLabel } from "../../domain/displayLabels";
+import { statusLabel } from "../../domain/displayLabels";
 import { canCancelJob, isActiveJobStatus, pageHasActiveJob } from "../../domain/jobStatus";
 import { JobProgressModel } from "../../domain/models";
 import { formatDateTime, formatNumber } from "../../lib/format";
@@ -30,7 +30,6 @@ import {
   type DiscoveryScopeType,
   type DiscoveryServiceId
 } from "./discoveryCreatePayload";
-import { DiscoveryPromotionModel } from "./discoveryPromotion";
 
 const discoveryScopeTypeLabels: Record<DiscoveryScopeType, string> = {
   cidr: "CIDR",
@@ -153,7 +152,7 @@ export function DiscoveriesView() {
     <Section>
       <PageHeader
         title="탐색 대상"
-        description="CIDR 또는 특정 IP / 도메인을 등록하고, 발견된 엔드포인트를 스캔 대상으로 승인합니다."
+        description="CIDR 또는 특정 IP / 도메인을 등록하고, 발견된 엔드포인트를 스캔 대상으로 자동 등록합니다."
         actions={
           <Button type="button" variant="primary" onClick={() => navigate("/discoveries/new")}>
             <Plus size={15} />탐색 대상 추가
@@ -395,8 +394,6 @@ export function DiscoveryNewView() {
 export function DiscoveryDetailView({ id }: { id: number }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<number[]>([]);
-  const [confirmPromoteOpen, setConfirmPromoteOpen] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [cancelRequested, setCancelRequested] = useState(false);
   const discovery = useQuery({
@@ -409,20 +406,8 @@ export function DiscoveryDetailView({ id }: { id: number }) {
     queryFn: () => services.discoveries.endpoints(id),
     refetchInterval: () => (isActiveJobStatus(discovery.data?.status) ? 5_000 : false)
   });
-  const promotionModel = useMemo(() => new DiscoveryPromotionModel(endpoints.data?.items ?? []), [endpoints.data?.items]);
-  const promotableIds = useMemo(() => promotionModel.promotableIds(), [promotionModel]);
-  const promotionPayload = useMemo(() => promotionModel.payloadForSelected(selected), [promotionModel, selected]);
-  const promote = useMutation({
-    mutationFn: () => services.discoveries.promote(id, promotionPayload),
-    onSuccess: async (result) => {
-      toast.success(`${result.promoted.length}개 엔드포인트를 스캔 대상으로 승인했습니다.`);
-      setSelected([]);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.endpoints(id) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.targets.all });
-      navigate("/targets");
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "스캔 대상 승인 실패")
-  });
+  const endpointItems = endpoints.data?.items ?? [];
+  const autoRegisteredCount = endpointItems.filter((endpoint) => Boolean(endpoint.target_id)).length;
   const discoveryJobId = discovery.data?.job_id;
   const discoveryJob = useQuery({
     queryKey: discoveryJobId ? queryKeys.jobs.detail(discoveryJobId) : ["jobs", "detail", "discovery-none"],
@@ -456,10 +441,6 @@ export function DiscoveryDetailView({ id }: { id: number }) {
   });
 
   useEffect(() => {
-    setSelected((current) => current.filter((endpointId) => promotableIds.includes(endpointId)));
-  }, [promotableIds]);
-
-  useEffect(() => {
     if (discovery.data && !isActiveJobStatus(discovery.data.status)) {
       setCancelRequested(false);
       void queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.endpoints(id) });
@@ -486,8 +467,8 @@ export function DiscoveryDetailView({ id }: { id: number }) {
             <Button type="button" variant="danger" disabled={!canCancel || cancel.isPending} onClick={() => setConfirmCancelOpen(true)}>
               <XCircle size={15} />취소
             </Button>
-            <Button type="button" variant="primary" disabled={selected.length === 0 || promote.isPending} onClick={() => setConfirmPromoteOpen(true)}>
-              스캔 대상으로 승인
+            <Button type="button" variant="primary" onClick={() => navigate("/targets")}>
+              스캔 대상 보기
             </Button>
           </>
         }
@@ -500,16 +481,6 @@ export function DiscoveryDetailView({ id }: { id: number }) {
         pending={cancel.isPending}
         onCancel={() => setConfirmCancelOpen(false)}
         onConfirm={() => cancel.mutate(undefined, { onSettled: () => setConfirmCancelOpen(false) })}
-      />
-      <ConfirmDialog
-        open={confirmPromoteOpen}
-        title="스캔 대상 승인"
-        description={`선택한 엔드포인트 ${selected.length}개를 스캔 대상으로 추가합니다.`}
-        confirmLabel="승인"
-        confirmVariant="primary"
-        pending={promote.isPending}
-        onCancel={() => setConfirmPromoteOpen(false)}
-        onConfirm={() => promote.mutate(undefined, { onSettled: () => setConfirmPromoteOpen(false) })}
       />
       <div className="content-grid">
         <Card>
@@ -534,18 +505,12 @@ export function DiscoveryDetailView({ id }: { id: number }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>스캔 대상 승인</CardTitle>
+            <CardTitle>스캔 대상 자동 등록</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="muted">승인할 엔드포인트를 명시적으로 선택하세요. 선택하지 않은 엔드포인트는 스캔 대상으로 추가하지 않습니다.</p>
-            <div className="inline-actions">
-              <Button type="button" onClick={() => setSelected(promotableIds)} disabled={promotableIds.length === 0}>
-                전체 선택
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setSelected([])} disabled={selected.length === 0}>
-                선택 해제
-              </Button>
-            </div>
+            <p className="muted">발견된 엔드포인트는 탐색 완료 시 스캔 대상으로 자동 등록됩니다.</p>
+            <p className="metric-card__value">{formatNumber(autoRegisteredCount)}</p>
+            <p className="muted">등록된 스캔 대상 / 발견 엔드포인트 {formatNumber(endpointItems.length)}개</p>
           </CardContent>
         </Card>
       </div>
@@ -562,29 +527,13 @@ export function DiscoveryDetailView({ id }: { id: number }) {
               items={endpoints.data.items}
               getRowKey={(endpoint) => endpoint.id}
               columns={[
-                {
-                  key: "select",
-                  header: "",
-                  render: (endpoint) => (
-                    <Checkbox
-                      aria-label={`${endpoint.suggested_host ?? endpoint.ip}:${endpoint.port} 스캔 대상 승인 선택`}
-                      checked={selected.includes(endpoint.id)}
-                      disabled={endpoint.promoted}
-                      onChange={(event) =>
-                        setSelected((current) =>
-                          event.target.checked ? [...current, endpoint.id] : current.filter((item) => item !== endpoint.id)
-                        )
-                      }
-                    />
-                  )
-                },
                 { key: "host", header: "호스트/IP", render: (endpoint) => endpoint.suggested_host ?? endpoint.ip },
                 { key: "port", header: "포트", render: (endpoint) => endpoint.port },
                 { key: "protocol", header: "프로토콜", render: (endpoint) => endpoint.suggested_protocol_hint ?? endpoint.detected_protocol ?? "-" },
                 { key: "handshake", header: "핸드셰이크 p95", align: "right", render: (endpoint) => formatMs(endpointMetricP95(endpoint, "handshake_ms")) },
                 { key: "ttfb", header: "TTFB p95", align: "right", render: (endpoint) => formatMs(endpointMetricP95(endpoint, "ttfb_ms")) },
                 { key: "failure", header: "실패율", align: "right", render: (endpoint) => formatPercent(endpointNumberMetric(endpoint, "failure_rate")) },
-                { key: "promoted", header: "승인 여부", render: (endpoint) => yesNoLabel(endpoint.promoted) },
+                { key: "promoted", header: "스캔 대상 등록", render: (endpoint) => endpoint.target_id ? "자동 등록" : "대기" },
                 { key: "target", header: "스캔 대상", render: (endpoint) => endpoint.target_id ? `#${endpoint.target_id}` : "-" }
               ]}
             />

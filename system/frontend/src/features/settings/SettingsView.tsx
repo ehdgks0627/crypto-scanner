@@ -140,7 +140,7 @@ export function SettingsView() {
               </div>
               <div className="callout">
                 <strong>스캔 대상</strong>
-                <p className="muted">등록 또는 승인된 스캔 대상을 삭제합니다. Agent 등록 정보는 유지됩니다.</p>
+                <p className="muted">자동 등록 또는 직접 등록된 스캔 대상을 삭제합니다. Agent 등록 정보는 유지됩니다.</p>
                 <Button type="button" variant="danger" disabled={cleanup.isPending} onClick={() => setCleanupAction("scanTargets")}>
                   <Trash2 size={15} />스캔 대상 삭제
                 </Button>
@@ -220,7 +220,7 @@ function cleanupDialogContent(action: CleanupAction) {
   }
   return {
     title: "스캔 대상 삭제",
-    description: "등록 또는 승인된 모든 스캔 대상을 삭제합니다. 스냅샷과 Agent 등록 정보는 삭제하지 않습니다."
+    description: "자동 등록 또는 직접 등록된 모든 스캔 대상을 삭제합니다. 스냅샷과 Agent 등록 정보는 삭제하지 않습니다."
   };
 }
 

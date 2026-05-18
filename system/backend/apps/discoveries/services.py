@@ -221,8 +221,9 @@ def upsert_discovered_endpoints(discovery, endpoints: list[dict]) -> int:
             existing.availability_metrics = availability_metrics
             existing.save(update_fields=["detected_protocol", "suggested_protocol_hint", "availability_metrics"])
             DiscoveredEndpoint.objects.filter(discovery=discovery, host=host, port=port, transport=transport).exclude(id=existing.id).delete()
+            _auto_promote_endpoint(existing)
         else:
-            DiscoveredEndpoint.objects.create(
+            created = DiscoveredEndpoint.objects.create(
                 discovery=discovery,
                 host=host,
                 port=port,
@@ -231,8 +232,47 @@ def upsert_discovered_endpoints(discovery, endpoints: list[dict]) -> int:
                 suggested_protocol_hint=suggested_protocol_hint,
                 availability_metrics=availability_metrics,
             )
+            _auto_promote_endpoint(created)
         saved += 1
     return saved
+
+
+def _auto_promote_endpoint(endpoint) -> None:
+    from apps.targets.models import Target, default_context
+
+    protocol_hint = _normalized_protocol_hint(endpoint.suggested_protocol_hint)
+    target, _created = Target.objects.get_or_create(
+        host=endpoint.host,
+        port=endpoint.port,
+        transport=endpoint.transport,
+        defaults={
+            "ip": _ip_or_none(endpoint.host),
+            "protocol_hint": protocol_hint,
+            "context": default_context(),
+            "agent_enabled": False,
+        },
+    )
+    update_fields = []
+    if endpoint.target_id != target.id:
+        endpoint.target = target
+        update_fields.append("target")
+    if not endpoint.promoted:
+        endpoint.promoted = True
+        update_fields.append("promoted")
+    if update_fields:
+        endpoint.save(update_fields=update_fields)
+
+
+def _normalized_protocol_hint(value: str) -> str:
+    normalized = str(value or "UNKNOWN").upper()
+    return normalized if normalized in {"TLS", "SSH", "IKE", "SMTP", "IMAP", "POP3", "UNKNOWN"} else "UNKNOWN"
+
+
+def _ip_or_none(host: str) -> str | None:
+    try:
+        return str(ip_address(host))
+    except ValueError:
+        return None
 
 
 def summarize_discovery_availability(endpoints: list[dict]) -> dict:

@@ -121,8 +121,8 @@ describe("DiscoveriesView", () => {
           port: 443,
           detected_protocol: "TLS",
           banner_metadata: {},
-          promoted: false,
-          target_id: null,
+          promoted: true,
+          target_id: 31,
           suggested_protocol_hint: "TLS",
           suggested_host: "web.testbed.local",
           availability_metrics: {
@@ -152,6 +152,8 @@ describe("DiscoveriesView", () => {
     renderWithApp(<DiscoveryDetailView id={9} />);
 
     expect(await screen.findByText("가용성 검사 리포트")).toBeInTheDocument();
+    expect(screen.getByText("스캔 대상 자동 등록")).toBeInTheDocument();
+    expect(screen.getByText("등록된 스캔 대상 / 발견 엔드포인트 1개")).toBeInTheDocument();
     expect(screen.getByText("핸드셰이크 p95 평균")).toBeInTheDocument();
     expect(screen.getByText("30.2 ms")).toBeInTheDocument();
     expect(screen.getByText("4,216 B")).toBeInTheDocument();
@@ -159,5 +161,7 @@ describe("DiscoveriesView", () => {
     expect(screen.getByText("31.4 ms")).toBeInTheDocument();
     expect(screen.getAllByText("12.5 ms").length).toBeGreaterThan(0);
     expect(screen.getAllByText("5.0%").length).toBeGreaterThan(0);
+    expect(screen.getByText("자동 등록")).toBeInTheDocument();
+    expect(screen.getByText("#31")).toBeInTheDocument();
   });
 });

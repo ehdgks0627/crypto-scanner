@@ -139,7 +139,7 @@ export function DashboardView() {
         />
         <EmptyState
           title="아직 스냅샷이 없습니다"
-          description="탐색 대상에서 후보 엔드포인트를 찾고 스캔 대상으로 승인한 뒤 스캔을 실행하면 대시보드가 채워집니다."
+          description="탐색 대상에서 후보 엔드포인트를 찾으면 스캔 대상이 자동 등록되고, 이후 스캔을 실행하면 대시보드가 채워집니다."
           action={
             <div className="inline-actions">
               <SeedDemoButton isPending={seedDemo.isPending} onClick={() => seedDemo.mutate()} />

@@ -223,6 +223,7 @@ def test_api_dsc_002e_worker_calls_discovery_agent_and_persists_endpoints(client
     from apps.discoveries import services
     from apps.discoveries.models import DiscoveredEndpoint, Discovery
     from apps.jobs.models import AsyncJob, QueuedTask
+    from apps.targets.models import Target
 
     agent = Agent.objects.create(
         hostname="probe.dmz.testbed.local",
@@ -312,6 +313,10 @@ def test_api_dsc_002e_worker_calls_discovery_agent_and_persists_endpoints(client
         ("172.31.240.10", 443, "TLS"),
         ("172.31.240.12", 22, "SSH"),
     }
+    assert Target.objects.count() == 2
+    assert all(endpoint.promoted and endpoint.target_id for endpoint in DiscoveredEndpoint.objects.filter(discovery=discovery))
+    assert Target.objects.get(host="172.31.240.10", port=443, transport="TCP").protocol_hint == "TLS"
+    assert Target.objects.get(host="172.31.240.12", port=22, transport="TCP").protocol_hint == "SSH"
     tls_endpoint = DiscoveredEndpoint.objects.get(discovery=discovery, port=443)
     assert tls_endpoint.availability_metrics["handshake_ms"]["p95"] == 15.0
     endpoint_response = client.get(f"/api/discoveries/{discovery.id}/endpoints")

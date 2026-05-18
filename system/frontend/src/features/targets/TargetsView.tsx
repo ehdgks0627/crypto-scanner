@@ -43,7 +43,7 @@ export function TargetsView() {
     <Section>
       <PageHeader
         title="스캔 대상"
-        description="탐색 대상 결과에서 승인된 엔드포인트를 스캔 가능한 대상으로 관리합니다."
+        description="탐색 대상 결과에서 자동 등록된 엔드포인트를 스캔 가능한 대상으로 관리합니다."
       />
       <Card>
         <CardContent>
@@ -72,7 +72,7 @@ export function TargetsView() {
             <DataTable
               items={targets.data.items}
               getRowKey={(target) => target.id}
-              empty={<EmptyState title="스캔 대상이 없습니다" description="탐색 대상에서 엔드포인트를 찾고 스캔 대상으로 승인하세요." />}
+              empty={<EmptyState title="스캔 대상이 없습니다" description="탐색 대상에서 엔드포인트를 찾으면 스캔 대상으로 자동 등록됩니다." />}
               columns={[
                 {
                   key: "target",
