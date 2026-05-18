@@ -273,6 +273,7 @@ function triggerLabel(trigger: string) {
     manual: "수동",
     agent_upload: "에이전트 업로드",
     scheduled: "예약",
+    discovery: "탐색 후 자동",
     migration_validation: "마이그레이션 검증"
   };
   return labels[trigger] ?? trigger;

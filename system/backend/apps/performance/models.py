@@ -1,7 +1,7 @@
 from django.db import models
 
 
-RUN_TRIGGERS = ["manual", "post_migration", "scheduled", "canary"]
+RUN_TRIGGERS = ["manual", "post_migration", "scheduled", "canary", "discovery"]
 RUN_PROFILES = ["smoke", "baseline", "canary", "stress"]
 RUN_STATUSES = ["PENDING", "RUNNING", "COMPLETED", "FAILED"]
 RESULT_STATUSES = ["PASS", "WARN", "FAIL", "ERROR"]

@@ -2106,6 +2106,14 @@ components:
         include_default_ports:
           type: boolean
           description: Defaults to true when omitted.
+        auto_scan:
+          type: boolean
+          default: true
+          description: Queue a scan job for promoted endpoints after discovery completes.
+        auto_availability_check:
+          type: boolean
+          default: true
+          description: Queue an availability check after the follow-up scan creates a snapshot.
 
     Discovery:
       type: object
@@ -3356,7 +3364,7 @@ components:
 
     PerformanceRunTrigger:
       type: string
-      enum: [manual, post_migration, scheduled, canary]
+      enum: [manual, post_migration, scheduled, canary, discovery]
 
     PerformanceRunProfile:
       type: string

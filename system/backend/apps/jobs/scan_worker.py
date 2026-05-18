@@ -11,6 +11,7 @@ from apps.assets.models import Asset
 from apps.jobs import agent_client, network_scanner
 from apps.jobs.agent_asset_mapper import map_agent_findings
 from apps.jobs.models import AsyncJob, QueuedTask, ScanRunLog
+from apps.performance import services as performance_services
 from apps.risk import services as risk_services
 from apps.snapshots.models import CbomSnapshot
 from apps.targets.models import Target, default_context
@@ -63,8 +64,7 @@ def process_scan_job_task(task_id: int) -> dict:
         _fail_scan_job_task(task_id, exc)
         raise
 
-    _complete_scan_job_task(task_id, result)
-    return result
+    return _complete_scan_job_task(task_id, result)
 
 
 def run_scan_job_payload(payload: dict) -> dict:
@@ -352,17 +352,18 @@ def _update_progress(async_job_id: int, completed: int, total: int, target, scan
     )
 
 
-def _complete_scan_job_task(task_id: int, result: dict) -> None:
+def _complete_scan_job_task(task_id: int, result: dict) -> dict:
     with transaction.atomic():
         task = QueuedTask.objects.select_for_update().select_related("async_job").get(id=task_id)
         if task.async_job.status == AsyncJob.CANCELLED:
             task.status = QueuedTask.CANCELLED
             task.save(update_fields=["status", "updated_at"])
-            return
+            return {}
         task.status = QueuedTask.COMPLETED
         task.last_error = None
         task.save(update_fields=["status", "last_error", "updated_at"])
         async_job = task.async_job
+        result = _enqueue_availability_check_if_requested(async_job, result)
         async_job.status = AsyncJob.COMPLETED
         async_job.progress = {
             "completed": async_job.progress.get("total", 0) if async_job.progress else 0,
@@ -374,6 +375,36 @@ def _complete_scan_job_task(task_id: int, result: dict) -> None:
         async_job.error = None
         async_job.finished_at = timezone.now()
         async_job.save(update_fields=["status", "progress", "result", "error", "finished_at", "updated_at"])
+    return result
+
+
+def _enqueue_availability_check_if_requested(async_job, result: dict) -> dict:
+    request_payload = async_job.request_payload or {}
+    if request_payload.get("auto_availability_check") is not True:
+        return result
+    snapshot_id = result.get("snapshot_id")
+    if not snapshot_id:
+        return result
+
+    snapshot = CbomSnapshot.objects.get(id=snapshot_id)
+    run = performance_services.create_run(
+        snapshot,
+        {
+            "trigger": "discovery",
+            "profile": "smoke",
+            "environment": {
+                "source": "discovery_pipeline",
+                "scan_job_id": result.get("scan_job_id"),
+                "origin": request_payload.get("origin"),
+            },
+        },
+    )
+    performance_services.enqueue_run(run)
+    return {
+        **result,
+        "availability_run_id": run.id,
+        "availability_snapshot_id": snapshot.id,
+    }
 
 
 def _fail_scan_job_task(task_id: int, exc: Exception) -> None:

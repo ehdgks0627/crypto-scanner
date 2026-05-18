@@ -169,6 +169,57 @@ def test_api_job_005b_scan_worker_creates_snapshot_assets_risks_and_logs(monkeyp
     assert async_job.result["snapshot_id"] == snapshot.id
 
 
+def test_api_job_005b2_scan_worker_enqueues_availability_after_discovery_pipeline(monkeypatch):
+    from apps.jobs import network_scanner, scan_worker
+    from apps.jobs.models import QueuedTask
+    from apps.jobs.scan_assets import AssetCandidate
+    from apps.performance.models import PerformanceEvaluationRun
+
+    target = create_target(host="pipeline-web.testbed.local", port=443, protocol_hint="TLS", agent_enabled=False)
+    async_job = create_async_job(
+        kind="scan_job",
+        status="PENDING",
+        request_payload={
+            "auto_availability_check": True,
+            "origin": {"kind": "discovery", "discovery_id": 7, "job_id": 70},
+        },
+    )
+    scan_job = create_scan_job(async_job=async_job, target_ids=[target.id], scanner_selection=["network"])
+    task = QueuedTask.objects.create(
+        async_job=async_job,
+        task_name="scan_job",
+        payload={"scan_job_id": scan_job.id, "target_ids": [target.id], "scanners": ["network"]},
+        status=QueuedTask.QUEUED,
+        available_at=timezone.now(),
+    )
+
+    def fake_scan_network_target(target_arg):
+        return [
+            AssetCandidate(
+                target_id=target_arg.id,
+                scanner_kind="network",
+                name="pipeline web certificate",
+                asset_type="certificate",
+                algorithm="RSA-2048",
+                algorithm_family="RSA",
+                bom_ref="network:tls:pipeline-web",
+            )
+        ]
+
+    monkeypatch.setattr(network_scanner, "scan_network_target", fake_scan_network_target)
+
+    result = scan_worker.process_scan_job_task(task.id)
+
+    run = PerformanceEvaluationRun.objects.get(id=result["availability_run_id"])
+    assert run.trigger == "discovery"
+    assert run.profile == "smoke"
+    assert run.snapshot_id == result["snapshot_id"]
+    assert run.environment["source"] == "discovery_pipeline"
+    assert QueuedTask.objects.filter(task_name="performance_run", payload__run_id=run.id).count() == 1
+    async_job.refresh_from_db()
+    assert async_job.result["availability_run_id"] == run.id
+
+
 def test_api_job_005c_scan_worker_maps_host_agent_findings(monkeypatch):
     from apps.agents.models import Agent
     from apps.jobs import agent_client, scan_worker

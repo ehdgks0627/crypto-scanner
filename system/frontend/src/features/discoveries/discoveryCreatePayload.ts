@@ -44,7 +44,8 @@ export function buildDiscoveryCreatePayload(
   scopeValue: string,
   serviceIds: DiscoveryServiceId[],
   executorType: DiscoveryExecutorType = "central",
-  agentId?: string
+  agentId?: string,
+  runAvailabilityPipeline = true
 ): DiscoveryCreateParseResult {
   const ports = portsForServices(serviceIds);
   const errors: string[] = [];
@@ -74,7 +75,9 @@ export function buildDiscoveryCreatePayload(
       executor_type: executorType,
       agent_id: executorType === "agent" ? agentId : undefined,
       ports,
-      include_default_ports: false
+      include_default_ports: false,
+      auto_scan: runAvailabilityPipeline,
+      auto_availability_check: runAvailabilityPipeline
     },
     errors: []
   };

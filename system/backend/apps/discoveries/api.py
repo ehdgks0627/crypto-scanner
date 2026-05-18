@@ -39,6 +39,8 @@ class DiscoveryCreate(StrictSchema):
     agent_id: UUID | None = None
     ports: list[PortNumber] | None = None
     include_default_ports: bool = True
+    auto_scan: bool = True
+    auto_availability_check: bool = True
 
     @model_validator(mode="after")
     def normalize_scope(self):

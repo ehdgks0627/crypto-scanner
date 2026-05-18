@@ -164,8 +164,7 @@ def process_discovery_task(task_id: int) -> dict:
         _fail_discovery_task(task_id, exc)
         raise
 
-    _complete_discovery_task(task_id, result)
-    return result
+    return _complete_discovery_task(task_id, result)
 
 
 def run_discovery_payload(payload: dict) -> dict:
@@ -439,7 +438,7 @@ def _protocol_hint_for_port(port: int, transport: str) -> str:
     return "UNKNOWN"
 
 
-def _complete_discovery_task(task_id: int, result: dict) -> None:
+def _complete_discovery_task(task_id: int, result: dict) -> dict:
     from apps.discoveries.models import Discovery
 
     with transaction.atomic():
@@ -451,7 +450,7 @@ def _complete_discovery_task(task_id: int, result: dict) -> None:
         if task.async_job and task.async_job.status == AsyncJob.CANCELLED:
             task.status = QueuedTask.CANCELLED
             task.save(update_fields=["status", "updated_at"])
-            return
+            return {}
         task.status = QueuedTask.COMPLETED
         task.last_error = None
         task.save(update_fields=["status", "last_error", "updated_at"])
@@ -463,12 +462,68 @@ def _complete_discovery_task(task_id: int, result: dict) -> None:
             discovery.save(update_fields=["status", "finished_at", "error", "updated_at"])
         if task.async_job:
             async_job = task.async_job
+            result = _enqueue_follow_up_scan(discovery, async_job, result) if discovery else result
             async_job.status = AsyncJob.COMPLETED
             async_job.progress = {"current": result.get("endpoints_count", 0), "total": result.get("endpoints_count", 0), "percent": 100}
             async_job.result = result
             async_job.error = None
             async_job.finished_at = now
             async_job.save(update_fields=["status", "progress", "result", "error", "finished_at", "updated_at"])
+    return result
+
+
+def _enqueue_follow_up_scan(discovery, async_job, result: dict) -> dict:
+    request_payload = async_job.request_payload or {}
+    if request_payload.get("auto_scan", True) is False:
+        return result
+
+    from apps.jobs import services as job_services
+    from apps.jobs.models import AsyncJob, ScanJob
+
+    target_ids = list(
+        discovery.endpoints.filter(promoted=True, target_id__isnull=False)
+        .order_by("target_id")
+        .values_list("target_id", flat=True)
+        .distinct()
+    )
+    follow_up = {
+        "target_count": len(target_ids),
+        "auto_scan": True,
+        "auto_availability_check": request_payload.get("auto_availability_check", True) is not False,
+    }
+    if not target_ids:
+        return {**result, "follow_up": follow_up}
+
+    scan_async_job = AsyncJob.objects.create(
+        kind="scan_job",
+        status=AsyncJob.PENDING,
+        request_payload={
+            "target_ids": target_ids,
+            "scanners": ["network"],
+            "origin": {
+                "kind": "discovery",
+                "discovery_id": discovery.id,
+                "job_id": async_job.id,
+            },
+            "auto_availability_check": follow_up["auto_availability_check"],
+        },
+    )
+    scan_job = ScanJob.objects.create(
+        async_job=scan_async_job,
+        target_ids=target_ids,
+        scanner_selection=["network"],
+    )
+    scan_async_job.resource_id = scan_job.id
+    scan_async_job.save(update_fields=["resource_id"])
+    job_services.enqueue_scan_job(scan_job)
+    return {
+        **result,
+        "follow_up": {
+            **follow_up,
+            "scan_job_id": scan_job.id,
+            "scan_async_job_id": scan_async_job.id,
+        },
+    }
 
 
 def _fail_discovery_task(task_id: int, exc: Exception) -> None:

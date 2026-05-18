@@ -929,6 +929,10 @@ export interface components {
             ports?: number[];
             /** @description Defaults to true when omitted. */
             include_default_ports?: boolean;
+            /** @description Queue a scan job for promoted endpoints after discovery completes. */
+            auto_scan?: boolean;
+            /** @description Queue an availability check after the follow-up scan creates a snapshot. */
+            auto_availability_check?: boolean;
         };
         Discovery: {
             id: number;
@@ -1435,7 +1439,7 @@ export interface components {
             estimated_downtime_min: number;
         };
         /** @enum {string} */
-        PerformanceRunTrigger: "manual" | "post_migration" | "scheduled" | "canary";
+        PerformanceRunTrigger: "manual" | "post_migration" | "scheduled" | "canary" | "discovery";
         /** @enum {string} */
         PerformanceRunProfile: "smoke" | "baseline" | "canary" | "stress";
         /** @enum {string} */

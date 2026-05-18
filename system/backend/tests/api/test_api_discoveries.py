@@ -287,17 +287,17 @@ def test_api_dsc_002e_worker_calls_discovery_agent_and_persists_endpoints(client
 
     result = services.process_discovery_task(task.id)
 
-    assert result == {
-        "discovery_id": discovery.id,
-        "executor_type": "agent",
-        "endpoints_count": 2,
-        "availability_report": {
-            "measured_endpoint_count": 1,
-            "tls_endpoint_count": 1,
-            "sample_count": 3,
-            "averages": {"handshake_p95_ms": 15.0},
-        },
+    assert result["discovery_id"] == discovery.id
+    assert result["executor_type"] == "agent"
+    assert result["endpoints_count"] == 2
+    assert result["availability_report"] == {
+        "measured_endpoint_count": 1,
+        "tls_endpoint_count": 1,
+        "sample_count": 3,
+        "averages": {"handshake_p95_ms": 15.0},
     }
+    assert result["follow_up"]["target_count"] == 2
+    assert result["follow_up"]["auto_availability_check"] is True
     assert agent_requests == [
         (
             agent.id,
@@ -317,6 +317,7 @@ def test_api_dsc_002e_worker_calls_discovery_agent_and_persists_endpoints(client
     assert all(endpoint.promoted and endpoint.target_id for endpoint in DiscoveredEndpoint.objects.filter(discovery=discovery))
     assert Target.objects.get(host="172.31.240.10", port=443, transport="TCP").protocol_hint == "TLS"
     assert Target.objects.get(host="172.31.240.12", port=22, transport="TCP").protocol_hint == "SSH"
+    assert QueuedTask.objects.filter(task_name="scan_job", payload__scan_job_id=result["follow_up"]["scan_job_id"]).count() == 1
     tls_endpoint = DiscoveredEndpoint.objects.get(discovery=discovery, port=443)
     assert tls_endpoint.availability_metrics["handshake_ms"]["p95"] == 15.0
     endpoint_response = client.get(f"/api/discoveries/{discovery.id}/endpoints")

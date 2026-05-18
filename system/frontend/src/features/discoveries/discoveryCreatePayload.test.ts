@@ -13,7 +13,9 @@ describe("buildDiscoveryCreatePayload", () => {
         executor_type: "central",
         agent_id: undefined,
         ports: [443, 22, 2222, 500, 4500],
-        include_default_ports: false
+        include_default_ports: false,
+        auto_scan: true,
+        auto_availability_check: true
       },
       errors: []
     });
@@ -77,9 +79,18 @@ describe("buildDiscoveryCreatePayload", () => {
         executor_type: "agent",
         agent_id: agentId,
         ports: [443],
-        include_default_ports: false
+        include_default_ports: false,
+        auto_scan: true,
+        auto_availability_check: true
       },
       errors: []
+    });
+  });
+
+  it("can disable the follow-up scan and availability pipeline", () => {
+    expect(buildDiscoveryCreatePayload("cidr", "172.20.0.0/24", ["https-web"], "central", undefined, false).payload).toMatchObject({
+      auto_scan: false,
+      auto_availability_check: false
     });
   });
 

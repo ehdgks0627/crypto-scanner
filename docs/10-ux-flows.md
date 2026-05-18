@@ -100,7 +100,7 @@ sequenceDiagram
     F->>B: GET /api/discoveries/4
     B-->>F: status=COMPLETED
     F->>B: GET /api/discoveries/4/endpoints
-    B-->>F: 33 endpoints
+    B-->>F: 32 endpoints
 
     U->>F: 31개 endpoint 체크<br/>[Promote 선택된 항목]
     F->>F: PromoteDialog 표시

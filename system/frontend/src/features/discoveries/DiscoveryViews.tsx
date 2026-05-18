@@ -236,6 +236,7 @@ export function DiscoveryNewView() {
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [executorType, setExecutorType] = useState<DiscoveryExecutorType>("central");
   const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [runAvailabilityPipeline, setRunAvailabilityPipeline] = useState(true);
   const discoveryAgents = useQuery({
     queryKey: queryKeys.agents.list(true, "discovery"),
     queryFn: () => services.agents.list(true, "discovery")
@@ -245,8 +246,8 @@ export function DiscoveryNewView() {
     [discoveryAgents.data?.items]
   );
   const createPayload = useMemo(
-    () => buildDiscoveryCreatePayload(scopeType, scopeValue, serviceIds, executorType, selectedAgentId || undefined),
-    [scopeType, scopeValue, serviceIds, executorType, selectedAgentId]
+    () => buildDiscoveryCreatePayload(scopeType, scopeValue, serviceIds, executorType, selectedAgentId || undefined, runAvailabilityPipeline),
+    [scopeType, scopeValue, serviceIds, executorType, selectedAgentId, runAvailabilityPipeline]
   );
   const createDiscovery = useMutation({
     mutationFn: () => services.discoveries.create(createPayload.payload!),
@@ -372,6 +373,13 @@ export function DiscoveryNewView() {
                       </div>
                     ) : null}
                   </div>
+                </Field>
+                <Field className="is-wide">
+                  <FieldLabel>실행 옵션</FieldLabel>
+                  <label className="inline-actions">
+                    <Checkbox checked={runAvailabilityPipeline} onChange={(event) => setRunAvailabilityPipeline(event.target.checked)} />
+                    <span>탐색 후 스캔 및 가용성 검사 실행</span>
+                  </label>
                 </Field>
               </div>
               {createPayload.errors.length > 0 ? <div className="callout state-view--error" role="alert">{createPayload.errors.join(" ")}</div> : null}

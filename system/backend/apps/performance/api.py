@@ -14,7 +14,7 @@ from apps.snapshots.models import CbomSnapshot
 
 router = Router(tags=["Performance"])
 
-RunTrigger = Literal["manual", "post_migration", "scheduled", "canary"]
+RunTrigger = Literal["manual", "post_migration", "scheduled", "canary", "discovery"]
 RunProfile = Literal["smoke", "baseline", "canary", "stress"]
 RunStatus = Literal["PENDING", "RUNNING", "COMPLETED", "FAILED"]
 ResultStatus = Literal["PASS", "WARN", "FAIL", "ERROR"]
