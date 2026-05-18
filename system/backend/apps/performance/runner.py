@@ -25,6 +25,34 @@ PROFILE_ATTEMPTS = {
 HTTP_PORTS = {80, 8080}
 TLS_PORTS = set(network_scanner.TLS_DIRECT_PORTS)
 SMTP_STARTTLS_PORTS = set(network_scanner.SMTP_STARTTLS_PORTS)
+TESTBED_TARGET_IPS = {
+    "web.testbed.local": "172.31.240.10",
+    "web-ec.testbed.local": "172.31.240.10",
+    "pqc-tls.testbed.local": "172.31.240.11",
+    "ssh.testbed.local": "172.31.240.12",
+    "mqtt.testbed.local": "172.31.240.13",
+    "ipsec.testbed.local": "172.31.240.14",
+    "mail.testbed.local": "172.31.240.15",
+    "db.testbed.local": "172.31.240.16",
+    "api-gateway.testbed.local": "172.31.240.21",
+    "admin-console.testbed.local": "172.31.240.22",
+    "mobile-api.testbed.local": "172.31.240.23",
+    "auth-oidc.testbed.local": "172.31.240.24",
+    "saml-idp.testbed.local": "172.31.240.25",
+    "mysql-legacy.testbed.local": "172.31.240.26",
+    "redis-cache.testbed.local": "172.31.240.27",
+    "kafka-broker.testbed.local": "172.31.240.28",
+    "internal-grpc.testbed.local": "172.31.240.29",
+    "service-mesh-mtls.testbed.local": "172.31.240.30",
+    "gitlab-runner.testbed.local": "172.31.240.31",
+    "container-registry.testbed.local": "172.31.240.32",
+    "artifact-repo.testbed.local": "172.31.240.33",
+    "vault.testbed.local": "172.31.240.34",
+    "backup-service.testbed.local": "172.31.240.35",
+    "monitoring.testbed.local": "172.31.240.36",
+    "logging.testbed.local": "172.31.240.37",
+    "legacy-java-app.testbed.local": "172.31.240.38",
+}
 
 
 class ProbeError(Exception):
@@ -407,7 +435,7 @@ def _target_protocol(target) -> str:
 
 
 def _target_address(target) -> str:
-    return target.ip or target.host
+    return target.ip or TESTBED_TARGET_IPS.get(target.host, target.host)
 
 
 def _sni(target) -> str | None:

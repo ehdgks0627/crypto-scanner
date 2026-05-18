@@ -1,0 +1,15 @@
+services:
+  backend:
+    networks:
+      - default
+      - testbed
+
+  worker:
+    networks:
+      - default
+      - testbed
+
+networks:
+  testbed:
+    external: true
+    name: ${TESTBED_DOCKER_NETWORK:-crypto-scanner-testbed_pqc-testbed-net}

@@ -121,6 +121,8 @@ PQC 전환 준비 시스템 - 실제 사이트 시연 TODO
         - 백그라운드 worker가 `performance_run` 작업을 처리하며 TLS/SSH/HTTP/IKE 등
           대상 프로토콜별 연결 가능 여부, 지연, 실패율을 자산별 결과로 저장한다.
         - 실행 중인 가용성 검사는 2초 간격으로 자동 갱신된다.
+        - 테스트베드 배포에서는 `docker-compose.testbed-network.yml` overlay로
+          system worker를 testbed 네트워크에 연결해 실제 서비스에 접근한다.
         보완 필요:
         - 발표자료의 `handshake 100%`, `latency +12ms`, `failure 0` 같은 수치가
           실제 가용성 검사 화면의 데이터와 맞는지 확인
