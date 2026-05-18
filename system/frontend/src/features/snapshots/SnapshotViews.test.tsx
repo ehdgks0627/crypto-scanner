@@ -141,10 +141,13 @@ describe("AssetDetailView", () => {
     await user.click(screen.getByRole("button", { name: /컨텍스트 수정/ }));
 
     expect(screen.queryByRole("checkbox", { name: /override 사용/ })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("option", { name: "선택 안됨" })).toHaveLength(3);
+    expect(screen.getAllByRole("option", { name: "재정의 없음" })).toHaveLength(3);
     expect(screen.getByLabelText("민감도 재정의 값")).not.toBeDisabled();
-    expect(screen.getByLabelText("보호 기간 재정의 값")).toHaveAttribute("placeholder", "선택 안됨");
-    expect(screen.getByLabelText("서비스 역할 재정의 값")).toHaveAttribute("placeholder", "선택 안됨");
+    expect(screen.getAllByText("현재 적용값: 높음 · 출처: 스캔 대상")).toHaveLength(2);
+    expect(screen.getByText("현재 적용값: 10 · 출처: 스캔 대상")).toBeInTheDocument();
+    expect(screen.getByText("현재 적용값: web · 출처: 스캔 대상")).toBeInTheDocument();
+    expect(screen.getByLabelText("보호 기간 재정의 값")).toHaveAttribute("placeholder", "재정의 없음");
+    expect(screen.getByLabelText("서비스 역할 재정의 값")).toHaveAttribute("placeholder", "재정의 없음");
     expect(screen.getByText("Enriched CBOM")).toBeInTheDocument();
     expect(screen.getByText("context.homepage.title")).toBeInTheDocument();
     expect(screen.getAllByText("Customer Portal Login").length).toBeGreaterThanOrEqual(1);

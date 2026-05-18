@@ -14,7 +14,7 @@ import { MetricCard } from "../../components/charts/MetricCard";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Checkbox, Field, FieldLabel, Input, Select } from "../../components/ui/form";
+import { Checkbox, Field, FieldHint, FieldLabel, Input, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
 import {
   assetClassLabel,
@@ -278,6 +278,8 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
           <CardContent>
             <AssetContextForm
               initialValue={asset.data.context_override}
+              effectiveValue={asset.data.effective_context}
+              contextSources={asset.data.context_sources}
               isSubmitting={patchContext.isPending}
               onCancel={() => setEditing(false)}
               onSubmit={(payload) => patchContext.mutate(payload)}
@@ -386,11 +388,15 @@ function formatAssetPerfDelta(value?: number) {
 
 function AssetContextForm({
   initialValue,
+  effectiveValue,
+  contextSources,
   isSubmitting = false,
   onSubmit,
   onCancel
 }: {
   initialValue: Schema<"AssetContextValues">;
+  effectiveValue: Schema<"AssetContextValues">;
+  contextSources: Schema<"AssetContextSources">;
   isSubmitting?: boolean;
   onSubmit: (payload: Schema<"AssetContextPatch">) => void;
   onCancel: () => void;
@@ -412,8 +418,9 @@ function AssetContextForm({
           {(["sensitivity", "criticality"] as const).map((field) => (
             <Field key={field}>
               <FieldLabel>{contextFieldLabel(field)}</FieldLabel>
+              <FieldHint>{contextCurrentHint(field, effectiveValue, contextSources)}</FieldHint>
               <Select aria-label={`${contextFieldLabel(field)} 재정의 값`} value={values[field]} onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value }))}>
-                <option value="">선택 안됨</option>
+                <option value="">재정의 없음</option>
                 {["low", "medium", "high", "critical"].map((item) => (
                   <option key={item} value={item}>{levelLabel(item)}</option>
                 ))}
@@ -422,8 +429,9 @@ function AssetContextForm({
           ))}
           <Field>
             <FieldLabel>{contextFieldLabel("exposure")}</FieldLabel>
+            <FieldHint>{contextCurrentHint("exposure", effectiveValue, contextSources)}</FieldHint>
             <Select aria-label="노출 범위 재정의 값" value={values.exposure} onChange={(event) => setValues((current) => ({ ...current, exposure: event.target.value }))}>
-              <option value="">선택 안됨</option>
+              <option value="">재정의 없음</option>
               {["public_internet", "dmz", "internal_network", "air_gapped"].map((item) => (
                 <option key={item} value={item}>{exposureLabel(item)}</option>
               ))}
@@ -431,11 +439,13 @@ function AssetContextForm({
           </Field>
           <Field>
             <FieldLabel>{contextFieldLabel("lifespan_years")}</FieldLabel>
-            <Input aria-label="보호 기간 재정의 값" type="number" min="0" step="1" placeholder="선택 안됨" value={values.lifespan_years} onChange={(event) => setValues((current) => ({ ...current, lifespan_years: event.target.value }))} />
+            <FieldHint>{contextCurrentHint("lifespan_years", effectiveValue, contextSources)}</FieldHint>
+            <Input aria-label="보호 기간 재정의 값" type="number" min="0" step="1" placeholder="재정의 없음" value={values.lifespan_years} onChange={(event) => setValues((current) => ({ ...current, lifespan_years: event.target.value }))} />
           </Field>
           <Field className="is-wide">
             <FieldLabel>{contextFieldLabel("service_role")}</FieldLabel>
-            <Input aria-label="서비스 역할 재정의 값" placeholder="선택 안됨" value={values.service_role} onChange={(event) => setValues((current) => ({ ...current, service_role: event.target.value }))} />
+            <FieldHint>{contextCurrentHint("service_role", effectiveValue, contextSources)}</FieldHint>
+            <Input aria-label="서비스 역할 재정의 값" placeholder="재정의 없음" value={values.service_role} onChange={(event) => setValues((current) => ({ ...current, service_role: event.target.value }))} />
           </Field>
         </div>
         {validationError ? <div className="callout state-view--error" role="alert">{validationError}</div> : null}
@@ -446,6 +456,25 @@ function AssetContextForm({
       </fieldset>
     </form>
   );
+}
+
+type AssetContextField = keyof Schema<"AssetContextValues">;
+
+function contextCurrentHint(
+  field: AssetContextField,
+  effectiveValue: Schema<"AssetContextValues">,
+  contextSources: Schema<"AssetContextSources">
+) {
+  return `현재 적용값: ${contextValueLabel(field, effectiveValue[field])} · 출처: ${contextSourceLabel(contextSources[field])}`;
+}
+
+function contextSourceLabel(source?: string | null) {
+  const labels: Record<string, string> = {
+    asset_override: "자산 재정의",
+    target: "스캔 대상",
+    heuristic: "기본값"
+  };
+  return source ? labels[source] ?? source : "-";
 }
 
 export function SnapshotDiffView({ id }: { id: number }) {
