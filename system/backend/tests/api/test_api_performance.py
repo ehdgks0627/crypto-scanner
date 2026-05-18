@@ -67,6 +67,66 @@ def test_api_perf_001_create_run_and_record_result(client):
     assert detail["results"][0]["bom_ref"] == "tls:web:leaf"
 
 
+def test_api_perf_001b_auto_start_enqueues_availability_runner(client):
+    from apps.jobs.models import QueuedTask
+
+    snapshot = create_snapshot()
+    create_asset(snapshot=snapshot, bom_ref="tls:web:auto-start")
+
+    response = client.post(
+        f"/api/snapshots/{snapshot.id}/performance-runs",
+        data={"trigger": "manual", "profile": "smoke", "auto_start": True},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    run = response.json()
+    task = QueuedTask.objects.get(task_name="performance_run")
+    assert task.payload == {"run_id": run["id"], "snapshot_id": snapshot.id}
+
+
+def test_api_perf_001c_worker_records_availability_results(monkeypatch):
+    from apps.jobs.models import QueuedTask
+    from apps.performance import runner, services, worker
+
+    snapshot = create_snapshot()
+    target = create_target(host="web.testbed.local", port=443, protocol_hint="TLS")
+    asset = create_asset(snapshot=snapshot, target=target, bom_ref="tls:web:worker")
+    run = services.create_run(snapshot, {"trigger": "manual", "profile": "smoke"})
+    services.enqueue_run(run)
+
+    monkeypatch.setattr(
+        runner,
+        "measure_target",
+        lambda target, profile: runner.Measurement(
+            compatibility_status="PASS",
+            negotiated_algorithm="TLSv1.3 TLS_AES_256_GCM_SHA384",
+            metrics={
+                "protocol": "TLS",
+                "tcp_connect_ms": {"p50": 3, "p95": 3, "samples": 1},
+                "handshake_ms": {"p50": 12, "p95": 12, "samples": 1},
+                "successful_handshakes": 1,
+                "failed_handshakes": 0,
+                "total_handshakes": 1,
+                "failure_rate": 0,
+                "timeout_rate": 0,
+                "response_code": "tls_ok",
+            },
+        ),
+    )
+
+    result = worker.process_next_performance_run_task()
+
+    run.refresh_from_db()
+    task = QueuedTask.objects.get(task_name="performance_run")
+    assert result["measured_assets"] == 1
+    assert run.status == "COMPLETED"
+    assert task.status == "COMPLETED"
+    perf_result = run.results.get(asset=asset)
+    assert perf_result.status == "PASS"
+    assert perf_result.metrics["handshake_success_rate"] == 1.0
+
+
 def test_api_perf_002_candidate_result_compares_to_baseline_by_bom_ref(client):
     baseline_snapshot = create_snapshot(serial_number="baseline")
     candidate_snapshot = create_snapshot(serial_number="candidate")

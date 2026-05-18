@@ -117,8 +117,11 @@ PQC 전환 준비 시스템 - 실제 사이트 시연 TODO
 [~] 1.8 가용성 검사 화면에서 "확인하기" 단계를 설명할 수 있어야 한다.
         현재:
         - 가용성 검사 실행 목록, 자산별 결과, 성공률, 지연, 실패율 UI가 있다.
+        - 화면 상단의 `가용성 검사 실행` 버튼으로 현재 스냅샷 기준 검사 작업을 큐에 등록한다.
+        - 백그라운드 worker가 `performance_run` 작업을 처리하며 TLS/SSH/HTTP/IKE 등
+          대상 프로토콜별 연결 가능 여부, 지연, 실패율을 자산별 결과로 저장한다.
+        - 실행 중인 가용성 검사는 2초 간격으로 자동 갱신된다.
         보완 필요:
-        - 가데이터 기준으로 가용성 검사 실행이 실제 화면에 표시되어야 한다.
         - 발표자료의 `handshake 100%`, `latency +12ms`, `failure 0` 같은 수치가
           실제 가용성 검사 화면의 데이터와 맞는지 확인
         - 실제 PQC 전환 후 검증으로 말하지 않고, 전환 계획 적용 시 확인해야 할
@@ -287,13 +290,13 @@ PQC 전환 준비 시스템 - 실제 사이트 시연 TODO
 4. 발표 전 검증 명령
 ===============================================================================
 
-[ ] 4.1 backend 검증
+[x] 4.1 backend 검증
         명령:
         - `cd system/backend && .venv/bin/python manage.py check`
         - `cd system/backend && .venv/bin/python manage.py makemigrations --check --dry-run`
         - `cd system/backend && .venv/bin/python -m pytest tests -q`
 
-[ ] 4.2 frontend 검증
+[x] 4.2 frontend 검증
         명령:
         - `cd system/frontend && npm test -- --run`
         - `cd system/frontend && npm run build`

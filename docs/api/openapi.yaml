@@ -3701,6 +3701,10 @@ components:
         environment:
           type: object
           additionalProperties: true
+        auto_start:
+          type: boolean
+          default: false
+          description: Queue a worker task that measures availability for this run.
       additionalProperties: false
 
     PerformanceRunPatch:

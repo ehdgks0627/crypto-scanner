@@ -35,6 +35,10 @@ def create_run(snapshot: CbomSnapshot, payload: dict) -> PerformanceEvaluationRu
     return run
 
 
+def enqueue_run(run: PerformanceEvaluationRun) -> None:
+    job_services.enqueue_task("performance_run", {"run_id": run.id, "snapshot_id": run.snapshot_id})
+
+
 def _resolve_baseline_snapshot(snapshot: CbomSnapshot, baseline_snapshot_id: int | None, trigger: str) -> CbomSnapshot | None:
     if baseline_snapshot_id is not None:
         baseline_snapshot = CbomSnapshot.objects.filter(id=baseline_snapshot_id).first()

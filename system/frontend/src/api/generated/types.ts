@@ -1597,6 +1597,8 @@ export interface components {
             environment?: {
                 [key: string]: unknown;
             };
+            /** @description Queue a worker task that measures availability for this run. */
+            auto_start?: boolean;
         };
         PerformanceRunPatch: {
             status: components["schemas"]["PerformanceRunStatus"];

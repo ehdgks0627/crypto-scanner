@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { services } from "../../api/services";
@@ -242,5 +243,43 @@ describe("PerformanceEvaluationView", () => {
     expect(screen.getByText("+18.2%")).toBeInTheDocument();
     expect(screen.getByText("-18.0%")).toBeInTheDocument();
     expect(screen.getByText("rollback_or_manual_review")).toBeInTheDocument();
+  });
+
+  it("starts a queued availability check from the page action", async () => {
+    const user = userEvent.setup();
+    const createRun = vi.spyOn(services.performance, "createRun").mockResolvedValue({
+      ...run,
+      id: 45,
+      baseline_snapshot_id: null,
+      post_migration_snapshot_id: null,
+      trigger: "manual",
+      status: "PENDING",
+      summary: {
+        ...run.summary,
+        total_results: 0,
+        by_status: { PASS: 0, WARN: 0, FAIL: 0, ERROR: 0 },
+        overall_status: "PENDING"
+      },
+      started_at: null,
+      completed_at: null
+    });
+    vi.spyOn(services.performance, "listRuns").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+    vi.spyOn(services.performance, "getRun").mockResolvedValue(detail);
+
+    renderWithApp(<PerformanceEvaluationView snapshotId={3} />);
+
+    await user.click(await screen.findByRole("button", { name: /가용성 검사 실행/ }));
+
+    await waitFor(() => {
+      expect(createRun).toHaveBeenCalledWith(
+        3,
+        expect.objectContaining({
+          trigger: "manual",
+          profile: "smoke",
+          auto_start: true,
+          environment: { source: "web" }
+        })
+      );
+    });
   });
 });

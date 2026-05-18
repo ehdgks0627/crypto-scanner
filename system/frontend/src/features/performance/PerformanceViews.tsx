@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Play } from "lucide-react";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { toast } from "sonner";
 
 import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
@@ -12,6 +14,7 @@ import { ChartCard } from "../../components/charts/ChartCards";
 import { MetricCard } from "../../components/charts/MetricCard";
 import { chartPalette, chartTheme } from "../../components/charts/chartTheme";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Field, FieldLabel, Select } from "../../components/ui/form";
 import { DataTable } from "../../components/ui/table";
@@ -26,6 +29,7 @@ type FailurePath = NonNullable<Schema<"PerformanceRunSummary">["failure_paths"]>
 const profiles: PerformanceProfile[] = ["smoke", "baseline", "canary", "stress"];
 
 export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }) {
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const profileParam = searchParams.get("profile") ?? "";
   const selectedRunId = searchParams.get("run") ? Number(searchParams.get("run")) : undefined;
@@ -33,14 +37,37 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
   const filters = useMemo(() => ({ profile: profile || undefined }), [profile]);
   const runs = useQuery({
     queryKey: queryKeys.performance.runs(snapshotId, filters),
-    queryFn: () => services.performance.listRuns(snapshotId, filters)
+    queryFn: () => services.performance.listRuns(snapshotId, filters),
+    refetchInterval: (query) => (pageHasActiveRun(query.state.data?.items) ? 2_000 : false)
   });
   const runItems = runs.data?.items ?? [];
   const activeRunId = selectedRunId && runItems.some((run) => run.id === selectedRunId) ? selectedRunId : runItems[0]?.id;
   const detail = useQuery({
     queryKey: queryKeys.performance.detail(snapshotId, activeRunId ?? 0),
     queryFn: () => services.performance.getRun(snapshotId, activeRunId!),
-    enabled: Boolean(activeRunId)
+    enabled: Boolean(activeRunId),
+    refetchInterval: (query) => (isActiveStatus(query.state.data?.status) ? 2_000 : false)
+  });
+  const startRun = useMutation({
+    mutationFn: () =>
+      services.performance.createRun(snapshotId, {
+        trigger: "manual",
+        profile: profile || "smoke",
+        auto_start: true,
+        environment: { source: "web" }
+      }),
+    onSuccess: async (run) => {
+      const next = new URLSearchParams(searchParams);
+      if (profile) {
+        next.set("profile", profile);
+      }
+      next.set("run", String(run.id));
+      setSearchParams(next);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.performance.runsPrefix(snapshotId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.performance.detail(snapshotId, run.id) });
+      toast.success(`가용성 검사 #${run.id} 실행을 시작했습니다.`);
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "가용성 검사 실행 실패")
   });
 
   function setFilter(name: "profile" | "run", value: string) {
@@ -61,6 +88,11 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
       <PageHeader
         title={`스냅샷 #${snapshotId} 가용성 검사`}
         description="가용성 검사 실행과 자산별 측정 결과를 조회합니다."
+        actions={
+          <Button type="button" variant="primary" disabled={startRun.isPending} onClick={() => startRun.mutate()}>
+            <Play size={15} />가용성 검사 실행
+          </Button>
+        }
       />
       <Card>
         <CardContent>
@@ -98,13 +130,21 @@ export function PerformanceEvaluationView({ snapshotId }: { snapshotId: number }
       {runs.isLoading ? <LoadingState /> : null}
       {runs.isError ? <ErrorState error={runs.error} onRetry={() => void runs.refetch()} /> : null}
       {runs.data && runItems.length === 0 ? (
-        <EmptyState title="가용성 검사 실행이 없습니다" description="마이그레이션 후 에이전트가 가용성 검사 결과를 업로드하면 이곳에 표시됩니다." />
+        <EmptyState title="가용성 검사 실행이 없습니다" description="실행 버튼을 누르면 현재 스냅샷의 스캔 대상 기준으로 서비스 연결 가능 여부를 검사합니다." />
       ) : null}
       {detail.isLoading && activeRunId ? <LoadingState /> : null}
       {detail.isError ? <ErrorState error={detail.error} onRetry={() => void detail.refetch()} /> : null}
       {detail.data ? <PerformanceRunDetail run={detail.data} /> : null}
     </Section>
   );
+}
+
+function pageHasActiveRun(items?: PerformanceRun[]) {
+  return Boolean(items?.some((run) => isActiveStatus(run.status)));
+}
+
+function isActiveStatus(status?: string | null) {
+  return status === "PENDING" || status === "RUNNING";
 }
 
 function PerformanceRunDetail({ run }: { run: Schema<"PerformanceEvaluationRunDetail"> }) {

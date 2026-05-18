@@ -222,7 +222,7 @@ export class PerformanceService extends BaseService {
     return this.client.request<Schema<"PerformanceEvaluationRunDetail">>(`/snapshots/${snapshotId}/performance-runs/${runId}`);
   }
 
-  createRun(snapshotId: number, payload: Schema<"PerformanceRunCreate">) {
+  createRun(snapshotId: number, payload: Schema<"PerformanceRunCreate"> & { auto_start?: boolean }) {
     return this.client.request<Schema<"PerformanceEvaluationRun">>(`/snapshots/${snapshotId}/performance-runs`, {
       method: "POST",
       body: payload

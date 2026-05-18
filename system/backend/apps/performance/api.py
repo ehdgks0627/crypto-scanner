@@ -26,6 +26,7 @@ class PerformanceRunCreate(StrictSchema):
     profile: RunProfile = "smoke"
     thresholds: dict[str, float] = Field(default_factory=dict)
     environment: dict[str, object] = Field(default_factory=dict)
+    auto_start: bool = False
 
 
 class PerformanceRunPatch(StrictSchema):
@@ -73,6 +74,8 @@ def create_performance_run(request, snapshot_id: int, payload: PerformanceRunCre
         run = services.create_run(snapshot, payload.model_dump())
     except services.InvalidPerformanceResult as exc:
         return error_response("unprocessable", exc.message, exc.details, status=422)
+    if payload.auto_start:
+        services.enqueue_run(run)
     return JsonResponse(services.serialize_run(run), status=201)
 
 
