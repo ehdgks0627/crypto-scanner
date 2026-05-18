@@ -233,13 +233,13 @@ def _probe_smtp_starttls(target, timeout_sec: float) -> dict:
         raw_sock = socket.create_connection((_target_address(target), target.port), timeout=timeout_sec)
         raw_sock.settimeout(timeout_sec)
         connected_at = time.perf_counter()
-        _recv_optional(raw_sock, 512)
+        _recv_available(raw_sock, 512)
         raw_sock.sendall(b"EHLO pqc-availability.local\r\n")
-        ehlo = raw_sock.recv(2048)
+        ehlo = _recv_available(raw_sock, 2048)
         if b"STARTTLS" not in ehlo.upper():
             raise ProbeError("SMTP STARTTLS not advertised", response_code="starttls_not_advertised")
         raw_sock.sendall(b"STARTTLS\r\n")
-        ready = raw_sock.recv(512)
+        ready = _recv_available(raw_sock, 512)
         if not ready.startswith(b"220"):
             raise ProbeError("SMTP STARTTLS rejected", response_code="starttls_rejected")
         context = _tls_context()
@@ -465,11 +465,27 @@ def _tls_context() -> ssl.SSLContext:
     return context
 
 
-def _recv_optional(sock: socket.socket, size: int) -> bytes:
+def _recv_available(sock: socket.socket, size: int) -> bytes:
+    chunks = []
+    original_timeout = sock.gettimeout()
+    deadline = time.perf_counter() + max(float(original_timeout or 0.5), 0.5)
+    sock.settimeout(0.15)
     try:
-        return sock.recv(size)
-    except socket.timeout:
-        return b""
+        while time.perf_counter() < deadline:
+            try:
+                chunk = sock.recv(size)
+            except socket.timeout:
+                if chunks:
+                    break
+                continue
+            if not chunk:
+                break
+            chunks.append(chunk)
+            if sum(len(item) for item in chunks) >= size:
+                break
+    finally:
+        sock.settimeout(original_timeout)
+    return b"".join(chunks)
 
 
 def _negotiated_tls_algorithm(tls_sock) -> str:
