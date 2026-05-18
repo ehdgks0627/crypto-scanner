@@ -57,7 +57,8 @@ describe("MigrationReportBuilder", () => {
     expect(report).toContain("### 1. cert-leaf-web-rsa2048");
     expect(report).toContain("- 용도: 디지털 서명");
     expect(report).toContain("- 현재: RSA/2048bit (양자취약)");
-    expect(report).toContain("- 권고: hybrid -> ML-DSA-65 + ECDSA-P256");
+    expect(report).toContain("- 권고: hybrid -> ML-DSA-65");
+    expect(report).toContain("- 최종 알고리즘 세트: ML-DSA-65");
     expect(report).toContain("- 민첩성: 45/100 (보통)");
     expect(report).toContain("- 플레이북: 1. Enable hybrid transition: Deploy hybrid certificate.");
     expect(report).toContain("replace -> ML-DSA-65");

@@ -1,9 +1,8 @@
 import type { Schema } from "../api/types";
 import { formatDateTime, formatScore } from "../lib/format";
 import { agilityLevelLabel, assetTypeLabel, migrationPurposeLabel, riskTierLabel } from "./displayLabels";
+import { displayMigrationRecommendation, displayMigrationTargetAlgorithm, hasAiRecommendation, type MigrationPlanItemWithAi } from "./migrationRecommendation";
 
-type MigrationPlanItem = Schema<"MigrationPlanItem">;
-type MigrationPlanItemWithAi = MigrationPlanItem & { ai_recommendation?: unknown };
 type MigrationImpact = Schema<"MigrationImpact">;
 
 export class MigrationReportBuilder {
@@ -67,7 +66,7 @@ export class MigrationReportBuilder {
       `- 현재: ${this.currentAlgorithm(item)}`,
       `- 권고: ${this.recommendation(item)}`,
       `- 단계: ${this.aiReady(item) ? item.recommendation.phase : "AI 산출 전"}`,
-      `- 최종 알고리즘 세트: ${this.aiReady(item) ? item.recommendation.final_algorithm_set.join(", ") : "-"}`,
+      `- 최종 알고리즘 세트: ${this.aiReady(item) ? displayMigrationTargetAlgorithm(item) : "-"}`,
       `- 민첩성: ${item.agility.score}/100 (${agilityLevelLabel(item.agility.level)})`,
       `- 차단 요인: ${item.agility.blockers.length ? item.agility.blockers.join(", ") : "-"}`,
       `- 검증: ${item.recommendation.validation.length ? item.recommendation.validation.join(", ") : "-"}`,
@@ -81,14 +80,11 @@ export class MigrationReportBuilder {
   }
 
   private aiReady(item: MigrationPlanItemWithAi): boolean {
-    return Boolean(item.ai_recommendation);
+    return hasAiRecommendation(item);
   }
 
   private recommendation(item: MigrationPlanItemWithAi): string {
-    if (!this.aiReady(item)) {
-      return "AI 산출 전";
-    }
-    return `${item.recommendation.strategy} -> ${item.recommendation.target_algorithm}`;
+    return displayMigrationRecommendation(item);
   }
 
   private currentAlgorithm(item: MigrationPlanItemWithAi): string {

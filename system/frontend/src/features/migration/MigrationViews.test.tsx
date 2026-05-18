@@ -107,17 +107,17 @@ describe("MigrationPlanView", () => {
         ...migrationItem,
         recommendation: {
           ...migrationItem.recommendation,
-          strategy: "replace",
-          target_algorithm: "ML-DSA-65",
-          target_algorithm_set: ["ML-DSA-65"],
+          strategy: "hybrid",
+          target_algorithm: "RSA-2048 + ML-DSA-65",
+          target_algorithm_set: ["RSA-2048", "ML-DSA-65"],
           final_algorithm_set: ["ML-DSA-65"],
-          phase: "replace_now",
-          rationale: "AI selected the allowed direct replacement.",
+          phase: "hybrid_first",
+          rationale: "AI selected the allowed hybrid transition.",
           confidence: 0.88
         },
         ai_recommendation: {
           source: "llm_guarded_allowed_candidates",
-          selected_candidate_id: "alternative_1",
+          selected_candidate_id: "policy_default",
           evidence: ["service_role:payment"],
           fallback: { used: false, reason: null }
         }
@@ -126,7 +126,7 @@ describe("MigrationPlanView", () => {
       fallback: { used: false, reason: null },
       llm_trace: {
         request: { version: "migration-candidate-suggestion-v1", system: "system", user: "user", payload: {}, response_schema: {} },
-        response: { raw: "{\"selected_candidate_id\":\"alternative_1\"}", parsed: { selected_candidate_id: "alternative_1" } }
+        response: { raw: "{\"selected_candidate_id\":\"policy_default\"}", parsed: { selected_candidate_id: "policy_default" } }
       }
     });
 
@@ -137,8 +137,9 @@ describe("MigrationPlanView", () => {
     await user.click(screen.getByRole("button", { name: "AI 산출" }));
 
     expect((await screen.findAllByText("ML-DSA-65")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("RSA-2048 + ML-DSA-65")).not.toBeInTheDocument();
     expect(screen.getByText("AI 목표 알고리즘 산출 상세")).toBeInTheDocument();
-    expect(screen.getByText("AI selected the allowed direct replacement.")).toBeInTheDocument();
-    expect(screen.getByText("alternative_1")).toBeInTheDocument();
+    expect(screen.getByText("AI selected the allowed hybrid transition.")).toBeInTheDocument();
+    expect(screen.getByText("policy_default")).toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@ import { RiskTierBadge } from "../../components/common/Badges";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { MigrationReportBuilder } from "../../domain/migrationReport";
+import { displayMigrationRecommendation, displayMigrationTargetAlgorithm } from "../../domain/migrationRecommendation";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -246,7 +247,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                 { key: "asset", header: "자산", render: (item) => item.asset_name },
                 { key: "purpose", header: "용도", render: (item) => migrationPurposeLabel(item.asset_purpose) },
                 { key: "risk", header: "위험도", render: (item) => `${formatScore(item.risk_score)} / ${riskTierLabel(item.tier)}` },
-                { key: "recommendation", header: "권고", render: (item) => visibleRecommendation(item) },
+                { key: "recommendation", header: "권고", render: (item) => displayMigrationRecommendation(item).replace(" -> ", " → ") },
                 { key: "agility", header: "민첩성", render: (item) => `${item.agility.score} / ${agilityLevelLabel(item.agility.level)}` },
                 { key: "rationale", header: "근거", render: (item) => (item.ai_recommendation ? item.recommendation.rationale : "AI 산출 전") },
                 {
@@ -307,7 +308,7 @@ function MigrationTargetCell({ item, isPending, onSuggest }: { item: MigrationRo
     <div className="migration-ai-target">
       {hasAiRecommendation ? (
         <>
-          <span>{item.recommendation.target_algorithm}</span>
+          <span>{displayMigrationTargetAlgorithm(item)}</span>
           <Badge tone={item.ai_recommendation?.fallback.used ? "yellow" : "purple"}>AI</Badge>
         </>
       ) : (
@@ -320,13 +321,6 @@ function MigrationTargetCell({ item, isPending, onSuggest }: { item: MigrationRo
   );
 }
 
-function visibleRecommendation(item: MigrationRowWithAi) {
-  if (!item.ai_recommendation) {
-    return "AI 산출 전";
-  }
-  return `${item.recommendation.strategy} → ${item.recommendation.target_algorithm}`;
-}
-
 function MigrationAiSuggestionTrace({ suggestion }: { suggestion: MigrationAiSuggestion }) {
   return (
     <Card>
@@ -337,7 +331,7 @@ function MigrationAiSuggestionTrace({ suggestion }: { suggestion: MigrationAiSug
         <dl className="detail-list">
           <div><dt>자산</dt><dd>#{suggestion.asset_id}</dd></div>
           <div><dt>선택 후보</dt><dd>{suggestion.plan_item.ai_recommendation?.selected_candidate_id ?? "-"}</dd></div>
-          <div><dt>목표 알고리즘</dt><dd>{suggestion.plan_item.recommendation.target_algorithm}</dd></div>
+          <div><dt>목표 알고리즘</dt><dd>{displayMigrationTargetAlgorithm(suggestion.plan_item)}</dd></div>
           <div><dt>Provider</dt><dd>{suggestion.provider.provider}{suggestion.provider.model ? ` · ${suggestion.provider.model}` : ""}</dd></div>
           <div><dt>Fallback</dt><dd>{suggestion.fallback.used ? suggestion.fallback.reason ?? "used" : "미사용"}</dd></div>
           <div><dt>Confidence</dt><dd>{formatNumber(suggestion.plan_item.recommendation.confidence)}</dd></div>
