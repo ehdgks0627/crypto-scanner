@@ -319,7 +319,6 @@ DISCOVERY_ENDPOINTS = [
     ("172.20.50.10", 995, "TCP", "POP3S", "POP3", True, ("mail.testbed.local", 995, "TCP")),
     ("172.20.60.10", 5432, "TCP", "PostgreSQL TLS", "UNKNOWN", True, ("db.testbed.local", 5432, "TCP")),
     ("172.20.60.11", 8443, "TCP", "TLS", "TLS", False, None),
-    ("172.20.70.20", 2222, "TCP", "SSH", "SSH", False, None),
     ("172.20.10.20", 8443, "TCP", "TLS", "TLS", True, ("api-gateway.testbed.local", 8443, "TCP")),
     ("172.20.10.21", 443, "TCP", "TLS", "TLS", True, ("admin-console.testbed.local", 443, "TCP")),
     ("172.20.10.22", 443, "TCP", "TLS", "TLS", True, ("mobile-api.testbed.local", 443, "TCP")),

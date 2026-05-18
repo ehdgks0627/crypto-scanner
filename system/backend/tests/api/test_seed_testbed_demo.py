@@ -41,7 +41,7 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert web_target.context["homepage_inference"]["source"] == "homepage"
     assert web_target.context["homepage_inference"]["title"] == HOMEPAGE_CONTEXT_INFERENCES["web.testbed.local"]["homepage_inference"]["title"]
     discovery = Discovery.objects.get(cidr="172.20.0.0/16")
-    assert discovery.endpoints.count() == 33
+    assert discovery.endpoints.count() == 32
     assert discovery.discovery_agent.agent_role == Agent.ROLE_DISCOVERY
 
     response = client.get("/api/dashboard/summary")
