@@ -1,6 +1,38 @@
 import { apiClient, type ApiClient } from "./client";
 import type { AgentRole, AssetType, JobStatus, ProtocolHint, QueryParams, RiskTier, Schema, ScannerId } from "./types";
 
+export type MigrationAiSuggestion = {
+  asset_id: number;
+  prompt_version: string;
+  plan_item: Schema<"MigrationPlanItem"> & {
+    ai_recommendation?: {
+      source: string;
+      selected_candidate_id: string;
+      evidence: string[];
+      fallback: { used: boolean; reason: string | null };
+    };
+  };
+  provider: {
+    provider: string;
+    model: string;
+    usage: Record<string, unknown>;
+  };
+  fallback: { used: boolean; reason: string | null };
+  llm_trace: {
+    request: {
+      version: string;
+      system: string;
+      user: string;
+      payload: unknown;
+      response_schema: unknown;
+    };
+    response: {
+      raw: string;
+      parsed: unknown;
+    };
+  };
+};
+
 abstract class BaseService {
   constructor(protected readonly client: ApiClient) {}
 }
@@ -166,6 +198,10 @@ export class MigrationService extends BaseService {
     return this.client.request<Schema<"MigrationPlanPage">>(`/snapshots/${snapshotId}/migration-plan`, {
       query: { limit: 100, ...query }
     });
+  }
+
+  aiSuggestion(snapshotId: number, assetId: number) {
+    return this.client.request<MigrationAiSuggestion>(`/snapshots/${snapshotId}/migration-plan/${assetId}/ai-suggestion`, { method: "POST" });
   }
 
   impact(snapshotId: number, assetIds: number[]) {

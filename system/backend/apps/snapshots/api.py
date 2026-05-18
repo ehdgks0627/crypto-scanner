@@ -13,7 +13,7 @@ from apps.jobs import services as job_services
 from apps.risk import services as risk_services
 from apps.risk.models import RiskScore
 from apps.snapshots.cbom import build_cbom_document
-from apps.snapshots.migration_plan import recommend_for_risk_score
+from apps.snapshots.migration_plan import MigrationSuggestionUnavailable, recommend_for_risk_score, suggest_migration_for_risk_score
 from apps.snapshots.models import CbomSnapshot
 
 
@@ -421,6 +421,30 @@ def get_migration_plan(
     for risk_score in queryset[offset : offset + limit]:
         items.append(recommend_for_risk_score(risk_score))
     return page_envelope(items, offset=offset, limit=limit, total=total)
+
+
+@router.post("/snapshots/{snapshot_id}/migration-plan/{asset_id}/ai-suggestion")
+def suggest_migration_plan_item(request, snapshot_id: int, asset_id: int):
+    try:
+        risk_score = (
+            RiskScore.objects.filter(snapshot_id=snapshot_id, asset_id=asset_id)
+            .select_related("asset", "asset__target")
+            .order_by("-computed_at", "-id")
+            .first()
+        )
+    except ValueError:
+        risk_score = None
+    if risk_score is None:
+        return error_response("not_found", "Migration plan item was not found.", status=404)
+    try:
+        return suggest_migration_for_risk_score(risk_score)
+    except MigrationSuggestionUnavailable as exc:
+        return error_response(
+            "service_unavailable",
+            "AI migration recommendation provider is unavailable.",
+            {"reason": str(exc)},
+            status=503,
+        )
 
 
 @router.get("/snapshots/{snapshot_id}/migration-plan/impact")

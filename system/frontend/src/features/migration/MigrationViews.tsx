@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Download, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import { queryKeys } from "../../api/queryKeys";
-import { services } from "../../api/services";
+import { services, type MigrationAiSuggestion } from "../../api/services";
 import type { AssetType, Schema } from "../../api/types";
 import { RiskTierBadge } from "../../components/common/Badges";
 import { PageHeader } from "../../components/common/PageHeader";
@@ -21,6 +22,14 @@ import { downloadText } from "../../lib/download";
 import { formatNumber, formatScore } from "../../lib/format";
 
 type MigrationRow = Schema<"MigrationPlanItem">;
+type MigrationRowWithAi = MigrationRow & {
+  ai_recommendation?: {
+    source: string;
+    selected_candidate_id: string;
+    evidence: string[];
+    fallback: { used: boolean; reason: string | null };
+  };
+};
 
 const assetTypeOptions: AssetType[] = ["algorithm", "certificate", "key", "key_agreement", "protocol", "keystore", "device", "service", "data"];
 
@@ -34,6 +43,8 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
   const parsedMinScore = minScore === "" ? undefined : Number(minScore);
   const minScoreValid = parsedMinScore === undefined || (Number.isInteger(parsedMinScore) && parsedMinScore >= 0 && parsedMinScore <= 100);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<Record<number, MigrationAiSuggestion>>({});
+  const [activeSuggestionId, setActiveSuggestionId] = useState<number | null>(null);
   const filters = useMemo(
     () => ({
       min_score: minScoreValid ? parsedMinScore : undefined,
@@ -55,11 +66,25 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
     queryFn: () => services.migration.impact(snapshotId, normalizedSelectedIds),
     enabled: reportSelectionAvailable
   });
+  const suggestMigration = useMutation({
+    mutationFn: (assetId: number) => services.migration.aiSuggestion(snapshotId, assetId),
+    onSuccess: (result) => {
+      setAiSuggestions((current) => ({ ...current, [result.asset_id]: result }));
+      setActiveSuggestionId(result.asset_id);
+      toast.success(result.fallback.used ? "AI 응답을 검증해 정책 기본값을 유지했습니다." : "AI 전환 추천을 적용했습니다.");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "AI 전환 추천 실패")
+  });
 
-  const rows = minScoreValid ? plan.data?.items ?? [] : [];
+  const baseRows = minScoreValid ? plan.data?.items ?? [] : [];
+  const rows: MigrationRowWithAi[] = useMemo(
+    () => baseRows.map((row) => aiSuggestions[row.asset_id]?.plan_item ?? row),
+    [aiSuggestions, baseRows]
+  );
   const selectedItems = useMemo(() => rows.filter((row) => activeSelectedIds.includes(row.asset_id)), [activeSelectedIds, rows]);
   const selectedVisibleRows = rows.filter((row) => activeSelectedIds.includes(row.asset_id));
   const allVisibleSelected = rows.length > 0 && selectedVisibleRows.length === rows.length;
+  const activeSuggestion = activeSuggestionId ? aiSuggestions[activeSuggestionId] : null;
 
   useEffect(() => {
     if (!minScoreValid || !plan.data) {
@@ -72,7 +97,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
     });
   }, [minScoreValid, plan.data, rows]);
 
-  function toggleItem(item: MigrationRow, checked: boolean) {
+  function toggleItem(item: MigrationRowWithAi, checked: boolean) {
     setSelectedIds((current) => (checked ? [...current.filter((id) => id !== item.asset_id), item.asset_id] : current.filter((id) => id !== item.asset_id)));
   }
 
@@ -85,6 +110,10 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
   function downloadReport() {
     const report = new MigrationReportBuilder(snapshotId, selectedItems, impact.data).buildMarkdown();
     downloadText(`snapshot-${snapshotId}-migration-report.md`, report, "text/markdown;charset=utf-8");
+  }
+
+  function requestAiSuggestion(item: MigrationRowWithAi) {
+    suggestMigration.mutate(item.asset_id);
   }
 
   function setFilter(name: "tier" | "asset_type" | "min_score", value: string) {
@@ -170,10 +199,23 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                   { key: "current", header: "현재 알고리즘", render: (item) => item.current.algorithm ?? "-" },
                   { key: "strategy", header: "전략", render: (item) => item.recommendation.strategy },
                   { key: "phase", header: "단계", render: (item) => item.recommendation.phase },
-                  { key: "target", header: "목표 알고리즘", render: (item) => item.recommendation.target_algorithm },
+                  { key: "target", header: "목표 알고리즘", render: (item) => <MigrationTargetCell item={item} /> },
                   { key: "agility", header: "민첩성", render: (item) => <AgilityBadge agility={item.agility} /> },
                   { key: "score", header: "점수", render: (item) => formatScore(item.risk_score) },
-                  { key: "tier", header: "등급", render: (item) => <RiskTierBadge tier={item.tier} /> }
+                  { key: "tier", header: "등급", render: (item) => <RiskTierBadge tier={item.tier} /> },
+                  {
+                    key: "ai",
+                    header: "AI",
+                    align: "right",
+                    render: (item) => {
+                      const isPending = suggestMigration.isPending && suggestMigration.variables === item.asset_id;
+                      return (
+                        <Button type="button" size="sm" variant="ghost" disabled={isPending} onClick={() => requestAiSuggestion(item)}>
+                          <Sparkles size={14} />{isPending ? "추천 중" : "AI 추천"}
+                        </Button>
+                      );
+                    }
+                  }
                 ]}
               />
             ) : null}
@@ -196,6 +238,7 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
           </CardContent>
         </Card>
       </div>
+      {activeSuggestion ? <MigrationAiSuggestionTrace suggestion={activeSuggestion} /> : null}
       {reportSelectionAvailable ? (
         <Card>
           <CardHeader>
@@ -262,6 +305,53 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
       ) : null}
     </Section>
   );
+}
+
+function MigrationTargetCell({ item }: { item: MigrationRowWithAi }) {
+  return (
+    <div className="migration-ai-target">
+      <span>{item.recommendation.target_algorithm}</span>
+      {item.ai_recommendation ? <Badge tone={item.ai_recommendation.fallback.used ? "yellow" : "purple"}>AI</Badge> : null}
+    </div>
+  );
+}
+
+function MigrationAiSuggestionTrace({ suggestion }: { suggestion: MigrationAiSuggestion }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>AI 전환 추천 상세</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <dl className="detail-list">
+          <div><dt>자산</dt><dd>#{suggestion.asset_id}</dd></div>
+          <div><dt>선택 후보</dt><dd>{suggestion.plan_item.ai_recommendation?.selected_candidate_id ?? "-"}</dd></div>
+          <div><dt>목표 알고리즘</dt><dd>{suggestion.plan_item.recommendation.target_algorithm}</dd></div>
+          <div><dt>Provider</dt><dd>{suggestion.provider.provider}{suggestion.provider.model ? ` · ${suggestion.provider.model}` : ""}</dd></div>
+          <div><dt>Fallback</dt><dd>{suggestion.fallback.used ? suggestion.fallback.reason ?? "used" : "미사용"}</dd></div>
+          <div><dt>Confidence</dt><dd>{formatNumber(suggestion.plan_item.recommendation.confidence)}</dd></div>
+        </dl>
+        <p className="muted">{suggestion.plan_item.recommendation.rationale}</p>
+        <details className="migration-ai-trace">
+          <summary>Request / Response</summary>
+          <div className="migration-ai-trace__grid">
+            <div>
+              <strong>Request</strong>
+              <pre>{formatJson(suggestion.llm_trace.request)}</pre>
+            </div>
+            <div>
+              <strong>Response</strong>
+              <pre>{formatJson(suggestion.llm_trace.response)}</pre>
+            </div>
+          </div>
+        </details>
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatJson(value: unknown) {
+  return JSON.stringify(value, null, 2);
 }
 
 function MigrationImpactSummary({ impact }: { impact: Schema<"MigrationImpact"> }) {

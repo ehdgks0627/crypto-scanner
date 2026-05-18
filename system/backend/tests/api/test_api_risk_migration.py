@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from tests.api.factories import assert_job_envelope, create_asset, create_risk_score, create_snapshot, create_target
@@ -437,6 +439,80 @@ def test_api_mig_006e_migration_plan_maps_long_term_signature_to_slh_dsa(client)
     assert item["recommendation"]["target_algorithm_set"] == ["ECDSA P-256", "SLH-DSA-SHA2-128s"]
     assert item["recommendation"]["final_algorithm_set"] == ["SLH-DSA-SHA2-128s"]
     assert "hash-based SLH-DSA" in item["recommendation"]["rationale"]
+
+
+def test_api_mig_006f_ai_migration_suggestion_selects_allowed_candidate(client, monkeypatch):
+    from apps.snapshots import migration_plan
+    from risk_engine.llm import LlmCompletion
+
+    snapshot = create_snapshot()
+    target = create_target(
+        host="payments.testbed.local",
+        context={
+            "sensitivity": "critical",
+            "lifespan_years": 7,
+            "criticality": "critical",
+            "exposure": "public_internet",
+            "service_role": "payment",
+        },
+    )
+    asset = create_asset(snapshot=snapshot, target=target, asset_type="certificate", algorithm="RSA-2048", algorithm_family="RSA")
+    create_risk_score(asset, score=84.0, tier="CRITICAL")
+    seen_prompt = {}
+
+    def fake_provider(prompt):
+        seen_prompt.update(prompt)
+        payload = {
+            "selected_candidate_id": "alternative_1",
+            "confidence": 0.88,
+            "rationale": "Public payment context can use the direct allowed replacement after compatibility review.",
+            "evidence": ["service_role:payment", "exposure:public_internet"],
+        }
+        return LlmCompletion(provider="codex-cli", model="gpt-5.3-codex-spark", content=json.dumps(payload), usage={"tokens": 1})
+
+    monkeypatch.setattr(migration_plan.llm_client, "call_qualitative_risk_llm", fake_provider)
+
+    response = client.post(f"/api/snapshots/{snapshot.id}/migration-plan/{asset.id}/ai-suggestion")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["prompt_version"] == "migration-candidate-suggestion-v1"
+    assert body["provider"]["provider"] == "codex-cli"
+    assert body["fallback"]["used"] is False
+    assert body["plan_item"]["recommendation"]["target_algorithm"] == "ML-DSA-65"
+    assert body["plan_item"]["recommendation"]["confidence"] == 0.88
+    assert body["plan_item"]["ai_recommendation"]["selected_candidate_id"] == "alternative_1"
+    assert seen_prompt["payload"]["enriched_cbom"]["asset"]["algorithm"] == "RSA-2048"
+    assert seen_prompt["payload"]["enriched_cbom"]["effective_context"]["service_role"] == "payment"
+    assert {item["candidate_id"] for item in seen_prompt["payload"]["allowed_candidates"]} == {"policy_default", "alternative_1"}
+    assert body["llm_trace"]["response"]["parsed"]["selected_candidate_id"] == "alternative_1"
+
+
+def test_api_mig_006g_ai_migration_suggestion_rejects_unallowed_algorithm(client, monkeypatch):
+    from apps.snapshots import migration_plan
+    from risk_engine.llm import LlmCompletion
+
+    snapshot = create_snapshot()
+    asset = create_asset(snapshot=snapshot, asset_type="certificate", algorithm="RSA-2048", algorithm_family="RSA")
+    create_risk_score(asset, score=84.0, tier="CRITICAL")
+
+    def fake_provider(_prompt):
+        return LlmCompletion(
+            provider="codex-cli",
+            model="gpt-5.3-codex-spark",
+            content=json.dumps({"target_algorithm": "MadeUp-PQC-999", "confidence": 0.99}),
+            usage={},
+        )
+
+    monkeypatch.setattr(migration_plan.llm_client, "call_qualitative_risk_llm", fake_provider)
+
+    response = client.post(f"/api/snapshots/{snapshot.id}/migration-plan/{asset.id}/ai-suggestion")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["fallback"] == {"used": True, "reason": "candidate_not_allowed"}
+    assert body["plan_item"]["recommendation"]["target_algorithm"] == "RSA-2048 + ML-DSA-65"
+    assert body["plan_item"]["ai_recommendation"]["fallback"]["used"] is True
 
 
 def test_api_mig_007_migration_plan_rejects_non_integer_asset_ids(client):

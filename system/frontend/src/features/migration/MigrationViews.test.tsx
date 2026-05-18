@@ -85,4 +85,57 @@ describe("MigrationPlanView", () => {
     expect(screen.getByText("Enable hybrid transition")).toBeInTheDocument();
     expect(screen.getByText("Keep the existing RSA path enabled.")).toBeInTheDocument();
   });
+
+  it("applies guarded AI migration recommendations to the visible row", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(services.migration, "plan").mockResolvedValue({ items: [migrationItem], total: 1, offset: 0, limit: 20 });
+    vi.spyOn(services.migration, "impact").mockResolvedValue({
+      selected_count: 1,
+      hosts: [],
+      services: [],
+      cert_reissues: 0,
+      config_changes: 0,
+      key_regens: 0,
+      estimated_downtime_min: 0
+    });
+    vi.spyOn(services.migration, "aiSuggestion").mockResolvedValue({
+      asset_id: migrationItem.asset_id,
+      prompt_version: "migration-candidate-suggestion-v1",
+      plan_item: {
+        ...migrationItem,
+        recommendation: {
+          ...migrationItem.recommendation,
+          strategy: "replace",
+          target_algorithm: "ML-DSA-65",
+          target_algorithm_set: ["ML-DSA-65"],
+          final_algorithm_set: ["ML-DSA-65"],
+          phase: "replace_now",
+          rationale: "AI selected the allowed direct replacement.",
+          confidence: 0.88
+        },
+        ai_recommendation: {
+          source: "llm_guarded_allowed_candidates",
+          selected_candidate_id: "alternative_1",
+          evidence: ["service_role:payment"],
+          fallback: { used: false, reason: null }
+        }
+      },
+      provider: { provider: "codex-cli", model: "gpt-5.3-codex-spark", usage: {} },
+      fallback: { used: false, reason: null },
+      llm_trace: {
+        request: { version: "migration-candidate-suggestion-v1", system: "system", user: "user", payload: {}, response_schema: {} },
+        response: { raw: "{\"selected_candidate_id\":\"alternative_1\"}", parsed: { selected_candidate_id: "alternative_1" } }
+      }
+    });
+
+    renderWithApp(<MigrationPlanView snapshotId={3} />);
+
+    await screen.findByText("RSA-2048 + ML-DSA-65");
+    await user.click(screen.getByRole("button", { name: "AI 추천" }));
+
+    expect((await screen.findAllByText("ML-DSA-65")).length).toBeGreaterThan(0);
+    expect(screen.getByText("AI 전환 추천 상세")).toBeInTheDocument();
+    expect(screen.getByText("AI selected the allowed direct replacement.")).toBeInTheDocument();
+    expect(screen.getByText("alternative_1")).toBeInTheDocument();
+  });
 });
