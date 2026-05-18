@@ -730,6 +730,28 @@ paths:
         default:
           $ref: '#/components/responses/Error'
 
+  /assets/{id}/context-suggestion:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Assets]
+      summary: Recommend asset context values
+      operationId: createAssetContextSuggestion
+      responses:
+        '200':
+          description: Recommended asset context
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetContextSuggestion'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
   /assets/{id}/qualitative:
     parameters:
       - $ref: '#/components/parameters/Id'
@@ -2911,6 +2933,49 @@ components:
           $ref: '#/components/schemas/AssetContextSources'
         recompute_job_id:
           type: integer
+
+    AssetContextSuggestion:
+      type: object
+      required: [asset_id, prompt_version, recommended_context, confidence, rationale, evidence, provider, fallback]
+      properties:
+        asset_id:
+          type: integer
+        prompt_version:
+          type: string
+        recommended_context:
+          $ref: '#/components/schemas/AssetContextValues'
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        rationale:
+          type: string
+        evidence:
+          type: array
+          items:
+            type: string
+        provider:
+          type: object
+          required: [provider, usage]
+          properties:
+            provider:
+              type: string
+            model:
+              type: string
+              nullable: true
+            usage:
+              type: object
+              additionalProperties: true
+        fallback:
+          type: object
+          required: [used]
+          properties:
+            used:
+              type: boolean
+            reason:
+              type: string
+              nullable: true
 
     RiskFactors:
       type: object

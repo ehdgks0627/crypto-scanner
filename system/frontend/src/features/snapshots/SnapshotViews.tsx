@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Save } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Save, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -197,6 +197,9 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "저장 실패")
   });
+  const suggestContext = useMutation({
+    mutationFn: () => services.assets.contextSuggestion(assetId)
+  });
   const recomputeJob = useQuery({
     queryKey: recomputeJobId ? queryKeys.jobs.detail(recomputeJobId) : ["jobs", "detail", "asset-context-none"],
     queryFn: () => services.jobs.get(recomputeJobId!),
@@ -262,7 +265,9 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
                 initialValue={asset.data.effective_context}
                 contextSources={asset.data.context_sources}
                 isSubmitting={patchContext.isPending}
+                isSuggesting={suggestContext.isPending}
                 onCancel={() => setEditing(false)}
+                onSuggest={() => suggestContext.mutateAsync()}
                 onSubmit={(payload) => patchContext.mutate(payload)}
               />
             ) : (
@@ -308,24 +313,30 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
 }
 
 function EnrichedCbomCard({ component }: { component: unknown }) {
+  const [open, setOpen] = useState(false);
   const cbom = asRecord(component);
   const rows = cbomComponentRows(cbom);
   return (
     <Card>
       <CardHeader>
         <CardTitle>Enriched CBOM</CardTitle>
+        <Button type="button" variant="ghost" onClick={() => setOpen((value) => !value)}>
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}{open ? "접기" : "펼치기"}
+        </Button>
       </CardHeader>
-      <CardContent>
-        <DataTable
-          items={rows}
-          getRowKey={(item) => item.name}
-          empty={<EmptyState title="CBOM 속성이 없습니다" />}
-          columns={[
-            { key: "name", header: "속성", render: (item) => <span className="mono">{item.name}</span> },
-            { key: "value", header: "값", render: (item) => <span className="mono">{item.value}</span> }
-          ]}
-        />
-      </CardContent>
+      {open ? (
+        <CardContent>
+          <DataTable
+            items={rows}
+            getRowKey={(item) => item.name}
+            empty={<EmptyState title="CBOM 속성이 없습니다" />}
+            columns={[
+              { key: "name", header: "속성", render: (item) => <span className="mono">{item.name}</span> },
+              { key: "value", header: "값", render: (item) => <span className="mono">{item.value}</span> }
+            ]}
+          />
+        </CardContent>
+      ) : null}
     </Card>
   );
 }
@@ -381,17 +392,32 @@ function AssetContextForm({
   initialValue,
   contextSources,
   isSubmitting = false,
+  isSuggesting = false,
   onSubmit,
+  onSuggest,
   onCancel
 }: {
   initialValue: Schema<"AssetContextValues">;
   contextSources: Schema<"AssetContextSources">;
   isSubmitting?: boolean;
+  isSuggesting?: boolean;
   onSubmit: (payload: Schema<"AssetContextPatch">) => void;
+  onSuggest: () => Promise<Schema<"AssetContextSuggestion">>;
   onCancel: () => void;
 }) {
   const [values, setValues] = useState(() => assetContextToFormValues(initialValue));
+  const [suggestion, setSuggestion] = useState<Schema<"AssetContextSuggestion"> | null>(null);
   const validationError = validateAssetContextPatchValues(values);
+  async function applySuggestion() {
+    try {
+      const result = await onSuggest();
+      setValues(assetContextToFormValues(result.recommended_context));
+      setSuggestion(result);
+      toast.success("AI 추천값을 채웠습니다.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "AI 추천 실패");
+    }
+  }
   return (
     <form
       onSubmit={(event) => {
@@ -409,6 +435,13 @@ function AssetContextForm({
       }}
     >
       <fieldset className="form-fieldset" disabled={isSubmitting}>
+        <div className="context-form-toolbar">
+          <Button type="button" variant="secondary" disabled={isSuggesting} onClick={() => void applySuggestion()}>
+            <Sparkles size={15} />{isSuggesting ? "추천 중" : "AI 추천"}
+          </Button>
+          {suggestion ? <span className="context-form-toolbar__meta">신뢰도 {(suggestion.confidence * 100).toFixed(0)}% · {suggestion.provider.provider}</span> : null}
+        </div>
+        {suggestion ? <div className="callout">{suggestion.rationale}</div> : null}
         <div className="form-grid">
           {(["sensitivity", "criticality"] as const).map((field) => (
             <Field key={field}>

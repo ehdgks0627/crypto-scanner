@@ -66,6 +66,15 @@ def patch_asset_context(request, asset_id: int, payload: AssetContextPatch):
     }
 
 
+@router.post("/assets/{asset_id}/context-suggestion")
+def suggest_asset_context(request, asset_id: int):
+    try:
+        asset = Asset.objects.select_related("target").get(id=asset_id)
+    except Asset.DoesNotExist:
+        return error_response("not_found", "Resource not found.", status=404)
+    return services.suggest_asset_context(asset)
+
+
 @router.post("/assets/{asset_id}/qualitative")
 def request_qualitative_assessment(request, asset_id: int):
     try:

@@ -21,9 +21,13 @@ QUALITATIVE_TASK_NAME = "qualitative_assessment"
 QUALITATIVE_PROVIDER = "mock-rulebook"
 QUALITATIVE_FALLBACK_PROVIDER = "mock-rulebook-fallback"
 QUALITATIVE_PROMPT_METADATA_KEYS = {"llm_cache", "llm_fallback", "llm_provider"}
+CONTEXT_SUGGESTION_PROMPT_VERSION = "asset-context-suggestion-v1"
+CONTEXT_SUGGESTION_PROVIDER = "mock-context-recommender"
 QUANTUM_VULNERABLE_FAMILIES = {"RSA", "DSA", "ECDSA", "ECDH", "DH"}
 CONTEXT_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 EXPOSURE_LEVELS = {"air_gapped": 0, "internal_network": 1, "dmz": 2, "public_internet": 3}
+CONTEXT_LEVEL_VALUES = {"low", "medium", "high", "critical"}
+CONTEXT_EXPOSURE_VALUES = {"public_internet", "dmz", "internal_network", "air_gapped"}
 
 
 class EnqueueUnavailable(Exception):
@@ -276,6 +280,244 @@ def _qualitative_asset_payload(asset):
         "target_label": target_label(asset),
         "metadata": asset.metadata or {},
     }
+
+
+def suggest_asset_context(asset_or_id):
+    from apps.assets.models import Asset
+
+    asset = Asset.objects.select_related("target").get(id=asset_or_id) if isinstance(asset_or_id, int) else asset_or_id
+    override = getattr(asset, "context_override", None)
+    context = effective_context(asset, override)
+    sources = context_sources(asset, override)
+    fallback = _heuristic_context_suggestion(asset, context, sources)
+    prompt = _build_context_suggestion_prompt(asset, context, sources, fallback["recommended_context"])
+    try:
+        completion = llm_client.call_qualitative_risk_llm(prompt)
+        parsed = _parse_context_suggestion_response(completion.content, fallback)
+        provider = {
+            "provider": completion.provider,
+            "model": completion.model,
+            "usage": dict(completion.usage),
+        }
+        fallback_metadata = {"used": False, "reason": None}
+    except (TimeoutError, llm_client.LlmProviderError, llm_client.LlmProviderUnavailable) as exc:
+        parsed = fallback
+        provider = {"provider": CONTEXT_SUGGESTION_PROVIDER, "model": None, "usage": {}}
+        fallback_metadata = {"used": True, "reason": str(exc)}
+
+    return {
+        "asset_id": asset.id,
+        "prompt_version": CONTEXT_SUGGESTION_PROMPT_VERSION,
+        "recommended_context": parsed["recommended_context"],
+        "confidence": parsed["confidence"],
+        "rationale": parsed["rationale"],
+        "evidence": parsed["evidence"],
+        "provider": provider,
+        "fallback": fallback_metadata,
+    }
+
+
+def _build_context_suggestion_prompt(asset, context: dict, sources: dict, fallback_context: dict) -> dict:
+    payload = {
+        "asset": _qualitative_asset_payload(asset),
+        "current_context": context,
+        "context_sources": sources,
+        "operational_context": _qualitative_operational_context(asset, context, sources),
+        "risk": _qualitative_risk_payload(asset.risk_scores.order_by("-id").first(), _heuristic_qualitative_score(asset, context)),
+        "fallback_context": fallback_context,
+    }
+    schema = {
+        "recommended_context": {
+            "sensitivity": "low|medium|high|critical|null",
+            "lifespan_years": "integer >= 0|null",
+            "criticality": "low|medium|high|critical|null",
+            "exposure": "public_internet|dmz|internal_network|air_gapped|null",
+            "service_role": "short lowercase service role string|null",
+        },
+        "confidence": "number between 0 and 1",
+        "rationale": "one sentence explaining the recommendation using only supplied evidence",
+        "evidence": ["short evidence strings from the payload"],
+    }
+    return {
+        "version": CONTEXT_SUGGESTION_PROMPT_VERSION,
+        "system": (
+            "You recommend evaluation context values for one cryptographic asset. "
+            "Use only supplied asset, target, risk, and evidence data. "
+            "Return concise JSON only."
+        ),
+        "user": (
+            "Recommend context values that an operator can review before saving.\n"
+            "Prefer preserving existing values when evidence is weak. Do not invent sensitive facts.\n"
+            "Use null only when the payload has no defensible signal for that field.\n\n"
+            f"Payload:\n{json.dumps(payload, sort_keys=True, indent=2)}\n\n"
+            f"Required JSON schema:\n{json.dumps(schema, sort_keys=True, indent=2)}"
+        ),
+        "payload": payload,
+        "response_schema": schema,
+    }
+
+
+def _heuristic_context_suggestion(asset, context: dict, sources: dict) -> dict:
+    metadata = asset.metadata or {}
+    target = asset.target
+    role = context.get("service_role") or _suggested_service_role(asset, target)
+    exposure = context.get("exposure") or _suggested_exposure(target)
+    criticality = context.get("criticality") or _suggested_criticality(role, asset)
+    sensitivity = context.get("sensitivity") or _suggested_sensitivity(role, asset)
+    lifespan_years = context.get("lifespan_years")
+    if lifespan_years is None:
+        lifespan_years = _suggested_lifespan_years(asset, sensitivity, role)
+    evidence = [
+        f"asset_type:{asset.asset_type}",
+        f"algorithm_family:{asset.algorithm_family or 'unknown'}",
+        f"target:{target_label(asset) or 'none'}",
+    ]
+    evidence.extend(f"path:{path}" for path in _metadata_paths(metadata)[:3])
+    if any(value is not None for value in context.values()):
+        evidence.append("existing_context:present")
+    return {
+        "recommended_context": {
+            "sensitivity": sensitivity,
+            "lifespan_years": lifespan_years,
+            "criticality": criticality,
+            "exposure": exposure,
+            "service_role": role,
+        },
+        "confidence": 0.62 if sources else 0.5,
+        "rationale": "Recommended from current asset metadata, target protocol, and existing context signals.",
+        "evidence": _dedupe_values(evidence),
+    }
+
+
+def _parse_context_suggestion_response(text: str, fallback: dict) -> dict:
+    try:
+        data = _extract_json_object(text)
+    except ValueError:
+        return fallback
+    values = data.get("recommended_context") or data.get("context") or data
+    if not isinstance(values, dict):
+        values = {}
+    fallback_values = fallback["recommended_context"]
+    recommended = {
+        "sensitivity": _allowed_or_fallback(values.get("sensitivity"), CONTEXT_LEVEL_VALUES, fallback_values["sensitivity"]),
+        "lifespan_years": _non_negative_int_or_fallback(values.get("lifespan_years"), fallback_values["lifespan_years"]),
+        "criticality": _allowed_or_fallback(values.get("criticality"), CONTEXT_LEVEL_VALUES, fallback_values["criticality"]),
+        "exposure": _allowed_or_fallback(values.get("exposure"), CONTEXT_EXPOSURE_VALUES, fallback_values["exposure"]),
+        "service_role": _service_role_or_fallback(values.get("service_role"), fallback_values["service_role"]),
+    }
+    return {
+        "recommended_context": recommended,
+        "confidence": _confidence_or_fallback(data.get("confidence"), fallback["confidence"]),
+        "rationale": data.get("rationale") if isinstance(data.get("rationale"), str) and data.get("rationale").strip() else fallback["rationale"],
+        "evidence": _string_list_or_fallback(data.get("evidence"), fallback["evidence"]),
+    }
+
+
+def _extract_json_object(text: str) -> dict:
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text or ""):
+        if char != "{":
+            continue
+        try:
+            value, _end = decoder.raw_decode(text[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            return value
+    raise ValueError("context suggestion response did not include a JSON object")
+
+
+def _allowed_or_fallback(value, allowed: set[str], fallback):
+    if value is None:
+        return None if fallback is None else fallback
+    normalized = str(value).strip().lower()
+    return normalized if normalized in allowed else fallback
+
+
+def _non_negative_int_or_fallback(value, fallback):
+    if value is None or value == "":
+        return fallback
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return parsed if parsed >= 0 else fallback
+
+
+def _service_role_or_fallback(value, fallback):
+    if value is None:
+        return fallback
+    normalized = str(value).strip().lower().replace(" ", "-")[:80]
+    return normalized or fallback
+
+
+def _confidence_or_fallback(value, fallback):
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return round(max(0.0, min(1.0, parsed)), 2)
+
+
+def _string_list_or_fallback(value, fallback):
+    if not isinstance(value, list):
+        return fallback
+    items = [str(item).strip() for item in value if str(item).strip()]
+    return items[:8] or fallback
+
+
+def _suggested_service_role(asset, target):
+    metadata = asset.metadata or {}
+    path_text = " ".join(_metadata_paths(metadata)).lower()
+    name_text = f"{asset.name} {asset.bom_ref} {path_text}".lower()
+    if any(token in name_text for token in ["auth", "login", "idp", "oauth"]):
+        return "auth"
+    if any(token in name_text for token in ["db", "database", "postgres", "mysql"]):
+        return "database"
+    if any(token in name_text for token in ["mail", "smtp", "imap"]):
+        return "mail"
+    if target and target.protocol_hint:
+        protocol = target.protocol_hint.lower()
+        if protocol in {"tls", "http", "https"}:
+            return "web"
+        return protocol
+    return asset.asset_type
+
+
+def _suggested_exposure(target):
+    if not target:
+        return None
+    host = (target.host or "").lower()
+    ip = str(target.ip or "")
+    if ip.startswith(("10.", "172.", "192.168.")) or host.endswith((".local", ".internal")):
+        return "internal_network"
+    return "public_internet" if target.port in {80, 443, 8443} else "dmz"
+
+
+def _suggested_criticality(role, asset):
+    if role in {"auth", "database", "kms", "payment", "pki"}:
+        return "critical"
+    if role in {"web", "api", "mail"}:
+        return "high"
+    return "medium" if asset.asset_class == "crypto" else "low"
+
+
+def _suggested_sensitivity(role, asset):
+    if role in {"auth", "database", "payment", "pki"}:
+        return "high"
+    if _is_quantum_vulnerable(asset):
+        return "medium"
+    return "low"
+
+
+def _suggested_lifespan_years(asset, sensitivity, role):
+    if role in {"pki", "archive", "backup"}:
+        return 15
+    if sensitivity in {"high", "critical"} and _is_quantum_vulnerable(asset):
+        return 10
+    if asset.asset_type in {"key", "certificate"}:
+        return 5
+    return 3
 
 
 def _qualitative_risk_payload(risk_score, fallback_score):

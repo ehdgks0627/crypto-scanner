@@ -161,6 +161,8 @@ describe("AssetDetailView", () => {
     expect(patchSpy).not.toHaveBeenCalled();
     expect(within(contextCard).queryByLabelText("민감도 수정 값")).not.toBeInTheDocument();
     expect(screen.getByText("Enriched CBOM")).toBeInTheDocument();
+    expect(screen.queryByText("context.homepage.title")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "펼치기" }));
     expect(screen.getByText("context.homepage.title")).toBeInTheDocument();
     expect(screen.getAllByText("Customer Portal Login").length).toBeGreaterThanOrEqual(1);
   });
@@ -216,6 +218,45 @@ describe("AssetDetailView", () => {
     await user.click(screen.getByRole("button", { name: "저장" }));
 
     await waitFor(() => expect(patchSpy).toHaveBeenCalledWith(84, { sensitivity: "critical" }));
+  });
+
+  it("fills the inline context form from an AI recommendation without saving automatically", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(services.assets, "get").mockResolvedValue(makeAssetDetail());
+    vi.spyOn(services.performance, "history").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+    const patchSpy = vi.spyOn(services.assets, "patchContext");
+    const suggestSpy = vi.spyOn(services.assets, "contextSuggestion").mockResolvedValue({
+      asset_id: 84,
+      prompt_version: "asset-context-suggestion-v1",
+      recommended_context: {
+        sensitivity: "critical",
+        lifespan_years: 12,
+        criticality: "critical",
+        exposure: "public_internet",
+        service_role: "customer-portal"
+      },
+      confidence: 0.87,
+      rationale: "Customer portal certificate protects public long-lived customer sessions.",
+      evidence: ["asset_name:customer portal certificate"],
+      provider: { provider: "codex-cli", model: "gpt-test", usage: {} },
+      fallback: { used: false, reason: null }
+    });
+
+    renderWithApp(<AssetDetailView snapshotId={2} assetId={84} />);
+
+    await screen.findByRole("heading", { name: "asset detail certificate", level: 1 });
+    await user.click(screen.getByRole("button", { name: /컨텍스트 수정/ }));
+    await user.click(screen.getByRole("button", { name: "AI 추천" }));
+
+    await waitFor(() => expect(suggestSpy).toHaveBeenCalledWith(84));
+    expect(screen.getByLabelText("민감도 수정 값")).toHaveValue("critical");
+    expect(screen.getByLabelText("중요도 수정 값")).toHaveValue("critical");
+    expect(screen.getByLabelText("노출 범위 수정 값")).toHaveValue("public_internet");
+    expect(screen.getByLabelText("보호 기간 수정 값")).toHaveValue(12);
+    expect(screen.getByLabelText("서비스 역할 수정 값")).toHaveValue("customer-portal");
+    expect(screen.getByText("신뢰도 87% · codex-cli")).toBeInTheDocument();
+    expect(screen.getByText("Customer portal certificate protects public long-lived customer sessions.")).toBeInTheDocument();
+    expect(patchSpy).not.toHaveBeenCalled();
   });
 });
 

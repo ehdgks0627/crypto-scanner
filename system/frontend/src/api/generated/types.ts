@@ -334,6 +334,25 @@ export interface paths {
         patch: operations["patchAssetContext"];
         trace?: never;
     };
+    "/assets/{id}/context-suggestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recommend asset context values */
+        post: operations["createAssetContextSuggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assets/{id}/qualitative": {
         parameters: {
             query?: never;
@@ -1258,6 +1277,26 @@ export interface components {
             context_override: components["schemas"]["AssetContextValues"];
             context_sources: components["schemas"]["AssetContextSources"];
             recompute_job_id: number;
+        };
+        AssetContextSuggestion: {
+            asset_id: number;
+            prompt_version: string;
+            recommended_context: components["schemas"]["AssetContextValues"];
+            /** Format: float */
+            confidence: number;
+            rationale: string;
+            evidence: string[];
+            provider: {
+                provider: string;
+                model?: string | null;
+                usage: {
+                    [key: string]: unknown;
+                };
+            };
+            fallback: {
+                used: boolean;
+                reason?: string | null;
+            };
         };
         RiskFactors: {
             /** Format: float */
@@ -2521,6 +2560,31 @@ export interface operations {
             404: components["responses"]["NotFound"];
             422: components["responses"]["Unprocessable"];
             503: components["responses"]["ServiceUnavailable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    createAssetContextSuggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recommended asset context */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetContextSuggestion"];
+                };
+            };
+            404: components["responses"]["NotFound"];
             default: components["responses"]["Error"];
         };
     };

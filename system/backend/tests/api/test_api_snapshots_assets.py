@@ -332,6 +332,68 @@ def test_api_ast_003_context_patch_distinguishes_omit_and_null(client):
     assert body["recompute_job_id"] is not None
 
 
+def test_api_ast_003c_context_suggestion_uses_llm_provider(client, monkeypatch):
+    from apps.assets import services
+    from risk_engine.llm import LlmCompletion
+
+    target = create_target(
+        host="portal.testbed.local",
+        context={
+            **TARGET_CONTEXT,
+            "sensitivity": "medium",
+            "criticality": "high",
+            "exposure": "internal_network",
+            "lifespan_years": 5,
+            "service_role": "web",
+        },
+    )
+    asset = create_asset(
+        target=target,
+        name="customer portal certificate",
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        bom_ref="context:suggestion:rsa",
+    )
+    provider_payload = {
+        "recommended_context": {
+            "sensitivity": "critical",
+            "criticality": "critical",
+            "exposure": "public_internet",
+            "lifespan_years": 12,
+            "service_role": "customer-portal",
+        },
+        "confidence": 0.87,
+        "rationale": "Customer portal certificate protects public long-lived customer sessions.",
+        "evidence": ["asset_name:customer portal certificate", "algorithm_family:RSA"],
+    }
+    calls = {"count": 0}
+
+    def fake_provider(prompt):
+        calls["count"] += 1
+        assert prompt["version"] == "asset-context-suggestion-v1"
+        assert prompt["payload"]["asset"]["name"] == "customer portal certificate"
+        assert prompt["payload"]["current_context"]["service_role"] == "web"
+        return LlmCompletion(
+            provider="codex-cli",
+            model="gpt-test",
+            content=json.dumps(provider_payload),
+            usage={"stdout_bytes": 20},
+        )
+
+    monkeypatch.setattr(services.llm_client, "call_qualitative_risk_llm", fake_provider)
+
+    response = client.post(f"/api/assets/{asset.id}/context-suggestion")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert calls["count"] == 1
+    assert body["asset_id"] == asset.id
+    assert body["recommended_context"] == provider_payload["recommended_context"]
+    assert body["confidence"] == 0.87
+    assert body["provider"]["provider"] == "codex-cli"
+    assert body["fallback"] == {"used": False, "reason": None}
+
+
 def test_api_ast_003b_context_patch_rejects_invalid_context_values(client):
     asset = create_asset()
 

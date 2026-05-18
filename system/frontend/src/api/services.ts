@@ -125,6 +125,10 @@ export class AssetService extends BaseService {
     });
   }
 
+  contextSuggestion(id: number) {
+    return this.client.request<Schema<"AssetContextSuggestion">>(`/assets/${id}/context-suggestion`, { method: "POST" });
+  }
+
   qualitative(id: number) {
     return this.client.request<Schema<"QualitativeAssessment">>(`/assets/${id}/qualitative`, { method: "POST" });
   }
