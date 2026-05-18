@@ -9,6 +9,7 @@ from apps.core.management.commands.seed_testbed_demo import (
     EXPIRING_CERTIFICATE_DAYS,
     LATEST_ASSETS,
     SCAN_SCANNERS,
+    TESTBED_TARGET_IPS,
 )
 from apps.discoveries.models import Discovery
 from apps.assets.models import AssetContextOverride
@@ -32,6 +33,8 @@ def test_seed_testbed_demo_populates_dashboard_scenario(client):
     assert latest.assets.values("target").distinct().count() == Target.objects.count()
     assert RiskScore.objects.filter(snapshot=latest, tier="CRITICAL").count() == 18
     assert Target.objects.count() == 31
+    for hostname, ip in TESTBED_TARGET_IPS.items():
+        assert set(Target.objects.filter(host=hostname).values_list("ip", flat=True)) == {ip}
     discovery = Discovery.objects.get(cidr="172.20.0.0/16")
     assert discovery.endpoints.count() == 33
     assert discovery.discovery_agent.agent_role == Agent.ROLE_DISCOVERY
