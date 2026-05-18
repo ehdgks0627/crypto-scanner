@@ -55,7 +55,7 @@ describe("DiscoveriesView", () => {
 
     renderWithApp(<DiscoveriesView />);
 
-    const discoverySixCheckbox = await screen.findByLabelText("탐색 작업 #6 선택");
+    const discoverySixCheckbox = await screen.findByLabelText("탐색 대상 #6 선택");
     expect(screen.getByText("probe.dmz.testbed.local")).toBeInTheDocument();
     expect(discoverySixCheckbox).not.toBeChecked();
     expect(screen.getByText("선택 0개")).toBeInTheDocument();

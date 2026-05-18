@@ -153,7 +153,7 @@ export function DiscoveriesView() {
     <Section>
       <PageHeader
         title="탐색 대상"
-        description="CIDR 또는 특정 IP / 도메인을 기준으로 후보 엔드포인트를 찾고 스캔 대상으로 승인합니다."
+        description="CIDR 또는 특정 IP / 도메인을 등록하고, 발견된 엔드포인트를 스캔 대상으로 승인합니다."
         actions={
           <Button type="button" variant="primary" onClick={() => navigate("/discoveries/new")}>
             <Plus size={15} />탐색 대상 추가
@@ -191,13 +191,13 @@ export function DiscoveriesView() {
             <DataTable
               items={discoveries.data.items}
               getRowKey={(item) => item.id}
-              empty={<EmptyState title="탐색 대상 작업이 없습니다" />}
+              empty={<EmptyState title="등록된 탐색 대상이 없습니다" />}
               columns={[
                 {
                   key: "select",
                   header: (
                     <Checkbox
-                      aria-label="현재 표시된 탐색 작업 전체 선택"
+                      aria-label="현재 표시된 탐색 대상 전체 선택"
                       checked={allVisibleSelected}
                       disabled={visibleDiscoveryIds.length === 0}
                       onChange={(event) => setSelectedDiscoveryIds(event.target.checked ? visibleDiscoveryIds : [])}
@@ -205,7 +205,7 @@ export function DiscoveriesView() {
                   ),
                   render: (item) => (
                     <Checkbox
-                      aria-label={`탐색 작업 #${item.id} 선택`}
+                      aria-label={`탐색 대상 #${item.id} 선택`}
                       checked={selectedDiscoveryIds.includes(item.id)}
                       onChange={(event) => toggleDiscovery(item.id, event.target.checked)}
                     />
@@ -216,8 +216,8 @@ export function DiscoveriesView() {
                 { key: "scopeValue", header: "탐색 값", render: (item) => discoveryScopeLabel(item) },
                 { key: "executor", header: "실행 위치", render: (item) => formatDiscoveryExecutor(item) },
                 { key: "services", header: "서비스", render: (item) => formatDiscoveryServices(item.port_list) },
-                { key: "status", header: "상태", render: (item) => <StatusBadge status={item.status} /> },
-                { key: "created", header: "생성", render: (item) => formatDateTime(item.created_at) }
+                { key: "status", header: "최근 탐색 상태", render: (item) => <StatusBadge status={item.status} /> },
+                { key: "created", header: "등록", render: (item) => formatDateTime(item.created_at) }
               ]}
             />
           </CardContent>
@@ -252,7 +252,7 @@ export function DiscoveryNewView() {
   const createDiscovery = useMutation({
     mutationFn: () => services.discoveries.create(createPayload.payload!),
     onSuccess: async (job) => {
-      toast.success(`탐색 작업 #${job.id} 생성`);
+      toast.success(`탐색 대상 #${job.resource.id} 등록 및 탐색 시작`);
       trackJob(job.id);
       await queryClient.invalidateQueries({ queryKey: queryKeys.discoveries.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
@@ -274,7 +274,7 @@ export function DiscoveryNewView() {
 
   return (
     <Section>
-      <PageHeader title="탐색 대상 추가" description="CIDR 또는 특정 IP / 도메인을 기준으로 후보 엔드포인트를 찾습니다." />
+      <PageHeader title="탐색 대상 추가" description="CIDR 또는 특정 IP / 도메인을 등록하고 후보 엔드포인트 탐색을 시작합니다." />
       <Card>
         <CardContent>
           <form
@@ -381,7 +381,7 @@ export function DiscoveryNewView() {
                   취소
                 </Button>
                 <Button type="submit" variant="primary" disabled={!createPayload.payload || createDiscovery.isPending}>
-                  <Play size={15} />{createDiscovery.isPending ? "시작 중" : "시작"}
+                  <Play size={15} />{createDiscovery.isPending ? "등록 중" : "등록 및 탐색 시작"}
                 </Button>
               </div>
             </fieldset>
@@ -479,7 +479,7 @@ export function DiscoveryDetailView({ id }: { id: number }) {
   return (
     <Section>
       <PageHeader
-        title={`탐색 작업 #${discovery.data.id}`}
+        title={`탐색 대상 #${discovery.data.id}`}
         description={`${discoveryScopeTypeLabels[discovery.data.scope_type] ?? discovery.data.scope_type} ${discoveryScopeLabel(discovery.data)}`}
         actions={
           <>
@@ -494,8 +494,8 @@ export function DiscoveryDetailView({ id }: { id: number }) {
       />
       <ConfirmDialog
         open={confirmCancelOpen}
-        title="탐색 작업 취소"
-        description={`탐색 작업 #${discovery.data.id} 취소를 요청합니다. 이미 발견된 엔드포인트는 부분 결과로 남습니다.`}
+        title="최근 탐색 취소"
+        description={`탐색 대상 #${discovery.data.id}의 최근 실행 취소를 요청합니다. 이미 발견된 엔드포인트는 부분 결과로 남습니다.`}
         confirmLabel="취소 요청"
         pending={cancel.isPending}
         onCancel={() => setConfirmCancelOpen(false)}

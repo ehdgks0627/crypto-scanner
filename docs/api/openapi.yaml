@@ -179,7 +179,7 @@ paths:
   /discoveries:
     get:
       tags: [Discovery]
-      summary: List discovery jobs
+      summary: List registered discovery targets
       operationId: listDiscoveries
       parameters:
         - name: status
@@ -209,7 +209,7 @@ paths:
           $ref: '#/components/responses/Error'
     post:
       tags: [Discovery]
-      summary: Start discovery
+      summary: Register or rerun a discovery target
       operationId: createDiscovery
       requestBody:
         required: true
@@ -222,7 +222,7 @@ paths:
                 externalValue: ./examples/discovery-create.json
       responses:
         '202':
-          description: Discovery job accepted
+          description: Discovery target registered and latest job accepted
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
@@ -2088,7 +2088,7 @@ components:
           type: integer
         job_id:
           type: integer
-          description: API-visible AsyncJob id used for polling or cancellation.
+          description: Latest AsyncJob id used for polling or cancellation.
         scope_type:
           $ref: '#/components/schemas/DiscoveryScopeType'
         scope_value:
@@ -2118,7 +2118,7 @@ components:
         created_at:
           type: string
           format: date-time
-          description: Discovery request creation time.
+          description: Discovery target registration time. Existing targets are reused for later runs.
         started_at:
           type: string
           format: date-time

@@ -70,6 +70,66 @@ def test_api_dsc_002b_create_discovery_defaults_default_ports_to_true(client):
     assert discovery.scope_value == "10.0.1.0/24"
 
 
+def test_api_dsc_002b2_create_discovery_reuses_registered_scope_for_latest_run(client):
+    from apps.discoveries.models import Discovery
+    from apps.jobs.models import AsyncJob, QueuedTask
+
+    first_response = client.post(
+        "/api/discoveries",
+        data={"scope_type": "cidr", "scope_value": "10.0.9.0/24", "ports": [443]},
+        content_type="application/json",
+    )
+    first_discovery = Discovery.objects.get(id=first_response.json()["resource"]["id"])
+    first_job_id = first_discovery.async_job_id
+    first_discovery.status = AsyncJob.COMPLETED
+    first_discovery.save(update_fields=["status"])
+    first_discovery.async_job.status = AsyncJob.COMPLETED
+    first_discovery.async_job.save(update_fields=["status"])
+
+    second_response = client.post(
+        "/api/discoveries",
+        data={"scope_type": "cidr", "scope_value": "10.0.9.0/24", "ports": [22], "include_default_ports": False},
+        content_type="application/json",
+    )
+
+    assert second_response.status_code == 202
+    assert second_response.json()["resource"]["id"] == first_discovery.id
+    assert Discovery.objects.count() == 1
+    first_discovery.refresh_from_db()
+    assert first_discovery.async_job_id != first_job_id
+    assert first_discovery.status == AsyncJob.PENDING
+    assert first_discovery.ports == [22]
+    assert first_discovery.include_default_ports is False
+    assert QueuedTask.objects.filter(async_job=first_discovery.async_job).count() == 1
+
+
+def test_api_dsc_002b3_create_discovery_returns_running_registered_scope(client):
+    from apps.discoveries.models import Discovery
+    from apps.jobs.models import AsyncJob
+
+    first_response = client.post(
+        "/api/discoveries",
+        data={"scope_type": "cidr", "scope_value": "10.0.10.0/24", "ports": [443]},
+        content_type="application/json",
+    )
+    discovery = Discovery.objects.get(id=first_response.json()["resource"]["id"])
+    discovery.status = AsyncJob.RUNNING
+    discovery.async_job.status = AsyncJob.RUNNING
+    discovery.async_job.save(update_fields=["status"])
+    discovery.save(update_fields=["status"])
+
+    second_response = client.post(
+        "/api/discoveries",
+        data={"scope_type": "cidr", "scope_value": "10.0.10.0/24", "ports": [22]},
+        content_type="application/json",
+    )
+
+    assert second_response.status_code == 202
+    assert second_response.json()["id"] == discovery.async_job_id
+    assert second_response.json()["resource"]["id"] == discovery.id
+    assert Discovery.objects.count() == 1
+
+
 def test_api_dsc_002c_create_discovery_rejects_invalid_ports_and_status_filter(client):
     invalid_ports = client.post(
         "/api/discoveries",

@@ -133,7 +133,7 @@ def list_discoveries(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    queryset = Discovery.objects.select_related("async_job", "discovery_agent").order_by("-id")
+    queryset = Discovery.objects.select_related("async_job", "discovery_agent").order_by("-updated_at", "-id")
     if status:
         queryset = queryset.filter(status=status)
     total = queryset.count()
@@ -153,22 +153,59 @@ def create_discovery(request, payload: DiscoveryCreate):
 
     try:
         with transaction.atomic():
+            discovery = (
+                Discovery.objects.select_for_update()
+                .filter(
+                    scope_type=payload.scope_type,
+                    scope_value=payload.scope_value,
+                    executor_type=payload.executor_type,
+                    discovery_agent=discovery_agent,
+                )
+                .order_by("-id")
+                .first()
+            )
+            if discovery and discovery.status in {AsyncJob.PENDING, AsyncJob.RUNNING}:
+                return JsonResponse(services.discovery_job_envelope(discovery), status=202)
+
             async_job = AsyncJob.objects.create(
                 kind="discovery",
                 status=AsyncJob.PENDING,
                 request_payload=payload.model_dump(exclude_none=True, mode="json"),
             )
-            discovery = Discovery.objects.create(
-                async_job=async_job,
-                scope_type=payload.scope_type,
-                scope_value=payload.scope_value,
-                cidr=payload.cidr,
-                executor_type=payload.executor_type,
-                discovery_agent=discovery_agent,
-                ports=payload.ports or [],
-                include_default_ports=payload.include_default_ports,
-                status=async_job.status,
-            )
+            if discovery:
+                discovery.async_job = async_job
+                discovery.cidr = payload.cidr
+                discovery.ports = payload.ports or []
+                discovery.include_default_ports = payload.include_default_ports
+                discovery.status = async_job.status
+                discovery.started_at = None
+                discovery.finished_at = None
+                discovery.error = None
+                discovery.save(
+                    update_fields=[
+                        "async_job",
+                        "cidr",
+                        "ports",
+                        "include_default_ports",
+                        "status",
+                        "started_at",
+                        "finished_at",
+                        "error",
+                        "updated_at",
+                    ]
+                )
+            else:
+                discovery = Discovery.objects.create(
+                    async_job=async_job,
+                    scope_type=payload.scope_type,
+                    scope_value=payload.scope_value,
+                    cidr=payload.cidr,
+                    executor_type=payload.executor_type,
+                    discovery_agent=discovery_agent,
+                    ports=payload.ports or [],
+                    include_default_ports=payload.include_default_ports,
+                    status=async_job.status,
+                )
             async_job.resource_id = discovery.id
             async_job.save(update_fields=["resource_id"])
             services.enqueue_discovery(discovery)
