@@ -240,7 +240,42 @@ describe("AssetDetailView", () => {
       rationale: "Customer portal certificate protects public long-lived customer sessions.",
       evidence: ["asset_name:customer portal certificate"],
       provider: { provider: "codex-cli", model: "gpt-test", usage: {} },
-      fallback: { used: false, reason: null }
+      fallback: { used: false, reason: null },
+      llm_trace: {
+        request: {
+          version: "asset-context-suggestion-v1",
+          system: "You recommend evaluation context values.",
+          user: "Recommend context values for customer portal certificate.",
+          payload: { asset: { name: "customer portal certificate" } },
+          response_schema: { recommended_context: "object" }
+        },
+        response: {
+          raw: JSON.stringify({
+            recommended_context: {
+              sensitivity: "critical",
+              lifespan_years: 12,
+              criticality: "critical",
+              exposure: "public_internet",
+              service_role: "customer-portal"
+            },
+            confidence: 0.87,
+            rationale: "Customer portal certificate protects public long-lived customer sessions.",
+            evidence: ["asset_name:customer portal certificate"]
+          }),
+          parsed: {
+            recommended_context: {
+              sensitivity: "critical",
+              lifespan_years: 12,
+              criticality: "critical",
+              exposure: "public_internet",
+              service_role: "customer-portal"
+            },
+            confidence: 0.87,
+            rationale: "Customer portal certificate protects public long-lived customer sessions.",
+            evidence: ["asset_name:customer portal certificate"]
+          }
+        }
+      }
     });
 
     renderWithApp(<AssetDetailView snapshotId={2} assetId={84} />);
@@ -257,7 +292,9 @@ describe("AssetDetailView", () => {
     expect(screen.getByLabelText("서비스 역할 수정 값")).toHaveValue("customer-portal");
     expect(screen.getAllByText("변경됨").length).toBeGreaterThanOrEqual(4);
     expect(screen.getByText("신뢰도 87%")).toBeInTheDocument();
-    expect(screen.queryByText("Customer portal certificate protects public long-lived customer sessions.")).not.toBeInTheDocument();
+    expect(screen.getByText("AI 상세 Request / Response")).toBeInTheDocument();
+    expect(screen.getByText(/Recommend context values for customer portal certificate/)).toBeInTheDocument();
+    expect(screen.getByText(/Customer portal certificate protects public long-lived customer sessions/)).toBeInTheDocument();
     expect(screen.queryByText("codex-cli")).not.toBeInTheDocument();
     expect(patchSpy).not.toHaveBeenCalled();
   });

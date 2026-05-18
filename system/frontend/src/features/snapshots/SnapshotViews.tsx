@@ -377,6 +377,25 @@ function stringValue(value: unknown) {
   return JSON.stringify(value);
 }
 
+function formatJsonPreview(value: unknown) {
+  return JSON.stringify(value, null, 2);
+}
+
+function formatAiResponsePreview(response: Schema<"AssetContextSuggestion">["llm_trace"]["response"]) {
+  return formatJsonPreview({
+    raw: prettyJsonString(response.raw),
+    parsed: response.parsed
+  });
+}
+
+function prettyJsonString(value: string) {
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
+  }
+}
+
 function formatAssetPerfMs(value?: number) {
   return typeof value === "number" ? `${value.toFixed(1)} ms` : "-";
 }
@@ -442,6 +461,7 @@ function AssetContextForm({
           </Button>
           {suggestion ? <span className="context-form-toolbar__meta">신뢰도 {(suggestion.confidence * 100).toFixed(0)}%</span> : null}
         </div>
+        {suggestion ? <AiSuggestionTrace suggestion={suggestion} /> : null}
         <div className="form-grid">
           {(["sensitivity", "criticality"] as const).map((field) => (
             <Field key={field}>
@@ -495,6 +515,24 @@ function AssetContextForm({
         </div>
       </fieldset>
     </form>
+  );
+}
+
+function AiSuggestionTrace({ suggestion }: { suggestion: Schema<"AssetContextSuggestion"> }) {
+  return (
+    <details className="ai-trace-panel">
+      <summary>AI 상세 Request / Response</summary>
+      <div className="ai-trace-grid">
+        <div>
+          <div className="ai-trace-label">Request</div>
+          <pre>{formatJsonPreview(suggestion.llm_trace.request)}</pre>
+        </div>
+        <div>
+          <div className="ai-trace-label">Response</div>
+          <pre>{formatAiResponsePreview(suggestion.llm_trace.response)}</pre>
+        </div>
+      </div>
+    </details>
   );
 }
 

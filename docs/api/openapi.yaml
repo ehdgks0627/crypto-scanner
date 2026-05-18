@@ -2940,7 +2940,7 @@ components:
 
     AssetContextSuggestion:
       type: object
-      required: [asset_id, prompt_version, recommended_context, confidence, rationale, evidence, provider, fallback]
+      required: [asset_id, prompt_version, recommended_context, confidence, rationale, evidence, provider, fallback, llm_trace]
       properties:
         asset_id:
           type: integer
@@ -2980,6 +2980,47 @@ components:
             reason:
               type: string
               nullable: true
+        llm_trace:
+          type: object
+          required: [request, response]
+          properties:
+            request:
+              type: object
+              required: [version, system, user, payload, response_schema]
+              properties:
+                version:
+                  type: string
+                system:
+                  type: string
+                user:
+                  type: string
+                payload:
+                  type: object
+                  additionalProperties: true
+                response_schema:
+                  type: object
+                  additionalProperties: true
+            response:
+              type: object
+              required: [raw, parsed]
+              properties:
+                raw:
+                  type: string
+                parsed:
+                  type: object
+                  required: [recommended_context, confidence, rationale, evidence]
+                  properties:
+                    recommended_context:
+                      $ref: '#/components/schemas/AssetContextValues'
+                    confidence:
+                      type: number
+                      format: float
+                    rationale:
+                      type: string
+                    evidence:
+                      type: array
+                      items:
+                        type: string
 
     RiskFactors:
       type: object

@@ -314,6 +314,24 @@ def suggest_asset_context(asset_or_id):
         "evidence": parsed["evidence"],
         "provider": provider,
         "fallback": {"used": False, "reason": None},
+        "llm_trace": {
+            "request": {
+                "version": prompt["version"],
+                "system": prompt["system"],
+                "user": prompt["user"],
+                "payload": prompt["payload"],
+                "response_schema": prompt["response_schema"],
+            },
+            "response": {
+                "raw": completion.content,
+                "parsed": {
+                    "recommended_context": parsed["recommended_context"],
+                    "confidence": parsed["confidence"],
+                    "rationale": parsed["rationale"],
+                    "evidence": parsed["evidence"],
+                },
+            },
+        },
     }
 
 

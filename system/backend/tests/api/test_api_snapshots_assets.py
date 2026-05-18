@@ -392,6 +392,10 @@ def test_api_ast_003c_context_suggestion_uses_llm_provider(client, monkeypatch):
     assert body["confidence"] == 0.87
     assert body["provider"]["provider"] == "codex-cli"
     assert body["fallback"] == {"used": False, "reason": None}
+    assert body["llm_trace"]["request"]["version"] == "asset-context-suggestion-v1"
+    assert body["llm_trace"]["request"]["payload"]["asset"]["name"] == "customer portal certificate"
+    assert body["llm_trace"]["response"]["raw"] == json.dumps(provider_payload)
+    assert body["llm_trace"]["response"]["parsed"]["recommended_context"] == provider_payload["recommended_context"]
 
 
 def test_api_ast_003d_context_suggestion_fails_when_llm_provider_unavailable(client, monkeypatch):

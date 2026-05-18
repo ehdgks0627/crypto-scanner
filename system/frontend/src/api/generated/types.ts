@@ -1297,6 +1297,29 @@ export interface components {
                 used: boolean;
                 reason?: string | null;
             };
+            llm_trace: {
+                request: {
+                    version: string;
+                    system: string;
+                    user: string;
+                    payload: {
+                        [key: string]: unknown;
+                    };
+                    response_schema: {
+                        [key: string]: unknown;
+                    };
+                };
+                response: {
+                    raw: string;
+                    parsed: {
+                        recommended_context: components["schemas"]["AssetContextValues"];
+                        /** Format: float */
+                        confidence: number;
+                        rationale: string;
+                        evidence: string[];
+                    };
+                };
+            };
         };
         RiskFactors: {
             /** Format: float */
