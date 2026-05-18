@@ -48,7 +48,7 @@ describe("RiskAssessmentView", () => {
 
     expect(await screen.findByText("스냅샷 #3 위험평가")).toBeInTheDocument();
     expect(screen.getByText("위험 점수 계산식")).toBeInTheDocument();
-    expect(screen.getByText("점수 = round(100 × A^wA × D^wD × E^wE × L^wL × C^wC)")).toBeInTheDocument();
+    expect(screen.getByText("점수 = round(100 × A' × avg(D', E', L', C'))")).toBeInTheDocument();
     const weightGroup = screen.getByRole("group", { name: "위험 가중치 입력" });
     expect(weightGroup).toHaveClass("risk-weight-grid");
     expect(within(weightGroup).getAllByRole("spinbutton")).toHaveLength(5);

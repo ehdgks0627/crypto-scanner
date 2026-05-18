@@ -145,7 +145,7 @@ Risk = Algorithm × Data × Exposure × Lifespan × Criticality
 ### 6.3.1 원시 점수 (Raw Score)
 
 ```
-raw = A × D × E × L × C
+raw = A × avg(D, E, L, C)
 ```
 
 각 인자는 0~1 범위이므로 raw도 0~1.
@@ -161,13 +161,14 @@ score = round(raw × 100)
 Risk Assessment 페이지에서 사용자가 인자별 가중치를 조정 가능 (기본 모두 1.0).
 
 ```
-weighted_raw = (A^wA) × (D^wD) × (E^wE) × (L^wL) × (C^wC)
+X' = clamp(0.5 + (X - 0.5) × wX, 0, 1)
+weighted_raw = A' × avg(D', E', L', C')
 score = round(weighted_raw × 100)
 ```
 
 각 가중치 `w_*`는 0.5 ~ 2.0 범위에서 슬라이더로 조정. 기본값 1.0.
 
-> 거듭제곱 모델을 채택한 이유: 가중치 1.0이 default 동작과 동일하게 유지되며, 0.5는 영향 약화, 2.0은 강화로 직관적으로 해석 가능.
+> 0.5를 중립점으로 두는 이유: 가중치 1.0이 기본 동작과 동일하게 유지되며, 1.0 초과는 중립점에서 멀어진 신호를 강화하고 1.0 미만은 완화한다. A 계수는 PQC 적용 여부를 반영하는 gate로 사용하고, D/E/L/C는 운영 맥락을 평균해 특정 한 항목만으로 전체 점수가 과도하게 눌리지 않도록 한다.
 
 ### 6.3.4 등급 매핑 (Tier)
 

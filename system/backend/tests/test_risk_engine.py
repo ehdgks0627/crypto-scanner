@@ -61,7 +61,7 @@ def test_risk_engine_uses_heuristics_for_missing_context_and_target_ip():
     assert result.sources["e"] == "heuristic"
 
 
-def test_risk_engine_applies_exponent_weights_and_tier_boundaries():
+def test_risk_engine_applies_weights_and_tier_boundaries():
     base = compute_risk(
         algorithm="RSA-2048",
         algorithm_family="RSA",
@@ -89,7 +89,22 @@ def test_risk_engine_applies_exponent_weights_and_tier_boundaries():
         weights={**DEFAULT_WEIGHTS, "wA": 0.5},
     )
 
-    assert dampened_algorithm.weighted_raw > base.weighted_raw
+    assert dampened_algorithm.weighted_raw < base.weighted_raw
+    emphasized_context = compute_risk(
+        algorithm="RSA-2048",
+        algorithm_family="RSA",
+        asset_type="key",
+        context={
+            "sensitivity": "high",
+            "lifespan_years": 10,
+            "criticality": "high",
+            "exposure": "internal_network",
+            "service_role": "web-frontend",
+        },
+        weights={**DEFAULT_WEIGHTS, "wA": 1.5, "wD": 1.5, "wL": 1.5},
+    )
+
+    assert emphasized_context.weighted_raw > base.weighted_raw
     assert tier_for_score(80) == "CRITICAL"
     assert tier_for_score(60) == "HIGH"
     assert tier_for_score(30) == "MEDIUM"

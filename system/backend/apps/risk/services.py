@@ -217,6 +217,7 @@ def _upsert_asset_risk(asset, weights: dict[str, float]) -> RiskScore:
         **result.factors,
         "raw": result.raw,
         "weighted_raw": result.weighted_raw,
+        "weighted_factors": result.weighted_factors,
         "weights": result.weights,
         "sources": result.sources,
         "context": context,

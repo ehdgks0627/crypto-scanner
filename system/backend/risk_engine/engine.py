@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from ipaddress import ip_address
-from math import prod
 from typing import Any, Mapping
 
 
@@ -50,6 +49,7 @@ class RiskResult:
     score: int
     tier: str
     factors: dict[str, float]
+    weighted_factors: dict[str, float]
     sources: dict[str, str]
     raw: float
     weighted_raw: float
@@ -86,21 +86,21 @@ def compute_risk(
         "l": resolved_sources.get("lifespan_years", "heuristic"),
         "c": resolved_sources.get("criticality", "heuristic"),
     }
-    raw = prod(factors.values())
-    weighted_raw = prod(
-        [
-            factors["a"] ** resolved_weights["wA"],
-            factors["d"] ** resolved_weights["wD"],
-            factors["e"] ** resolved_weights["wE"],
-            factors["l"] ** resolved_weights["wL"],
-            factors["c"] ** resolved_weights["wC"],
-        ]
-    )
+    raw = factors["a"] * average_context_factor(factors)
+    weighted_factors = {
+        "a": apply_factor_weight(factors["a"], resolved_weights["wA"]),
+        "d": apply_factor_weight(factors["d"], resolved_weights["wD"]),
+        "e": apply_factor_weight(factors["e"], resolved_weights["wE"]),
+        "l": apply_factor_weight(factors["l"], resolved_weights["wL"]),
+        "c": apply_factor_weight(factors["c"], resolved_weights["wC"]),
+    }
+    weighted_raw = weighted_factors["a"] * average_context_factor(weighted_factors)
     score = max(0, min(100, round(weighted_raw * 100)))
     return RiskResult(
         score=score,
         tier=tier_for_score(score),
         factors=factors,
+        weighted_factors=weighted_factors,
         sources=sources,
         raw=raw,
         weighted_raw=weighted_raw,
@@ -128,6 +128,19 @@ def tier_for_score(score: int | float) -> str:
     if rounded >= 30:
         return "MEDIUM"
     return "LOW"
+
+
+def average_context_factor(factors: Mapping[str, float]) -> float:
+    return (factors["d"] + factors["e"] + factors["l"] + factors["c"]) / 4
+
+
+def apply_factor_weight(value: float, weight: float) -> float:
+    if value <= 0:
+        return 0.0
+    if value >= 1:
+        return 1.0
+    weighted = 0.5 + ((value - 0.5) * weight)
+    return max(0.0, min(1.0, weighted))
 
 
 def algorithm_factor(algorithm: str | None, algorithm_family: str | None, asset_type: str | None = None) -> float:

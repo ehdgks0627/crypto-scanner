@@ -15,7 +15,8 @@ export function RiskFormulaHelp() {
   return (
     <div className="callout risk-formula-help" aria-label="위험 점수 계산식">
       <strong className="risk-formula-help__title">위험 점수 계산식</strong>
-      <p className="mono risk-formula-help__formula">점수 = round(100 × A^wA × D^wD × E^wE × L^wL × C^wC)</p>
+      <p className="mono risk-formula-help__formula">점수 = round(100 × A' × avg(D', E', L', C'))</p>
+      <p className="muted risk-formula-help__note">각 계수는 0.5를 기준으로 가중치를 적용합니다. 예: A' = clamp(0.5 + (A - 0.5) × wA).</p>
       <p className="muted risk-formula-help__note">계산 결과는 0~100으로 제한하며, 등급은 치명 80 이상, 높음 60 이상, 보통 30 이상, 낮음 30 미만입니다.</p>
       <dl className="detail-list">
         <div>
