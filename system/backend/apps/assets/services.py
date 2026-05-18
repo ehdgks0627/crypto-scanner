@@ -22,7 +22,6 @@ QUALITATIVE_PROVIDER = "mock-rulebook"
 QUALITATIVE_FALLBACK_PROVIDER = "mock-rulebook-fallback"
 QUALITATIVE_PROMPT_METADATA_KEYS = {"llm_cache", "llm_fallback", "llm_provider"}
 CONTEXT_SUGGESTION_PROMPT_VERSION = "asset-context-suggestion-v1"
-CONTEXT_SUGGESTION_PROVIDER = "mock-context-recommender"
 QUANTUM_VULNERABLE_FAMILIES = {"RSA", "DSA", "ECDSA", "ECDH", "DH"}
 CONTEXT_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 EXPOSURE_LEVELS = {"air_gapped": 0, "internal_network": 1, "dmz": 2, "public_internet": 3}
@@ -31,6 +30,10 @@ CONTEXT_EXPOSURE_VALUES = {"public_internet", "dmz", "internal_network", "air_ga
 
 
 class EnqueueUnavailable(Exception):
+    pass
+
+
+class ContextSuggestionUnavailable(Exception):
     pass
 
 
@@ -299,11 +302,8 @@ def suggest_asset_context(asset_or_id):
             "model": completion.model,
             "usage": dict(completion.usage),
         }
-        fallback_metadata = {"used": False, "reason": None}
     except (TimeoutError, llm_client.LlmProviderError, llm_client.LlmProviderUnavailable) as exc:
-        parsed = fallback
-        provider = {"provider": CONTEXT_SUGGESTION_PROVIDER, "model": None, "usage": {}}
-        fallback_metadata = {"used": True, "reason": str(exc)}
+        raise ContextSuggestionUnavailable(str(exc)) from exc
 
     return {
         "asset_id": asset.id,
@@ -313,7 +313,7 @@ def suggest_asset_context(asset_or_id):
         "rationale": parsed["rationale"],
         "evidence": parsed["evidence"],
         "provider": provider,
-        "fallback": fallback_metadata,
+        "fallback": {"used": False, "reason": None},
     }
 
 

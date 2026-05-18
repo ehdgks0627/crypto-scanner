@@ -72,7 +72,15 @@ def suggest_asset_context(request, asset_id: int):
         asset = Asset.objects.select_related("target").get(id=asset_id)
     except Asset.DoesNotExist:
         return error_response("not_found", "Resource not found.", status=404)
-    return services.suggest_asset_context(asset)
+    try:
+        return services.suggest_asset_context(asset)
+    except services.ContextSuggestionUnavailable as exc:
+        return error_response(
+            "service_unavailable",
+            "AI recommendation provider is unavailable.",
+            {"reason": str(exc)},
+            status=503,
+        )
 
 
 @router.post("/assets/{asset_id}/qualitative")

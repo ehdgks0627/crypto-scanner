@@ -127,6 +127,8 @@ paths:
                 $ref: '#/components/schemas/Target'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
         default:
           $ref: '#/components/responses/Error'
     patch:
@@ -749,6 +751,8 @@ paths:
                 $ref: '#/components/schemas/AssetContextSuggestion'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
         default:
           $ref: '#/components/responses/Error'
 

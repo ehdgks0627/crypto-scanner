@@ -394,6 +394,25 @@ def test_api_ast_003c_context_suggestion_uses_llm_provider(client, monkeypatch):
     assert body["fallback"] == {"used": False, "reason": None}
 
 
+def test_api_ast_003d_context_suggestion_fails_when_llm_provider_unavailable(client, monkeypatch):
+    from apps.assets import services
+    from risk_engine.llm import LlmProviderUnavailable
+
+    asset = create_asset()
+
+    def fail_provider(_prompt):
+        raise LlmProviderUnavailable("provider disabled")
+
+    monkeypatch.setattr(services.llm_client, "call_qualitative_risk_llm", fail_provider)
+
+    response = client.post(f"/api/assets/{asset.id}/context-suggestion")
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["error"] == "service_unavailable"
+    assert "provider disabled" in body["details"]["reason"]
+
+
 def test_api_ast_003b_context_patch_rejects_invalid_context_values(client):
     asset = create_asset()
 

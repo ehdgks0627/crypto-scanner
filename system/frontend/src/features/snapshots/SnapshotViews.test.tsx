@@ -258,8 +258,9 @@ describe("AssetDetailView", () => {
     expect(screen.getByLabelText("서비스 역할 수정 값")).toHaveValue("customer-portal");
     expect(screen.getByLabelText("서비스 역할 수정 값").closest(".ui-field")).toHaveClass("is-modified");
     expect(screen.getAllByText("변경됨").length).toBeGreaterThanOrEqual(4);
-    expect(screen.getByText("신뢰도 87% · codex-cli")).toBeInTheDocument();
-    expect(screen.getByText("Customer portal certificate protects public long-lived customer sessions.")).toBeInTheDocument();
+    expect(screen.getByText("신뢰도 87%")).toBeInTheDocument();
+    expect(screen.queryByText("Customer portal certificate protects public long-lived customer sessions.")).not.toBeInTheDocument();
+    expect(screen.queryByText("codex-cli")).not.toBeInTheDocument();
     expect(patchSpy).not.toHaveBeenCalled();
   });
 

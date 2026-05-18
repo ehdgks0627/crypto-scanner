@@ -443,9 +443,8 @@ function AssetContextForm({
           <Button type="button" variant="secondary" disabled={isSuggesting} onClick={() => void applySuggestion()}>
             <Sparkles size={15} />{isSuggesting ? "추천 중" : "AI 추천"}
           </Button>
-          {suggestion ? <span className="context-form-toolbar__meta">신뢰도 {(suggestion.confidence * 100).toFixed(0)}% · {suggestion.provider.provider}</span> : null}
+          {suggestion ? <span className="context-form-toolbar__meta">신뢰도 {(suggestion.confidence * 100).toFixed(0)}%</span> : null}
         </div>
-        {suggestion ? <div className="callout">{suggestion.rationale}</div> : null}
         <div className="form-grid">
           {(["sensitivity", "criticality"] as const).map((field) => (
             <Field key={field} className={isContextFieldModified(field, initialFormValues, values) ? "is-modified" : undefined}>
