@@ -34,6 +34,7 @@ class LlmConfig:
     timeout_seconds: float
     json_mode: bool = True
     cli_command: str = "codex"
+    cli_reasoning_effort: str = ""
     cli_extra_args: tuple[str, ...] = ()
 
 
@@ -60,6 +61,11 @@ def load_llm_config(environ: Mapping[str, str] | None = None) -> LlmConfig:
     timeout_seconds = _env_float(env, "QUALITATIVE_LLM_TIMEOUT_SECONDS", "LLM_TIMEOUT_SECONDS", default=30.0)
     json_mode = _env_bool(env, "QUALITATIVE_LLM_JSON_MODE", default=True)
     cli_command = _env_first(env, "QUALITATIVE_CODEX_COMMAND", "CODEX_CLI_COMMAND", default="codex")
+    cli_reasoning_effort = _env_first(
+        env,
+        "QUALITATIVE_CODEX_REASONING_EFFORT",
+        "CODEX_REASONING_EFFORT",
+    )
     cli_extra_args = _env_args(env, "QUALITATIVE_CODEX_EXTRA_ARGS", "CODEX_CLI_EXTRA_ARGS")
     return LlmConfig(
         provider=provider,
@@ -69,6 +75,7 @@ def load_llm_config(environ: Mapping[str, str] | None = None) -> LlmConfig:
         timeout_seconds=timeout_seconds,
         json_mode=json_mode,
         cli_command=cli_command,
+        cli_reasoning_effort=cli_reasoning_effort,
         cli_extra_args=cli_extra_args,
     )
 
@@ -132,6 +139,8 @@ def _call_codex_cli(prompt: Mapping[str, Any], config: LlmConfig) -> LlmCompleti
         ]
         if config.model:
             run_command.extend(["--model", config.model])
+        if config.cli_reasoning_effort:
+            run_command.extend(["--config", f"reasoning_effort={json.dumps(config.cli_reasoning_effort)}"])
         run_command.extend(config.cli_extra_args)
         run_command.append("-")
         try:

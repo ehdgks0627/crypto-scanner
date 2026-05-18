@@ -170,6 +170,8 @@ PQC 전환 준비 시스템 - 실제 사이트 시연 TODO
         - 자산 상세 API에 `/assets/{id}/context-suggestion` 엔드포인트를 추가했다.
         - Codex CLI/OpenAI 호환 LLM provider를 호출해 민감도, 중요도, 노출 범위,
           보호 기간, 서비스 역할 추천값을 JSON으로 받는다.
+        - Codex CLI 배포 overlay는 기본 모델을 `gpt-5.3-codex-spark`, 추론 강도를
+          `low`로 지정해 AI 추천 호출 시간을 줄인다.
         - LLM provider 호출이 실패하면 mock/휴리스틱 추천으로 조용히 대체하지 않고
           실패 응답을 반환한다.
         - 프론트의 `평가 기준 컨텍스트` 수정 모드에서만 `AI 추천` 버튼을 표시하고,

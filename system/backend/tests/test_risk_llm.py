@@ -101,6 +101,7 @@ def test_llm_provider_calls_codex_cli_and_reads_last_message(monkeypatch):
             base_url="",
             timeout_seconds=11,
             cli_command="/usr/local/bin/codex",
+            cli_reasoning_effort="low",
             cli_extra_args=("--config", "reasoning_effort=\"low\""),
         ),
     )
@@ -112,6 +113,10 @@ def test_llm_provider_calls_codex_cli_and_reads_last_message(monkeypatch):
     assert "read-only" in calls["command"]
     assert calls["command"][-1] == "-"
     assert calls["command"][calls["command"].index("--model") + 1] == "gpt-test"
+    assert ["--config", "reasoning_effort=\"low\""] in [
+        calls["command"][index : index + 2]
+        for index in range(len(calls["command"]) - 1)
+    ]
     assert calls["command"][-3:-1] == ["--config", "reasoning_effort=\"low\""]
     assert "system prompt" in calls["input"]
     assert "user prompt" in calls["input"]
@@ -131,6 +136,7 @@ def test_llm_config_loads_codex_cli_options():
             "QUALITATIVE_LLM_PROVIDER": "codex-cli",
             "QUALITATIVE_LLM_MODEL": "gpt-test",
             "QUALITATIVE_CODEX_COMMAND": "/opt/bin/codex",
+            "QUALITATIVE_CODEX_REASONING_EFFORT": "low",
             "QUALITATIVE_CODEX_EXTRA_ARGS": "--profile demo --config reasoning_effort=\"low\"",
         }
     )
@@ -138,4 +144,5 @@ def test_llm_config_loads_codex_cli_options():
     assert config.provider == "codex-cli"
     assert config.model == "gpt-test"
     assert config.cli_command == "/opt/bin/codex"
+    assert config.cli_reasoning_effort == "low"
     assert config.cli_extra_args == ("--profile", "demo", "--config", "reasoning_effort=low")
