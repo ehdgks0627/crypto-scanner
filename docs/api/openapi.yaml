@@ -2808,6 +2808,7 @@ components:
         - context_sources
         - dependencies
         - history
+        - enriched_cbom_component
       properties:
         id:
           type: integer
@@ -2857,6 +2858,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AssetHistoryItem'
+        enriched_cbom_component:
+          type: object
+          additionalProperties: true
 
     AssetContextPatch:
       type: object

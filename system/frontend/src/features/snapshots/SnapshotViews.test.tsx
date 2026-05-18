@@ -137,7 +137,7 @@ describe("AssetDetailView", () => {
 
     renderWithApp(<AssetDetailView snapshotId={2} assetId={84} />);
 
-    await screen.findByText("asset detail certificate");
+    await screen.findByRole("heading", { name: "asset detail certificate", level: 1 });
     await user.click(screen.getByRole("button", { name: /컨텍스트 수정/ }));
 
     expect(screen.queryByRole("checkbox", { name: /override 사용/ })).not.toBeInTheDocument();
@@ -145,6 +145,9 @@ describe("AssetDetailView", () => {
     expect(screen.getByLabelText("민감도 재정의 값")).not.toBeDisabled();
     expect(screen.getByLabelText("보호 기간 재정의 값")).toHaveAttribute("placeholder", "선택 안됨");
     expect(screen.getByLabelText("서비스 역할 재정의 값")).toHaveAttribute("placeholder", "선택 안됨");
+    expect(screen.getByText("Enriched CBOM")).toBeInTheDocument();
+    expect(screen.getByText("context.homepage.title")).toBeInTheDocument();
+    expect(screen.getAllByText("Customer Portal Login").length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -318,6 +321,21 @@ function makeAssetDetail(overrides: Partial<Schema<"AssetDetail">> = {}) {
     qualitative: null,
     dependencies: { dependsOn: [], dependedBy: [] },
     history: [],
+    enriched_cbom_component: {
+      type: "crypto-asset",
+      "bom-ref": "tls:web:detail",
+      name: "asset detail certificate",
+      cryptoProperties: {
+        assetType: "certificate",
+        algorithm: "RSA-2048",
+        algorithmFamily: "RSA"
+      },
+      properties: [
+        { name: "context.homepage.source", value: "homepage" },
+        { name: "context.homepage.title", value: "Customer Portal Login" },
+        { name: "risk.tier", value: "HIGH" }
+      ]
+    },
     ...overrides
   } satisfies Schema<"AssetDetail">;
 }

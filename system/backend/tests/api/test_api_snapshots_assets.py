@@ -229,6 +229,15 @@ def test_api_ast_002_get_asset_detail_with_context_sources(client):
     from apps.assets.models import AssetContextOverride
 
     target = create_target(context={**TARGET_CONTEXT, "criticality": "medium"})
+    target.context["homepage_inference"] = {
+        "source": "homepage",
+        "method": "html_keyword_inference",
+        "url": "https://web.testbed.local:443/",
+        "title": "Customer Portal Login",
+        "signals": ["customer portal", "billing"],
+        "confidence": 0.84,
+    }
+    target.save(update_fields=["context"])
     old_snapshot = create_snapshot(serial_number="old-risk")
     old_asset = create_asset(snapshot=old_snapshot, target=target, bom_ref="asset:history")
     create_risk_score(old_asset, score=72.0, tier="HIGH")
@@ -254,6 +263,15 @@ def test_api_ast_002_get_asset_detail_with_context_sources(client):
     assert body["risk"]["factor_a"] == 0.9
     assert body["dependencies"] == {"dependsOn": [], "dependedBy": []}
     assert [item["snapshot_id"] for item in body["history"]] == [old_snapshot.id, asset.snapshot_id]
+    assert body["enriched_cbom_component"]["bom-ref"] == "asset:history"
+    assert body["enriched_cbom_component"]["cryptoProperties"] == {
+        "assetType": "certificate",
+        "algorithm": "RSA-2048",
+        "algorithmFamily": "RSA",
+    }
+    assert {"name": "context.homepage.title", "value": "Customer Portal Login"} in body["enriched_cbom_component"]["properties"]
+    assert {"name": "risk.tier", "value": "CRITICAL"} in body["enriched_cbom_component"]["properties"]
+    assert {"name": "migration.target_algorithm", "value": "RSA-2048 + ML-DSA-65"} in body["enriched_cbom_component"]["properties"]
 
 
 def test_api_ast_002b_asset_dependencies_are_cbom_component_edges(client):

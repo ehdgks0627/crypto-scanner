@@ -908,6 +908,8 @@ def serialize_asset_summary(asset, risk_score=None):
 
 
 def serialize_asset_detail(asset):
+    from apps.snapshots.cbom import build_enriched_asset_component
+
     override = getattr(asset, "context_override", None)
     risk_score = asset.risk_scores.order_by("-id").first()
     qualitative = getattr(asset, "qualitative_assessment", None)
@@ -929,6 +931,7 @@ def serialize_asset_detail(asset):
         "qualitative": serialize_qualitative(qualitative) if qualitative else None,
         "dependencies": serialize_dependencies(asset),
         "history": serialize_history(asset),
+        "enriched_cbom_component": build_enriched_asset_component(asset),
     }
 
 

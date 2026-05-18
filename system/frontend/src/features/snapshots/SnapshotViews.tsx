@@ -8,6 +8,7 @@ import { queryKeys } from "../../api/queryKeys";
 import { services } from "../../api/services";
 import type { Schema } from "../../api/types";
 import { DhsPriorityBadge, RiskTierBadge } from "../../components/common/Badges";
+import { JsonPreview } from "../../components/common/JsonPreview";
 import { PageHeader } from "../../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState, Section } from "../../components/common/StateViews";
 import { MetricCard } from "../../components/charts/MetricCard";
@@ -309,8 +310,69 @@ export function AssetDetailView({ snapshotId, assetId }: { snapshotId: number; a
           ) : null}
         </CardContent>
       </Card>
+      <EnrichedCbomCard component={asset.data.enriched_cbom_component} />
     </Section>
   );
+}
+
+function EnrichedCbomCard({ component }: { component: unknown }) {
+  const cbom = asRecord(component);
+  const cryptoProperties = asRecord(cbom.cryptoProperties);
+  const properties = cbomComponentProperties(cbom);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Enriched CBOM</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="content-grid">
+          <dl className="detail-list">
+            <div><dt>BOM 참조</dt><dd className="mono">{stringValue(cbom["bom-ref"])}</dd></div>
+            <div><dt>타입</dt><dd>{stringValue(cbom.type)}</dd></div>
+            <div><dt>자산명</dt><dd>{stringValue(cbom.name)}</dd></div>
+            <div><dt>알고리즘</dt><dd>{stringValue(cryptoProperties.algorithm)}</dd></div>
+            <div><dt>알고리즘 패밀리</dt><dd>{stringValue(cryptoProperties.algorithmFamily)}</dd></div>
+            <div><dt>자산 타입</dt><dd>{stringValue(cryptoProperties.assetType)}</dd></div>
+          </dl>
+          <DataTable
+            items={properties}
+            getRowKey={(item) => item.name}
+            empty={<EmptyState title="CBOM 속성이 없습니다" />}
+            columns={[
+              { key: "name", header: "속성", render: (item) => <span className="mono">{item.name}</span> },
+              { key: "value", header: "값", render: (item) => <span className="mono">{item.value}</span> }
+            ]}
+          />
+        </div>
+        <JsonPreview value={component} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function cbomComponentProperties(component: Record<string, unknown>) {
+  const properties = component.properties;
+  if (!Array.isArray(properties)) {
+    return [];
+  }
+  return properties
+    .map((item) => asRecord(item))
+    .filter((item) => typeof item.name === "string")
+    .map((item) => ({ name: String(item.name), value: stringValue(item.value) }));
+}
+
+function stringValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }
 
 function formatAssetPerfMs(value?: number) {

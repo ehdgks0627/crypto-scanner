@@ -1239,6 +1239,9 @@ export interface components {
             qualitative?: components["schemas"]["QualitativeAssessment"] | null;
             dependencies: components["schemas"]["AssetDependencies"];
             history: components["schemas"]["AssetHistoryItem"][];
+            enriched_cbom_component: {
+                [key: string]: unknown;
+            };
         };
         /** @description Omitted fields are unchanged. Explicit null clears an override and falls back to inherited target context. */
         AssetContextPatch: {

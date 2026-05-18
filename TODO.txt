@@ -140,6 +140,14 @@ PQC 전환 준비 시스템 - 실제 사이트 시연 TODO
         - CBOM export에 `context.*`, `context.homepage.*` 속성을 포함한다.
         - 시연 데이터 로드 시 대표 웹 서비스의 홈페이지 추론 결과가 함께 표시된다.
 
+[x] 1.11 자산 상세 화면에서 Enriched CBOM을 확인할 수 있어야 한다.
+        구현:
+        - 자산 상세 API에 단일 자산 기준 `enriched_cbom_component`를 추가했다.
+        - CBOM export와 같은 컴포넌트 생성 로직을 재사용해 cryptoProperties,
+          risk, migration, context, homepage inference 속성을 포함한다.
+        - `/snapshots/{snapshotId}/assets/{assetId}` 화면 최하단에 Enriched CBOM
+          요약, 속성 테이블, JSON 원문 보기를 추가했다.
+
 
 ===============================================================================
 2. 발표자료 수치와 실제 가데이터 정합성

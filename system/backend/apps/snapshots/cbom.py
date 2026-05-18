@@ -1,7 +1,7 @@
 import json
 
 from apps.jobs.services import serialize_dt
-from apps.snapshots.migration_plan import snapshot_migration_plan_items
+from apps.snapshots.migration_plan import recommend_for_risk_score, snapshot_migration_plan_items
 
 
 def build_cbom_document(snapshot):
@@ -28,7 +28,7 @@ def build_cbom_document(snapshot):
             },
             "properties": _metadata_properties(snapshot, assets, migration_plan),
         },
-        "components": [_component(asset, migration_by_asset_id.get(asset.id)) for asset in assets],
+        "components": [build_cbom_component(asset, migration_by_asset_id.get(asset.id)) for asset in assets],
         "dependencies": _dependency_rows(assets, dependencies),
     }
     annotations = _migration_plan_annotations(snapshot, assets, migration_plan)
@@ -56,7 +56,13 @@ def _metadata_properties(snapshot, assets, migration_plan):
     return properties
 
 
-def _component(asset, migration_plan_item=None):
+def build_enriched_asset_component(asset):
+    risk_score = asset.risk_scores.order_by("-id").first()
+    migration_plan_item = recommend_for_risk_score(risk_score) if risk_score else None
+    return build_cbom_component(asset, migration_plan_item)
+
+
+def build_cbom_component(asset, migration_plan_item=None):
     risk_score = asset.risk_scores.order_by("-id").first()
     properties = [
         {"name": "internal:target_id", "value": str(asset.target_id)} if asset.target_id else None,
