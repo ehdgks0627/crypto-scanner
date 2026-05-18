@@ -130,9 +130,10 @@ describe("AssetDetailView", () => {
     vi.restoreAllMocks();
   });
 
-  it("uses select empty options instead of override checkboxes in the context form", async () => {
+  it("edits context inline with current effective values prefilled", async () => {
     const user = userEvent.setup();
     vi.spyOn(services.assets, "get").mockResolvedValue(makeAssetDetail());
+    const patchSpy = vi.spyOn(services.assets, "patchContext");
     vi.spyOn(services.performance, "history").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
 
     renderWithApp(<AssetDetailView snapshotId={2} assetId={84} />);
@@ -144,16 +145,77 @@ describe("AssetDetailView", () => {
     expect(contextCard).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "컨텍스트 재정의" })).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: /override 사용/ })).not.toBeInTheDocument();
-    expect(within(contextCard).getAllByRole("option", { name: "재정의 없음" })).toHaveLength(3);
-    expect(within(contextCard).getByLabelText("민감도 재정의 값")).not.toBeDisabled();
+    expect(within(contextCard).queryByRole("option", { name: "재정의 없음" })).not.toBeInTheDocument();
+    expect(within(contextCard).getAllByRole("option", { name: "미지정" })).toHaveLength(3);
+    expect(within(contextCard).getByLabelText("민감도 수정 값")).toHaveValue("high");
+    expect(within(contextCard).getByLabelText("중요도 수정 값")).toHaveValue("high");
+    expect(within(contextCard).getByLabelText("노출 범위 수정 값")).toHaveValue("internal_network");
     expect(within(contextCard).getAllByText("현재 적용값: 높음 · 출처: 스캔 대상")).toHaveLength(2);
     expect(within(contextCard).getByText("현재 적용값: 10 · 출처: 스캔 대상")).toBeInTheDocument();
     expect(within(contextCard).getByText("현재 적용값: web · 출처: 스캔 대상")).toBeInTheDocument();
-    expect(within(contextCard).getByLabelText("보호 기간 재정의 값")).toHaveAttribute("placeholder", "재정의 없음");
-    expect(within(contextCard).getByLabelText("서비스 역할 재정의 값")).toHaveAttribute("placeholder", "재정의 없음");
+    expect(within(contextCard).getByLabelText("보호 기간 수정 값")).toHaveValue(10);
+    expect(within(contextCard).getByLabelText("보호 기간 수정 값")).toHaveAttribute("placeholder", "미지정");
+    expect(within(contextCard).getByLabelText("서비스 역할 수정 값")).toHaveValue("web");
+    expect(within(contextCard).getByLabelText("서비스 역할 수정 값")).toHaveAttribute("placeholder", "미지정");
+    await user.click(within(contextCard).getByRole("button", { name: "저장" }));
+    expect(patchSpy).not.toHaveBeenCalled();
+    expect(within(contextCard).queryByLabelText("민감도 수정 값")).not.toBeInTheDocument();
     expect(screen.getByText("Enriched CBOM")).toBeInTheDocument();
     expect(screen.getByText("context.homepage.title")).toBeInTheDocument();
     expect(screen.getAllByText("Customer Portal Login").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("sends only changed context fields from the inline form", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(services.assets, "get").mockResolvedValue(makeAssetDetail());
+    vi.spyOn(services.performance, "history").mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+    vi.spyOn(services.jobs, "get").mockResolvedValue({
+      id: 910,
+      kind: "recompute",
+      resource: { kind: "recompute", id: 910 },
+      status: "COMPLETED",
+      progress: null,
+      started_at: null,
+      cancel_requested_at: null,
+      finished_at: "2026-05-01T00:00:00Z",
+      result: { updated_scores_count: 1 },
+      error: null
+    });
+    const patchSpy = vi.spyOn(services.assets, "patchContext").mockResolvedValue({
+      asset_id: 84,
+      applied_overrides: { sensitivity: "critical" },
+      effective_context: {
+        sensitivity: "critical",
+        lifespan_years: 10,
+        criticality: "high",
+        exposure: "internal_network",
+        service_role: "web"
+      },
+      context_override: {
+        sensitivity: "critical",
+        lifespan_years: null,
+        criticality: null,
+        exposure: null,
+        service_role: null
+      },
+      context_sources: {
+        sensitivity: "asset_override",
+        lifespan_years: "target",
+        criticality: "target",
+        exposure: "target",
+        service_role: "target"
+      },
+      recompute_job_id: 910
+    });
+
+    renderWithApp(<AssetDetailView snapshotId={2} assetId={84} />);
+
+    await screen.findByRole("heading", { name: "asset detail certificate", level: 1 });
+    await user.click(screen.getByRole("button", { name: /컨텍스트 수정/ }));
+    await user.selectOptions(screen.getByLabelText("민감도 수정 값"), "critical");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() => expect(patchSpy).toHaveBeenCalledWith(84, { sensitivity: "critical" }));
   });
 });
 

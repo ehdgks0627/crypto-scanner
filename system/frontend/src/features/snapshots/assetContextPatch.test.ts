@@ -11,14 +11,28 @@ const initial = {
 } as const;
 
 describe("buildAssetContextPatch", () => {
-  it("uses blank form values as clear requests and sends changed values only", () => {
+  it("keeps inherited context values when unchanged and sends changed values only", () => {
     const values = assetContextToFormValues(initial);
-    values.sensitivity = "";
     values.criticality = "critical";
 
     expect(buildAssetContextPatch(initial, values)).toEqual({
-      sensitivity: null,
       criticality: "critical"
+    });
+  });
+
+  it("does not clear inherited context when a blank value is not an asset override", () => {
+    const values = assetContextToFormValues(initial);
+    values.sensitivity = "";
+
+    expect(buildAssetContextPatch(initial, values, { sensitivity: "target" })).toEqual({});
+  });
+
+  it("uses blank form values as clear requests for existing asset overrides", () => {
+    const values = assetContextToFormValues(initial);
+    values.sensitivity = "";
+
+    expect(buildAssetContextPatch(initial, values, { sensitivity: "asset_override" })).toEqual({
+      sensitivity: null
     });
   });
 
@@ -31,7 +45,8 @@ describe("buildAssetContextPatch", () => {
     expect(buildAssetContextPatch(initial, values)).toEqual({});
 
     values.lifespan_years = "";
-    expect(buildAssetContextPatch(initial, values)).toEqual({ lifespan_years: null });
+    expect(buildAssetContextPatch(initial, values)).toEqual({});
+    expect(buildAssetContextPatch(initial, values, { lifespan_years: "asset_override" })).toEqual({ lifespan_years: null });
   });
 
   it("rejects negative, decimal, and non-numeric lifespan values", () => {

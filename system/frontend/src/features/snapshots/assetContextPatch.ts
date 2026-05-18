@@ -12,7 +12,8 @@ const contextFields: Array<keyof Schema<"AssetContextValues">> = [
 
 export function buildAssetContextPatch(
   initialValue: Schema<"AssetContextValues">,
-  values: AssetContextFormValues
+  values: AssetContextFormValues,
+  contextSources: Partial<Schema<"AssetContextSources">> = {}
 ): Schema<"AssetContextPatch"> {
   const validationError = validateAssetContextPatchValues(values);
   if (validationError) {
@@ -24,12 +25,18 @@ export function buildAssetContextPatch(
   contextFields.forEach((field) => {
     if (field === "lifespan_years") {
       const nextValue = values[field] === "" ? null : Number(values[field]);
+      if (nextValue === null && contextSources[field] !== "asset_override") {
+        return;
+      }
       if (initialValue[field] !== nextValue) {
         payload[field] = nextValue;
       }
       return;
     }
     const nextValue = values[field] || null;
+    if (nextValue === null && contextSources[field] !== "asset_override") {
+      return;
+    }
     if (initialValue[field] !== nextValue) {
       payload[field] = nextValue as never;
     }
