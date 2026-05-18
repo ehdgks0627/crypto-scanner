@@ -1,4 +1,5 @@
 import json
+import re
 
 from apps.risk.models import RiskScore
 from migration_engine import recommend_migration
@@ -6,6 +7,10 @@ from risk_engine import llm as llm_client
 
 
 MIGRATION_SUGGESTION_PROMPT_VERSION = "migration-candidate-suggestion-v1"
+LEGACY_ALGORITHM_PATTERN = re.compile(
+    r"\b(RSA(?:-\d+)?|ECDSA(?:[ -]?P-?\d+)?|ECDH|ED25519|ED448|X25519|X448|DHE|DH|DIFFIE-HELLMAN|MODP(?:-\d+)?|GROUP\d+)\b",
+    re.IGNORECASE,
+)
 
 
 class MigrationSuggestionUnavailable(Exception):
@@ -175,9 +180,9 @@ def _enriched_cbom_payload(risk_score):
             "name": asset.name,
             "asset_class": asset.asset_class,
             "asset_type": asset.asset_type,
-            "algorithm": asset.algorithm,
-            "algorithm_family": asset.algorithm_family,
-            "metadata": asset.metadata or {},
+            "algorithm": _redact_legacy_algorithm(asset.algorithm),
+            "algorithm_family": _redact_legacy_algorithm(asset.algorithm_family),
+            "metadata": _redact_legacy_algorithms(asset.metadata or {}),
         },
         "target": None
         if not target
@@ -196,9 +201,25 @@ def _enriched_cbom_payload(risk_score):
         "risk": {
             "score": round(risk_score.score),
             "tier": risk_score.tier,
-            "factors": risk_score.factors or {},
+            "factors": _redact_legacy_algorithms(risk_score.factors or {}),
         },
     }
+
+
+def _redact_legacy_algorithms(value):
+    if isinstance(value, dict):
+        return {key: _redact_legacy_algorithms(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_legacy_algorithms(item) for item in value]
+    if isinstance(value, str):
+        return _redact_legacy_algorithm(value)
+    return value
+
+
+def _redact_legacy_algorithm(value):
+    if not isinstance(value, str):
+        return value
+    return LEGACY_ALGORITHM_PATTERN.sub("legacy-public-key", value)
 
 
 def _option_payload(option):

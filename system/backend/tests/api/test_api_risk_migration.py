@@ -483,8 +483,10 @@ def test_api_mig_006f_ai_migration_suggestion_selects_allowed_candidate(client, 
     assert body["plan_item"]["recommendation"]["target_algorithm"] == "ML-DSA-65"
     assert body["plan_item"]["recommendation"]["confidence"] == 0.88
     assert body["plan_item"]["ai_recommendation"]["selected_candidate_id"] == "policy_default"
-    assert seen_prompt["payload"]["enriched_cbom"]["asset"]["algorithm"] == "RSA-2048"
+    assert seen_prompt["payload"]["enriched_cbom"]["asset"]["algorithm"] == "legacy-public-key"
+    assert seen_prompt["payload"]["enriched_cbom"]["asset"]["algorithm_family"] == "legacy-public-key"
     assert seen_prompt["payload"]["enriched_cbom"]["effective_context"]["service_role"] == "payment"
+    assert "RSA-2048" not in json.dumps(seen_prompt["payload"])
     assert len(seen_prompt["payload"]["allowed_candidates"]) == 1
     candidate = seen_prompt["payload"]["allowed_candidates"][0]
     assert candidate["candidate_id"] == "policy_default"
