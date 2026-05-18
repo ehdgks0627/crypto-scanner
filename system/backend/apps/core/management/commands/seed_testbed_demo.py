@@ -676,20 +676,9 @@ class Command(BaseCommand):
             finished_at=created_at + timedelta(minutes=1),
             result={"endpoint_count": 0},
         )
-        discovery = Discovery.objects.create(
-            async_job=async_job,
-            cidr="172.21.0.0/24",
-            ports=[22, 443],
-            include_default_ports=False,
-            status=AsyncJob.CANCELLED,
-            started_at=async_job.started_at,
-            finished_at=async_job.finished_at,
-            error="cancel_requested",
-        )
-        async_job.resource_id = discovery.id
+        async_job.resource_id = async_job.id
         async_job.save(update_fields=["resource_id"])
         self._timestamp(async_job, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=1))
-        self._timestamp(discovery, created_at=created_at - timedelta(minutes=1), updated_at=created_at + timedelta(minutes=1))
 
     def _snapshot_summary(self, assets):
         by_tier = {}
