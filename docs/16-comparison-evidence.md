@@ -106,8 +106,8 @@
 
 | 범위 | 지원 방식 |
 | --- | --- |
-| 알고리즘 매핑 추천 | `migration_engine/mapping_rules.json`의 규칙을 통해 현재 알고리즘과 자산 용도에 맞는 PQC 후보를 산출 |
-| LLM 후보 선택 | Review Targets의 `AI 추천`은 Enriched CBOM과 허용 후보군을 LLM에 전달하고, 응답이 후보 목록 안에 있을 때만 목표 알고리즘에 적용 |
+| 알고리즘 후보 산출 | `migration_engine/mapping_rules.json`의 규칙을 통해 현재 알고리즘과 자산 용도에 맞는 PQC 후보군을 산출 |
+| LLM 목표 산출 | Review Targets의 `AI 산출`은 Enriched CBOM과 허용 후보군을 LLM에 전달하고, 응답이 후보 목록 안에 있을 때만 목표 알고리즘에 적용 |
 | 전환 후보 검토 | `GET /api/snapshots/{snapshot_id}/migration-plan`으로 자산별 권고, 단계, 근거, 차단 요인, 검증 항목을 반환 |
 | 영향도 산정 | `GET /api/snapshots/{snapshot_id}/migration-plan/impact`로 선택 자산 기준 호스트, 서비스, 예상 작업량을 계산 |
 | 보고서 생성 | 프론트엔드가 선택 자산과 영향도 데이터를 Markdown 보고서로 직렬화 |

@@ -3,12 +3,13 @@ import { formatDateTime, formatScore } from "../lib/format";
 import { agilityLevelLabel, assetTypeLabel, migrationPurposeLabel, riskTierLabel } from "./displayLabels";
 
 type MigrationPlanItem = Schema<"MigrationPlanItem">;
+type MigrationPlanItemWithAi = MigrationPlanItem & { ai_recommendation?: unknown };
 type MigrationImpact = Schema<"MigrationImpact">;
 
 export class MigrationReportBuilder {
   constructor(
     private readonly snapshotId: number,
-    private readonly items: MigrationPlanItem[],
+    private readonly items: MigrationPlanItemWithAi[],
     private readonly impact?: MigrationImpact,
     private readonly generatedAt = new Date()
   ) {}
@@ -64,29 +65,40 @@ export class MigrationReportBuilder {
       `- 용도: ${migrationPurposeLabel(item.asset_purpose)}`,
       `- 위험도: ${formatScore(item.risk_score)} (${riskTierLabel(item.tier)})`,
       `- 현재: ${this.currentAlgorithm(item)}`,
-      `- 권고: ${item.recommendation.strategy} -> ${item.recommendation.target_algorithm}`,
-      `- 단계: ${item.recommendation.phase}`,
-      `- 최종 알고리즘 세트: ${item.recommendation.final_algorithm_set.join(", ")}`,
+      `- 권고: ${this.recommendation(item)}`,
+      `- 단계: ${this.aiReady(item) ? item.recommendation.phase : "AI 산출 전"}`,
+      `- 최종 알고리즘 세트: ${this.aiReady(item) ? item.recommendation.final_algorithm_set.join(", ") : "-"}`,
       `- 민첩성: ${item.agility.score}/100 (${agilityLevelLabel(item.agility.level)})`,
       `- 차단 요인: ${item.agility.blockers.length ? item.agility.blockers.join(", ") : "-"}`,
       `- 검증: ${item.recommendation.validation.length ? item.recommendation.validation.join(", ") : "-"}`,
       `- 롤백: ${item.recommendation.rollback}`,
-      `- 근거: ${item.recommendation.rationale}`,
-      `- 신뢰도: ${Math.round(item.recommendation.confidence * 100)}%`,
+      `- 근거: ${this.aiReady(item) ? item.recommendation.rationale : "목표 알고리즘 산출 전입니다."}`,
+      `- 신뢰도: ${this.aiReady(item) ? `${Math.round(item.recommendation.confidence * 100)}%` : "-"}`,
       `- 대안: ${this.alternatives(item)}`,
       `- 플레이북: ${this.playbook(item)}`,
       ""
     ]);
   }
 
-  private currentAlgorithm(item: MigrationPlanItem): string {
+  private aiReady(item: MigrationPlanItemWithAi): boolean {
+    return Boolean(item.ai_recommendation);
+  }
+
+  private recommendation(item: MigrationPlanItemWithAi): string {
+    if (!this.aiReady(item)) {
+      return "AI 산출 전";
+    }
+    return `${item.recommendation.strategy} -> ${item.recommendation.target_algorithm}`;
+  }
+
+  private currentAlgorithm(item: MigrationPlanItemWithAi): string {
     const algorithm = item.current.algorithm ?? "알 수 없음";
     const keySize = item.current.key_size_bits ? `/${item.current.key_size_bits}bit` : "";
     const quantum = item.current.quantum_vulnerable === true ? "양자취약" : item.current.quantum_vulnerable === false ? "양자안전" : "알 수 없음";
     return `${algorithm}${keySize} (${quantum})`;
   }
 
-  private alternatives(item: MigrationPlanItem): string {
+  private alternatives(item: MigrationPlanItemWithAi): string {
     if (item.alternatives.length === 0) {
       return "-";
     }
@@ -94,7 +106,7 @@ export class MigrationReportBuilder {
     return item.alternatives.map((alternative) => `${alternative.strategy} -> ${alternative.target_algorithm} (${alternative.trade_off})`).join("; ");
   }
 
-  private playbook(item: MigrationPlanItem): string {
+  private playbook(item: MigrationPlanItemWithAi): string {
     if (item.playbook.length === 0) {
       return "-";
     }

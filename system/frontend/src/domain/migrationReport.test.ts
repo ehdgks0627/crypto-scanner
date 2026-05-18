@@ -26,6 +26,12 @@ describe("MigrationReportBuilder", () => {
             rationale: "Public TLS certificate should migrate before long-lived exposure increases.",
             confidence: 0.82
           },
+          ai_recommendation: {
+            source: "llm_guarded_allowed_candidates",
+            selected_candidate_id: "policy_default",
+            evidence: [],
+            fallback: { used: false, reason: null }
+          },
           alternatives: [{ strategy: "replace", target_algorithm: "ML-DSA-65", trade_off: "requires client compatibility review" }],
           risk_score: 91,
           tier: "CRITICAL",
@@ -98,10 +104,11 @@ describe("MigrationReportBuilder", () => {
     ).buildMarkdown();
 
     expect(report).toContain("- 현재: ML-KEM (양자안전)");
+    expect(report).toContain("- 권고: AI 산출 전");
     expect(report).toContain("- 대안: -");
   });
 });
 
-function makeMigrationItem(overrides: Schema<"MigrationPlanItem">) {
+function makeMigrationItem(overrides: Schema<"MigrationPlanItem"> & { ai_recommendation?: unknown }) {
   return overrides;
 }

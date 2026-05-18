@@ -71,9 +71,9 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
     onSuccess: (result) => {
       setAiSuggestions((current) => ({ ...current, [result.asset_id]: result }));
       setActiveSuggestionId(result.asset_id);
-      toast.success(result.fallback.used ? "AI 응답을 검증해 정책 기본값을 유지했습니다." : "AI 전환 추천을 적용했습니다.");
+      toast.success(result.fallback.used ? "AI 응답을 검증해 정책 후보를 적용했습니다." : "AI 목표 알고리즘을 산출했습니다.");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "AI 전환 추천 실패")
+    onError: (error) => toast.error(error instanceof Error ? error.message : "AI 목표 알고리즘 산출 실패")
   });
 
   const baseRows = minScoreValid ? plan.data?.items ?? [] : [];
@@ -199,23 +199,17 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                   { key: "current", header: "현재 알고리즘", render: (item) => item.current.algorithm ?? "-" },
                   { key: "strategy", header: "전략", render: (item) => item.recommendation.strategy },
                   { key: "phase", header: "단계", render: (item) => item.recommendation.phase },
-                  { key: "target", header: "목표 알고리즘", render: (item) => <MigrationTargetCell item={item} /> },
-                  { key: "agility", header: "민첩성", render: (item) => <AgilityBadge agility={item.agility} /> },
-                  { key: "score", header: "점수", render: (item) => formatScore(item.risk_score) },
-                  { key: "tier", header: "등급", render: (item) => <RiskTierBadge tier={item.tier} /> },
                   {
-                    key: "ai",
-                    header: "AI",
-                    align: "right",
+                    key: "target",
+                    header: "목표 알고리즘",
                     render: (item) => {
                       const isPending = suggestMigration.isPending && suggestMigration.variables === item.asset_id;
-                      return (
-                        <Button type="button" size="sm" variant="ghost" disabled={isPending} onClick={() => requestAiSuggestion(item)}>
-                          <Sparkles size={14} />{isPending ? "추천 중" : "AI 추천"}
-                        </Button>
-                      );
+                      return <MigrationTargetCell item={item} isPending={isPending} onSuggest={() => requestAiSuggestion(item)} />;
                     }
-                  }
+                  },
+                  { key: "agility", header: "민첩성", render: (item) => <AgilityBadge agility={item.agility} /> },
+                  { key: "score", header: "점수", render: (item) => formatScore(item.risk_score) },
+                  { key: "tier", header: "등급", render: (item) => <RiskTierBadge tier={item.tier} /> }
                 ]}
               />
             ) : null}
@@ -252,9 +246,9 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
                 { key: "asset", header: "자산", render: (item) => item.asset_name },
                 { key: "purpose", header: "용도", render: (item) => migrationPurposeLabel(item.asset_purpose) },
                 { key: "risk", header: "위험도", render: (item) => `${formatScore(item.risk_score)} / ${riskTierLabel(item.tier)}` },
-                { key: "recommendation", header: "권고", render: (item) => `${item.recommendation.strategy} → ${item.recommendation.target_algorithm}` },
+                { key: "recommendation", header: "권고", render: (item) => visibleRecommendation(item) },
                 { key: "agility", header: "민첩성", render: (item) => `${item.agility.score} / ${agilityLevelLabel(item.agility.level)}` },
-                { key: "rationale", header: "근거", render: (item) => item.recommendation.rationale },
+                { key: "rationale", header: "근거", render: (item) => (item.ai_recommendation ? item.recommendation.rationale : "AI 산출 전") },
                 {
                   key: "remove",
                   header: "",
@@ -307,20 +301,37 @@ export function MigrationPlanView({ snapshotId }: { snapshotId: number }) {
   );
 }
 
-function MigrationTargetCell({ item }: { item: MigrationRowWithAi }) {
+function MigrationTargetCell({ item, isPending, onSuggest }: { item: MigrationRowWithAi; isPending: boolean; onSuggest: () => void }) {
+  const hasAiRecommendation = Boolean(item.ai_recommendation);
   return (
     <div className="migration-ai-target">
-      <span>{item.recommendation.target_algorithm}</span>
-      {item.ai_recommendation ? <Badge tone={item.ai_recommendation.fallback.used ? "yellow" : "purple"}>AI</Badge> : null}
+      {hasAiRecommendation ? (
+        <>
+          <span>{item.recommendation.target_algorithm}</span>
+          <Badge tone={item.ai_recommendation?.fallback.used ? "yellow" : "purple"}>AI</Badge>
+        </>
+      ) : (
+        <span className="muted">-</span>
+      )}
+      <Button type="button" size="sm" variant={hasAiRecommendation ? "ghost" : "secondary"} disabled={isPending} onClick={onSuggest}>
+        <Sparkles size={14} />{isPending ? "산출 중" : hasAiRecommendation ? "다시 산출" : "AI 산출"}
+      </Button>
     </div>
   );
+}
+
+function visibleRecommendation(item: MigrationRowWithAi) {
+  if (!item.ai_recommendation) {
+    return "AI 산출 전";
+  }
+  return `${item.recommendation.strategy} → ${item.recommendation.target_algorithm}`;
 }
 
 function MigrationAiSuggestionTrace({ suggestion }: { suggestion: MigrationAiSuggestion }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI 전환 추천 상세</CardTitle>
+        <CardTitle>AI 목표 알고리즘 산출 상세</CardTitle>
       </CardHeader>
       <CardContent>
         <dl className="detail-list">

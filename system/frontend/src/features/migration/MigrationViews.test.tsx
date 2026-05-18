@@ -72,6 +72,8 @@ describe("MigrationPlanView", () => {
     expect(screen.getByText("디지털 서명")).toBeInTheDocument();
     expect(screen.getByText("hybrid_first")).toBeInTheDocument();
     expect(screen.getByText("36 · 낮음")).toBeInTheDocument();
+    expect(screen.queryByText("RSA-2048 + ML-DSA-65")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "AI 산출" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("checkbox", { name: "cert-leaf-web-rsa2048 선택" }));
 
@@ -130,11 +132,12 @@ describe("MigrationPlanView", () => {
 
     renderWithApp(<MigrationPlanView snapshotId={3} />);
 
-    await screen.findByText("RSA-2048 + ML-DSA-65");
-    await user.click(screen.getByRole("button", { name: "AI 추천" }));
+    await screen.findByRole("button", { name: "AI 산출" });
+    expect(screen.queryByText("RSA-2048 + ML-DSA-65")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "AI 산출" }));
 
     expect((await screen.findAllByText("ML-DSA-65")).length).toBeGreaterThan(0);
-    expect(screen.getByText("AI 전환 추천 상세")).toBeInTheDocument();
+    expect(screen.getByText("AI 목표 알고리즘 산출 상세")).toBeInTheDocument();
     expect(screen.getByText("AI selected the allowed direct replacement.")).toBeInTheDocument();
     expect(screen.getByText("alternative_1")).toBeInTheDocument();
   });
